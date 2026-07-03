@@ -59,6 +59,9 @@ export class Game {
   private readonly proceedButton: ProceedButton
   private readonly defeatOverlay: DefeatOverlay
   private mergeInProgress = false
+  // The intro overlay is pointer-transparent outside its button, so board/
+  // orb clicks physically arrive before the run starts — gate them here.
+  private runStarted = false
 
   constructor(root: HTMLElement) {
     const shell = document.createElement('div')
@@ -128,12 +131,14 @@ export class Game {
   /** Fired once, when the player dismisses the intro veil — nothing spawns
    * or moves before this. */
   private startRun(): void {
+    this.runStarted = true
     this.waveSystem.start(this.tickManager)
     this.abilitySystem.start(this.tickManager)
     this.tickManager.start()
   }
 
   private handleCellClick(cellIndex: number): void {
+    if (!this.runStarted) return
     const selectedCard = this.handSystem.getSelectedCard()
     if (selectedCard) {
       this.tryPlaceCard(cellIndex, selectedCard)
@@ -171,6 +176,7 @@ export class Game {
   }
 
   private castUltimate(): void {
+    if (!this.runStarted) return
     if (this.waveSystem.isPaused()) return
     if (!this.abilitySystem.tryCastUltimate()) return
     const originRect = this.board.getPlayerRect()

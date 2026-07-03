@@ -1116,22 +1116,29 @@ body {
   text-shadow: 0 0 14px rgba(150, 130, 220, 0.4);
 }
 
+/* Ringless threshold button: no border, no inset line — a soft dark pool
+   with one subtle drop shadow, the glowing type itself is the actor. Hover
+   answers by growing the type and brightening its glow instead of a ring. */
 .intro-start-button {
   padding: 26px 92px;
   border-radius: 999px;
   border: 0;
-  background: linear-gradient(160deg, rgba(80, 52, 128, 0.92), rgba(12, 8, 22, 0.97));
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(64, 42, 106, 0.62),
+    rgba(12, 8, 22, 0.55) 74%,
+    rgba(12, 8, 22, 0.28)
+  );
   color: var(--abyss-lavender-bright);
   font-size: 25px;
   letter-spacing: 0.34em;
   padding-left: calc(92px + 0.34em);
   cursor: pointer;
-  box-shadow:
-    inset 0 0 0 1px rgba(180, 220, 255, 0.32),
-    inset 0 0 34px rgba(120, 90, 200, 0.28),
-    0 22px 50px rgba(0, 0, 0, 0.6),
-    0 0 42px rgba(150, 205, 255, 0.2);
-  transition: box-shadow 0.3s ease;
+  text-shadow: 0 0 16px rgba(180, 150, 255, 0.45);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  transition:
+    font-size 0.26s ease,
+    text-shadow 0.26s ease;
 }
 
 .intro-overlay.is-button-visible .intro-start-button {
@@ -1139,30 +1146,23 @@ body {
 }
 
 .intro-start-button:hover {
-  box-shadow:
-    inset 0 0 0 1px rgba(220, 240, 255, 0.55),
-    inset 0 0 40px rgba(140, 110, 220, 0.4),
-    0 22px 50px rgba(0, 0, 0, 0.6),
-    0 0 64px rgba(170, 215, 255, 0.4);
+  font-size: 29px;
+  text-shadow:
+    0 0 20px rgba(210, 190, 255, 0.85),
+    0 0 44px rgba(150, 205, 255, 0.5);
 }
 
 /* Slower, deeper swell than the checkpoint proceed-pulse — a held breath
-   at the threshold rather than an urgent prompt. */
+   at the threshold, carried by the text glow rather than a ring. */
 @keyframes intro-breathe {
   0%,
   100% {
-    box-shadow:
-      inset 0 0 0 1px rgba(180, 220, 255, 0.32),
-      inset 0 0 34px rgba(120, 90, 200, 0.28),
-      0 22px 50px rgba(0, 0, 0, 0.6),
-      0 0 42px rgba(150, 205, 255, 0.2);
+    text-shadow: 0 0 16px rgba(180, 150, 255, 0.45);
   }
   50% {
-    box-shadow:
-      inset 0 0 0 1px rgba(210, 235, 255, 0.5),
-      inset 0 0 44px rgba(150, 115, 230, 0.4),
-      0 22px 50px rgba(0, 0, 0, 0.6),
-      0 0 72px rgba(170, 215, 255, 0.42);
+    text-shadow:
+      0 0 22px rgba(200, 175, 255, 0.75),
+      0 0 40px rgba(150, 205, 255, 0.35);
   }
 }
 
