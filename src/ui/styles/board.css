@@ -1,0 +1,45 @@
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 20%, #241a3d 0%, #0b0714 70%);
+  font-family: system-ui, sans-serif;
+  color: #e8e2f5;
+}
+
+.abyss-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.abyss-title {
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  color: #a892e8;
+  margin: 0;
+}
+
+.abyss-grid {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  background: rgba(20, 14, 36, 0.6);
+  border: 1px solid rgba(120, 200, 220, 0.25);
+  border-radius: 8px;
+}
+
+.abyss-cell {
+  width: 56px;
+  height: 56px;
+  background: rgba(80, 60, 120, 0.35);
+  border: 1px solid rgba(80, 220, 200, 0.18);
+  border-radius: 4px;
+}

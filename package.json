@@ -1,0 +1,54 @@
+{
+  "name": "abyss-necro",
+  "version": "0.1.0",
+  "description": "몽글몽글 심연 디펜스 - a top-down abyss defense prototype",
+  "private": true,
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "build:electron": "tsc -p electron/tsconfig.json",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:3000 && npm run build:electron && electron .\"",
+    "electron:build": "npm run build && npm run build:electron",
+    "dist": "npm run electron:build && electron-builder",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src electron --ext .ts",
+    "format": "prettier --write src electron",
+    "test": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "concurrently": "^8.2.2",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10",
+    "vitest": "^1.1.0",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.bell7080.abyssnecro",
+    "productName": "AbyssNecro",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "asar": true
+  }
+}
