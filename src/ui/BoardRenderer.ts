@@ -69,7 +69,8 @@ export class BoardRenderer {
     private readonly root: HTMLElement,
     private readonly waveSystem: WaveSystem,
     private readonly defenderSystem: DefenderSystem,
-    private readonly onCellClick: (cellIndex: number) => void
+    private readonly onCellClick: (cellIndex: number) => void,
+    private readonly onCellHover: (cellIndex: number | null) => void = () => {}
   ) {}
 
   render(): void {
@@ -87,6 +88,8 @@ export class BoardRenderer {
     this.playerCellEl = playerButton
     this.playerCellEl.className = 'board-player-cell'
     this.playerCellEl.addEventListener('click', () => this.onCellClick(BOSS_CELL_INDEX))
+    this.playerCellEl.addEventListener('mouseenter', () => this.onCellHover(BOSS_CELL_INDEX))
+    this.playerCellEl.addEventListener('mouseleave', () => this.onCellHover(null))
     const playerFigure = document.createElement('div')
     playerFigure.className = 'board-figure board-figure--boss-player'
     playerFigure.innerHTML = entityCardHtml({
@@ -120,6 +123,8 @@ export class BoardRenderer {
       cell.type = 'button'
       cell.className = 'board-cell'
       cell.addEventListener('click', () => this.onCellClick(i))
+      cell.addEventListener('mouseenter', () => this.onCellHover(i))
+      cell.addEventListener('mouseleave', () => this.onCellHover(null))
       this.gridEl.appendChild(cell)
       this.cellEls.push(cell)
     }

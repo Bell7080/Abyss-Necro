@@ -1,7 +1,7 @@
 import { AbyssAmbience } from '@ui/AbyssAmbience'
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
-import { CardInspector } from '@ui/CardInspector'
+import { CardInspector, type InspectorData } from '@ui/CardInspector'
 import { CoinPanel } from '@ui/CoinPanel'
 import { DefeatOverlay } from '@ui/DefeatOverlay'
 import { IntroOverlay } from '@ui/IntroOverlay'
@@ -28,6 +28,8 @@ import {
   type PlayerHitInfo,
 } from '@systems/WaveSystem'
 import { TickManager } from '@core/TickManager'
+import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
+import playerArtUrl from '@/assets/sprites/player_001.webp'
 import { getCreature } from '@data/CreatureDefinitions'
 import { getEpicCard, randomEpicCard } from '@data/EpicCardDefinitions'
 import { getItemCard, randomItemCard } from '@data/ItemCardDefinitions'
@@ -68,6 +70,7 @@ export class Game {
   private readonly shellEl: HTMLElement
   private mergeInProgress = false
   private aiming = false
+  private hoverHideTimer: number | null = null
   // The intro overlay is pointer-transparent outside its button, so board/
   // orb clicks physically arrive before the run starts — gate them here.
   private runStarted = false
@@ -102,8 +105,12 @@ export class Game {
       this.handSystem.toggleSelect(cardId)
     })
     this.mergeButton = new MergeButton(shell, () => this.performMerge())
-    this.board = new BoardRenderer(boardMount, this.waveSystem, this.defenderSystem, (cellIndex) =>
-      this.handleCellClick(cellIndex)
+    this.board = new BoardRenderer(
+      boardMount,
+      this.waveSystem,
+      this.defenderSystem,
+      (cellIndex) => this.handleCellClick(cellIndex),
+      (cellIndex) => this.handleCellHover(cellIndex)
     )
     this.skillBar = new SkillBar(shell, this.abilitySystem, {
       onUltimateClick: () => this.castUltimate(),
@@ -166,6 +173,86 @@ export class Game {
 
   boot(): void {
     this.board.render()
+  }
+
+  /** Hover-to-inspect on the board. Ignored while aiming (the selected hand
+   * card owns the inspector then). A tiny hide-debounce keeps the panel
+   * steady while the cursor slides between adjacent cells. */
+  private handleCellHover(cellIndex: number | null): void {
+    if (this.handSystem.getSelectedId()) return
+    if (this.hoverHideTimer !== null) {
+      window.clearTimeout(this.hoverHideTimer)
+      this.hoverHideTimer = null
+    }
+    if (cellIndex === null) {
+      this.hoverHideTimer = window.setTimeout(() => this.inspector.hide(), 60)
+      return
+    }
+    const data = this.buildCellInspect(cellIndex)
+    if (data) this.inspector.render(data)
+    else this.inspector.hide()
+  }
+
+  /** What to show for a hovered cell: front enemy > front ally > player
+   * (boss room) > cell buffs > nothing. Units carry their live attack/hp
+   * and signature passive; any trap-star stacks on the cell append as an
+   * active-buff line. */
+  private buildCellInspect(cellIndex: number): InspectorData | null {
+    const isBoss = cellIndex === BOSS_CELL_INDEX
+    const trapCount = isBoss ? 0 : this.waveSystem.getCellTraps()[cellIndex]
+    const buffs = trapCount > 0 ? `함정별 ×${trapCount} · 진입 시 ${trapCount} 피해` : undefined
+
+    const enemy = this.waveSystem.getFrontEnemy(cellIndex)
+    if (enemy) {
+      const creature = getCreature(enemy.creatureId)
+      return {
+        imageUrl: creature?.enemyArt,
+        title: creature?.label ?? '심연의 것',
+        tag: '적',
+        stats: [
+          { label: '공격', value: `${this.waveSystem.getEnemyAttack()}` },
+          { label: '체력', value: `${enemy.hp}/${enemy.maxHp}` },
+        ],
+        passive: creature?.passive,
+        buffs,
+      }
+    }
+
+    const ally = this.defenderSystem.getFrontAlly(cellIndex)
+    if (ally) {
+      const creature = ally.creatureId ? getCreature(ally.creatureId) : undefined
+      return {
+        imageUrl: creature?.allyArt,
+        title: ally.label,
+        tag: '아군 디펜더',
+        stats: [
+          { label: '공격', value: `${this.defenderSystem.getAttack(cellIndex) ?? 0}` },
+          { label: '체력', value: `${ally.hp}/${ally.maxHp}` },
+        ],
+        passive: creature?.passive,
+        buffs,
+      }
+    }
+
+    if (isBoss) {
+      return {
+        imageUrl: playerArtUrl,
+        title: '넥슈',
+        tag: '사령술사',
+        stats: [
+          { label: '기본', value: `${BASIC_ATTACK_DAMAGE + this.basicDamageBonus}` },
+          { label: '강화', value: `${ULTIMATE_DAMAGE + this.ultimateDamageBonus}` },
+          { label: '체력', value: `${this.playerSystem.getHp()}/${this.playerSystem.getMaxHp()}` },
+        ],
+        desc: '심연의 사령술사. 기본 공격은 단일 칸, 강화 공격은 생존한 적 전체를 저주한다.',
+      }
+    }
+
+    // Empty grid cell — only worth showing if it carries an active buff.
+    if (buffs) {
+      return { title: '심연의 자리', tag: '칸 효과', buffs }
+    }
+    return null
   }
 
   /** Fired once, when the player dismisses the intro veil — nothing spawns

@@ -37,6 +37,11 @@ export class DefenderSystem {
     return this.bossAllies
   }
 
+  /** Front defender of a cell (or the boss room), for inspection. */
+  getFrontAlly(cellIndex: number): AllyToken | null {
+    return this.listFor(cellIndex)[0] ?? null
+  }
+
   canPlace(cellIndex: number): boolean {
     return this.listFor(cellIndex).length < MAX_ALLIES_PER_CELL
   }

@@ -180,6 +180,16 @@ export class WaveSystem {
     return this.cellTraps
   }
 
+  /** Per-tick damage an enemy deals — for inspector stat display. */
+  getEnemyAttack(): number {
+    return ENEMY_ATTACK_DAMAGE
+  }
+
+  /** Front enemy of a cell (or the boss room), for inspection. */
+  getFrontEnemy(cellIndex: number): EnemyToken | null {
+    return this.listFor(cellIndex)[0] ?? null
+  }
+
   /** Epic 함정별: one more permanent trap stack on a grid cell. */
   addCellTrap(cellIndex: number): boolean {
     if (cellIndex === BOSS_CELL_INDEX) return false
