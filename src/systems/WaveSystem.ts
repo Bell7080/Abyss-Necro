@@ -6,6 +6,7 @@ import { randomCreature } from '@data/CreatureDefinitions'
 const ROWS = 3
 const COLS = 3
 const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss room
+const CENTER_ROW = 1 // enemies always enter from the middle row, then fan out
 const ENEMY_BASE_HP = 4
 const ENEMY_ATTACK_DAMAGE = 1
 // Fallback only, used if DefenderHooks isn't wired — DefenderSystem's own
@@ -514,22 +515,23 @@ export class WaveSystem {
     return 3
   }
 
-  /** The wave's enemies trickle in one by one on random rows with random
-   * gaps, instead of sliding in as a synchronized block. Pending arrivals
+  /** The wave's enemies trickle in one by one from the center-row entry
+   * cell (they fan out into other rows as they wander inward), with random
+   * gaps rather than sliding in as a synchronized block. Pending arrivals
    * are tracked so halt() can cancel them. */
   private spawnWaveStaggered(): void {
     // Previous wave's arrivals have long fired — drop the stale ids.
     this.spawnTimeoutIds = []
     const wave = this.waveNumber
-    const rows = [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, this.enemyCountForWave(wave))
+    const count = this.enemyCountForWave(wave)
     let delay = 0
 
-    rows.forEach((row, i) => {
+    for (let i = 0; i < count; i += 1) {
       const spawn = (): void => {
-        this.cells[row * COLS + ENTRY_COL].push({
-          id: `enemy-${wave}-${row}`,
+        this.cells[CENTER_ROW * COLS + ENTRY_COL].push({
+          id: `enemy-${wave}-${i}`,
           creatureId: randomCreature().id,
-          row,
+          row: CENTER_ROW,
           col: ENTRY_COL,
           hp: ENEMY_BASE_HP,
           maxHp: ENEMY_BASE_HP,
@@ -541,11 +543,11 @@ export class WaveSystem {
 
       if (i === 0) {
         spawn()
-        return
+        continue
       }
       delay += 340 + Math.random() * 520
       this.spawnTimeoutIds.push(window.setTimeout(spawn, delay))
-    })
+    }
   }
 
   private emitChange(): void {
