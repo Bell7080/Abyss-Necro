@@ -11,12 +11,14 @@ export const ULTIMATE_COST = 10
 // cast is affordable — combat resolution lives in WaveSystem.
 export class AbilitySystem {
   private cost = MAX_COST
+  private lastRegenAt = Date.now()
   private readonly listeners: Array<() => void> = []
 
   /** Registers cost regen on the shared TickManager — held off until the
    * player dismisses the intro veil, so the pool isn't quietly ticking up
    * before the run begins. */
   start(tickManager: TickManager): void {
+    this.lastRegenAt = Date.now()
     tickManager.register(() => this.regen(), REGEN_TICK_MS)
   }
 
@@ -30,6 +32,16 @@ export class AbilitySystem {
 
   getMaxCost(): number {
     return MAX_COST
+  }
+
+  /** Fractional cost including live progress toward the next regen tick —
+   * read every frame by the cost gauge so the fill visibly creeps up in
+   * real time instead of jumping once per tick. Whole-number rules (can I
+   * cast?) must keep using getCost(). */
+  getSmoothCost(): number {
+    if (this.cost >= MAX_COST) return MAX_COST
+    const t = Math.min(1, (Date.now() - this.lastRegenAt) / REGEN_TICK_MS)
+    return Math.min(MAX_COST, this.cost + t)
   }
 
   canCastBasic(): boolean {
@@ -56,6 +68,7 @@ export class AbilitySystem {
   }
 
   private regen(): void {
+    this.lastRegenAt = Date.now()
     if (this.cost >= MAX_COST) return
     this.cost = Math.min(MAX_COST, this.cost + 1)
     this.emit()

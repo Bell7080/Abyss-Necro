@@ -6,14 +6,20 @@ export interface SkillBarHandlers {
   onUltimateClick: () => void
 }
 
-// Bottom-left pair of round skill orbs. The basic orb is a cost readout
-// only — basic attack fires directly from a board cell click, never from
-// this button. Only the ultimate orb is clickable, since summoning has no
-// board cell to aim at — it always appears beside the boss room.
+// Bottom-left cluster: a vertical cost gauge flanked by the two skill orbs.
+// The basic orb is a cost readout only — basic attack fires directly from a
+// board cell click, never from this button. Only the ultimate orb is
+// clickable, hitting every living enemy at once.
+//
+// The gauge fill reads AbilitySystem.getSmoothCost() every frame (rAF,
+// display only) so it visibly creeps up between regen ticks and drops the
+// instant a cast spends cost; the big number below shows the whole-number
+// cost that actually gates casting.
 export class SkillBar {
   private readonly basicBtn: HTMLButtonElement
   private readonly ultimateBtn: HTMLButtonElement
-  private readonly readout: HTMLElement
+  private readonly gaugeFill: HTMLElement
+  private readonly gaugeValue: HTMLElement
 
   constructor(
     root: HTMLElement,
@@ -22,6 +28,17 @@ export class SkillBar {
   ) {
     const bar = document.createElement('div')
     bar.className = 'skill-bar'
+
+    const gauge = document.createElement('div')
+    gauge.className = 'cost-gauge'
+    gauge.innerHTML = `
+      <div class="cost-gauge-track">
+        <div class="cost-gauge-fill"></div>
+        <div class="cost-gauge-ticks"></div>
+      </div>
+      <div class="cost-gauge-value">0</div>`
+    this.gaugeFill = gauge.querySelector('.cost-gauge-fill') as HTMLElement
+    this.gaugeValue = gauge.querySelector('.cost-gauge-value') as HTMLElement
 
     this.basicBtn = document.createElement('button')
     this.basicBtn.type = 'button'
@@ -34,20 +51,22 @@ export class SkillBar {
     this.ultimateBtn.innerHTML = `${Icons.curseBurst()}<span class="skill-orb-cost">${ULTIMATE_COST}</span>`
     this.ultimateBtn.addEventListener('click', handlers.onUltimateClick)
 
-    this.readout = document.createElement('div')
-    this.readout.className = 'skill-bar-readout'
-
+    bar.appendChild(gauge)
     bar.appendChild(this.basicBtn)
     bar.appendChild(this.ultimateBtn)
-    bar.appendChild(this.readout)
     root.appendChild(bar)
+
+    const tick = (): void => {
+      const smooth = this.ability.getSmoothCost() / this.ability.getMaxCost()
+      this.gaugeFill.style.height = `${smooth * 100}%`
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
   }
 
   render(): void {
-    const cost = this.ability.getCost()
-    const max = this.ability.getMaxCost()
     this.basicBtn.classList.toggle('is-disabled', !this.ability.canCastBasic())
     this.ultimateBtn.classList.toggle('is-disabled', !this.ability.canCastUltimate())
-    this.readout.textContent = `코스트 ${cost}/${max}`
+    this.gaugeValue.textContent = `${this.ability.getCost()}`
   }
 }

@@ -2,6 +2,7 @@ import { AbyssAmbience } from '@ui/AbyssAmbience'
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
 import { CoinPanel } from '@ui/CoinPanel'
+import { DefeatOverlay } from '@ui/DefeatOverlay'
 import { IntroOverlay } from '@ui/IntroOverlay'
 import { ItemInventory } from '@ui/ItemInventory'
 import { ProceedButton } from '@ui/ProceedButton'
@@ -17,8 +18,15 @@ import { CoinSystem } from '@systems/CoinSystem'
 import { DefenderSystem } from '@systems/DefenderSystem'
 import { HandSystem } from '@systems/HandSystem'
 import { ItemSystem } from '@systems/ItemSystem'
+import { PlayerSystem } from '@systems/PlayerSystem'
 import { RelicSystem } from '@systems/RelicSystem'
-import { WaveSystem, type CheckpointInfo, type ClashInfo, type EncounterResult } from '@systems/WaveSystem'
+import {
+  WaveSystem,
+  type CheckpointInfo,
+  type ClashInfo,
+  type EncounterResult,
+  type PlayerHitInfo,
+} from '@systems/WaveSystem'
 import { TickManager } from '@core/TickManager'
 import { drawRandomConsumable } from '@data/ConsumablePool'
 import { getCreature } from '@data/CreatureDefinitions'
@@ -35,6 +43,7 @@ export class Game {
   private readonly relicSystem = new RelicSystem()
   private readonly itemSystem = new ItemSystem()
   private readonly coinSystem = new CoinSystem()
+  private readonly playerSystem = new PlayerSystem()
   private readonly defenderSystem = new DefenderSystem()
   private readonly waveSystem = new WaveSystem(this.defenderSystem)
   private readonly abilitySystem = new AbilitySystem()
@@ -48,6 +57,7 @@ export class Game {
   private readonly skillBar: SkillBar
   private readonly rewardOverlay: RewardOverlay
   private readonly proceedButton: ProceedButton
+  private readonly defeatOverlay: DefeatOverlay
 
   constructor(root: HTMLElement) {
     const shell = document.createElement('div')
@@ -81,12 +91,18 @@ export class Game {
     })
     this.proceedButton = new ProceedButton(shell, () => this.waveSystem.resumeFromCheckpoint())
     new AbyssAmbience(shell)
+    this.defeatOverlay = new DefeatOverlay(shell)
     new IntroOverlay(shell, () => this.startRun())
 
     this.waveSystem.onChange(() => this.board.syncCells())
     this.waveSystem.onEncounter((result) => this.handleEncounter(result))
     this.waveSystem.onCheckpoint((info) => this.handleCheckpoint(info))
     this.waveSystem.onClash((info) => this.handleClash(info))
+    this.waveSystem.onPlayerHit((info) => this.handlePlayerHit(info))
+    this.playerSystem.onChange(() =>
+      this.board.setPlayerHp(this.playerSystem.getHp(), this.playerSystem.getMaxHp())
+    )
+    this.playerSystem.onDefeat(() => this.handleDefeat())
     this.defenderSystem.onChange(() => this.board.syncCells())
     this.handSystem.onChange(() => {
       this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
@@ -219,6 +235,27 @@ export class Game {
 
     this.board.playClashFx(info.cellIndex)
     this.blast.clashBurst(rect)
+  }
+
+  /** An enemy in the player room found no defender and struck the
+   * necromancer directly — engage pulse + damage number on the player card,
+   * actual HP loss in PlayerSystem (which raises onDefeat at zero). */
+  private handlePlayerHit(info: PlayerHitInfo): void {
+    this.playerSystem.damage(info.damage)
+    this.board.pulseBossRoom()
+    const rect = this.board.getPlayerRect()
+    if (rect) {
+      const center = centerOf(rect)
+      showDamageNumber(center.x, center.y, info.damage)
+    }
+  }
+
+  /** The necromancer fell: freeze the whole world clock and the pending
+   * wave push, then close the abyss over the board. Retry = page reload. */
+  private handleDefeat(): void {
+    this.tickManager.stop()
+    this.waveSystem.halt()
+    this.defeatOverlay.show(this.waveSystem.getWaveNumber())
   }
 
   /** Every 5 forced waves the game pauses for a lull; every 3rd such

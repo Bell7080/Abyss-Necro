@@ -49,6 +49,10 @@ export interface ClashInfo {
   cellIndex: number
 }
 
+export interface PlayerHitInfo {
+  damage: number
+}
+
 // Lets WaveSystem clash with placed defenders (and move ability-summoned
 // minions) without holding a reference to DefenderSystem itself — Game.ts
 // wires the two together. cellIndex may be BOSS_CELL_INDEX.
@@ -87,6 +91,7 @@ export class WaveSystem {
   private readonly encounterListeners: Array<(result: EncounterResult) => void> = []
   private readonly checkpointListeners: Array<(info: CheckpointInfo) => void> = []
   private readonly clashListeners: Array<(info: ClashInfo) => void> = []
+  private readonly playerHitListeners: Array<(info: PlayerHitInfo) => void> = []
 
   constructor(private readonly defenders?: DefenderHooks) {}
 
@@ -118,6 +123,10 @@ export class WaveSystem {
 
   onClash(fn: (info: ClashInfo) => void): void {
     this.clashListeners.push(fn)
+  }
+
+  onPlayerHit(fn: (info: PlayerHitInfo) => void): void {
+    this.playerHitListeners.push(fn)
   }
 
   getCells(): readonly EnemyToken[][] {
@@ -158,6 +167,17 @@ export class WaveSystem {
     this.paused = false
     this.waveStartedAt = Date.now()
     this.schedulePush()
+  }
+
+  /** Defeat: freeze movement/clashes and kill the pending push so nothing
+   * stirs behind the defeat screen. Unlike a checkpoint lull there is no
+   * resume — a new run starts from a page reload. */
+  halt(): void {
+    this.paused = true
+    if (this.pushTimeoutId !== null) {
+      window.clearTimeout(this.pushTimeoutId)
+      this.pushTimeoutId = null
+    }
   }
 
   /** Direct single-target/burst damage formula — not currently wired to any
@@ -311,7 +331,17 @@ export class WaveSystem {
     const enemy = enemyList[0]
     if (!enemy) return
     const defenderHp = this.defenders?.getHp(cellIndex)
-    if (defenderHp === null || defenderHp === undefined) return
+
+    if (defenderHp === null || defenderHp === undefined) {
+      // No defender in the player room — the front enemy strikes the
+      // necromancer directly. Game routes this into PlayerSystem; defeat
+      // handling lives there. Grid cells without defenders stay peaceful.
+      if (cellIndex === BOSS_CELL_INDEX) {
+        this.emitPlayerHit({ damage: ENEMY_ATTACK_DAMAGE })
+        this.emitClash({ cellIndex })
+      }
+      return
+    }
 
     // Placed defenders and summons alike report their own attack — a weak
     // summon should hit lighter than a placed card, a strong one harder.
@@ -368,5 +398,9 @@ export class WaveSystem {
 
   private emitClash(info: ClashInfo): void {
     for (const fn of this.clashListeners) fn(info)
+  }
+
+  private emitPlayerHit(info: PlayerHitInfo): void {
+    for (const fn of this.playerHitListeners) fn(info)
   }
 }

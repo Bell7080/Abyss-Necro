@@ -19,15 +19,23 @@ export const Icons = {
       <path d="M4 9h16M8.5 9 12 2l3.5 7M9 9l3 12 3-12" stroke="#0a0716" stroke-width="0.8" stroke-linejoin="round" fill="none"/>
     </svg>`
   },
+  /** Basic attack: a curse shot arcing away with trailing streaks — same
+   * lobbed-projectile silhouette as the CurseMortar it fires. */
   curseBolt(): string {
-    return `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2 9 11h3l-2 11 8-13h-4l3-9-5 2Z" fill="currentColor"/>
+    return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="15.8" cy="8.2" r="4.4" fill="currentColor"/>
+      <path d="M3.4 20.6c3.4-1.2 6.8-3.8 9-6.8M2.6 15.2c2.3-.6 4.5-1.9 6.2-3.5M8.6 22c2.8-1.3 5.6-3.6 7.6-6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      <circle cx="6.9" cy="9.3" r="1.1" fill="currentColor"/>
     </svg>`
   },
+  /** Ultimate: an all-directions rupture — long cardinal rays, short
+   * diagonals, and a dashed orbit ring for the mystic read. */
   curseBurst(): string {
-    return `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 1v6M12 17v6M1 12h6M17 12h6M4.2 4.2l4.2 4.2M15.6 15.6l4.2 4.2M19.8 4.2l-4.2 4.2M8.4 15.6l-4.2 4.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-      <circle cx="12" cy="12" r="4.4" fill="currentColor"/>
+    return `<svg viewBox="0 0 24 24" width="32" height="32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="3.4" fill="currentColor"/>
+      <path d="M12 1.6v4M12 18.4v4M1.6 12h4M18.4 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M5.3 5.3l1.9 1.9M16.8 16.8l1.9 1.9M18.7 5.3l-1.9 1.9M7.2 16.8l-1.9 1.9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="12" cy="12" r="7.6" stroke="currentColor" stroke-width="1" stroke-dasharray="1.8 3.6" stroke-linecap="round"/>
     </svg>`
   },
   /** Four-point sparkle diamond — Unmelting's shared 불빛/화폐 glyph shape,

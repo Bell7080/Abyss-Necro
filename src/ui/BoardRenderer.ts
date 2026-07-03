@@ -54,6 +54,7 @@ interface Occupant {
 export class BoardRenderer {
   private cellEls: HTMLElement[] = []
   private playerCellEl!: HTMLElement
+  private playerHpFill: HTMLElement | null = null
   private gridEl!: HTMLElement
   private readonly enemyTokens = new Map<string, HTMLElement>()
   private readonly allyTokens = new Map<string, HTMLElement>()
@@ -89,6 +90,7 @@ export class BoardRenderer {
       imageUrl: playerArt,
       name: '넥슈',
     })
+    this.playerHpFill = playerFigure.querySelector('.entity-card-hp-fill')
     this.playerCellEl.appendChild(playerFigure)
     layout.appendChild(this.playerCellEl)
 
@@ -253,6 +255,11 @@ export class BoardRenderer {
   pulseBossRoom(): void {
     this.playerCellEl.classList.add('is-engaged')
     window.setTimeout(() => this.playerCellEl.classList.remove('is-engaged'), ENGAGE_FX_MS)
+  }
+
+  /** Live player HP on the necromancer card's bottom bar. */
+  setPlayerHp(hp: number, maxHp: number): void {
+    if (this.playerHpFill) this.playerHpFill.style.width = `${Math.round((hp / maxHp) * 100)}%`
   }
 
   /** Front-of-queue enemy/ally briefly lunge at each other for a clash tick.

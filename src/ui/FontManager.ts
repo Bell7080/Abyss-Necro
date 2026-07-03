@@ -45,6 +45,13 @@ export class FontManager {
     document.body.style.fontFamily = family
   }
 
+  /** Sets the application-wide base font weight on <body> — elements with
+   * their own font-weight (counters at 900 etc.) still win. The loaded face
+   * may be single-weight; the browser synthesizes bold from it. */
+  static setPrimaryWeight(weight: number): void {
+    document.body.style.fontWeight = `${weight}`
+  }
+
   static getPrimaryFamily(): string {
     return this.primaryFamily
   }
