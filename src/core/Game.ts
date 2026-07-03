@@ -1,6 +1,7 @@
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
 import { RelicInventory } from '@ui/RelicInventory'
+import { RewardOverlay } from '@ui/RewardOverlay'
 import { SkillBar } from '@ui/SkillBar'
 import { BubbleBurst } from '@ui/effects/BubbleBurst'
 import { CurseMortar } from '@ui/effects/CurseMortar'
@@ -10,10 +11,13 @@ import { DefenderSystem } from '@systems/DefenderSystem'
 import { HandSystem } from '@systems/HandSystem'
 import { RelicSystem } from '@systems/RelicSystem'
 import { WaveSystem, type EncounterResult } from '@systems/WaveSystem'
+import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
+import type { Relic } from '@entities/Relic'
 
 const BASIC_ATTACK_DAMAGE = 2
 const ULTIMATE_DAMAGE = 4
+const RELIC_CHOICE_COUNT = 3
 
 export class Game {
   private readonly handSystem = new HandSystem()
@@ -25,6 +29,7 @@ export class Game {
   private readonly hand: CardHand
   private readonly relics: RelicInventory
   private readonly skillBar: SkillBar
+  private readonly rewardOverlay: RewardOverlay
 
   constructor(root: HTMLElement) {
     const shell = document.createElement('div')
@@ -51,6 +56,9 @@ export class Game {
         this.abilitySystem.toggleArmBasic()
       },
       onUltimateClick: () => this.castUltimate(),
+    })
+    this.rewardOverlay = new RewardOverlay({
+      onChoose: (relic, cardEl) => this.resolveRelicChoice(relic, cardEl),
     })
 
     this.waveSystem.onChange(() => this.board.syncCells())
@@ -150,11 +158,25 @@ export class Game {
     }
 
     if (result.relicAwarded) {
-      this.relicSystem.addRelic({
-        id: `relic-${Date.now()}`,
-        label: '이름 없는 유물',
-      })
+      this.startRelicReward()
     }
+  }
+
+  private startRelicReward(): void {
+    this.waveSystem.pause()
+    this.rewardOverlay.show(drawRelicOptions(RELIC_CHOICE_COUNT))
+  }
+
+  private resolveRelicChoice(relic: Relic, cardEl: HTMLElement): void {
+    const origin = centerOf(cardEl.getBoundingClientRect())
+    const target = this.relics.getDropPoint()
+
+    this.rewardOverlay.hide()
+    this.waveSystem.resume()
+
+    BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
+      onArrive: () => this.relicSystem.addRelic(relic),
+    })
   }
 }
 

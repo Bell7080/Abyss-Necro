@@ -604,3 +604,102 @@ body {
     background-position: -220% 0%;
   }
 }
+
+/* ---------- Relic reward overlay (every 3 waves cleared) ---------- */
+
+.reward-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  background: rgba(4, 3, 10, 0);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    background 0.4s ease,
+    opacity 0.4s ease;
+}
+
+.reward-overlay.is-visible {
+  background: rgba(4, 3, 10, 0.82);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.reward-title {
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--abyss-lavender-bright);
+  text-shadow: 0 0 18px rgba(180, 140, 255, 0.55);
+}
+
+.reward-cards {
+  display: flex;
+  gap: 26px;
+}
+
+.reward-card {
+  width: 130px;
+  aspect-ratio: 3 / 4;
+  padding: 0;
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(70, 46, 112, 0.6), rgba(14, 10, 24, 0.94));
+  border: 1px solid var(--abyss-border-strong);
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, 0.6),
+    0 0 22px rgba(150, 205, 255, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--abyss-lavender-bright);
+  cursor: pointer;
+  transform: translateY(24px) scale(0.9);
+  opacity: 0;
+  transition:
+    transform 0.32s ease,
+    opacity 0.32s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.reward-overlay.is-visible .reward-card {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.reward-overlay.is-visible .reward-card:nth-child(2) {
+  transition-delay: 0.07s;
+}
+
+.reward-overlay.is-visible .reward-card:nth-child(3) {
+  transition-delay: 0.14s;
+}
+
+.reward-card:hover {
+  transform: translateY(-6px) scale(1.04);
+  box-shadow:
+    0 22px 40px rgba(0, 0, 0, 0.65),
+    0 0 30px rgba(190, 150, 255, 0.4);
+  border-color: rgba(210, 180, 255, 0.7);
+}
+
+.reward-card-art {
+  color: rgba(220, 205, 255, 0.75);
+}
+
+.reward-card-art svg {
+  width: 44px;
+  height: 44px;
+}
+
+.reward-card-name {
+  font-size: 13px;
+  letter-spacing: 0.03em;
+}

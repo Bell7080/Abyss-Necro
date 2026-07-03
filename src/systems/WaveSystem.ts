@@ -45,12 +45,27 @@ export class WaveSystem {
   private waveNumber = 1
   private wavesSinceRelic = 0
   private aliveInWave = 0
+  private paused = false
+  private pendingSpawnWave = false
   private readonly changeListeners: Array<() => void> = []
   private readonly encounterListeners: Array<(result: EncounterResult) => void> = []
 
   constructor(private readonly defenders?: DefenderHooks) {
     this.spawnWave()
     window.setInterval(() => this.tick(), MOVE_TICK_MS)
+  }
+
+  /** Freezes enemy movement/spawns — used while the relic reward screen is up. */
+  pause(): void {
+    this.paused = true
+  }
+
+  resume(): void {
+    this.paused = false
+    if (this.pendingSpawnWave) {
+      this.pendingSpawnWave = false
+      this.spawnWave()
+    }
   }
 
   onChange(fn: () => void): void {
@@ -91,6 +106,7 @@ export class WaveSystem {
   }
 
   private tick(): void {
+    if (this.paused) return
     // Snapshot occupied indices first so an enemy that moves this tick isn't
     // immediately moved again while iterating.
     const occupied = this.cells
@@ -153,7 +169,13 @@ export class WaveSystem {
         this.wavesSinceRelic = 0
         relicAwarded = true
       }
-      window.setTimeout(() => this.spawnWave(), NEXT_WAVE_DELAY_MS)
+      window.setTimeout(() => {
+        if (this.paused) {
+          this.pendingSpawnWave = true
+        } else {
+          this.spawnWave()
+        }
+      }, NEXT_WAVE_DELAY_MS)
     }
 
     this.emitChange()
