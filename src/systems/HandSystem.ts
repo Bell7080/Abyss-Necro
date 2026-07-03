@@ -40,6 +40,31 @@ export class HandSystem {
     this.emit()
   }
 
+  /** First trio of identical base (tier-1) cards, if any — merge fodder. */
+  findTriple(): HandCard[] | null {
+    const byCreature = new Map<string, HandCard[]>()
+    for (const card of this.cards) {
+      if (card.tier !== undefined) continue
+      const group = byCreature.get(card.creatureId) ?? []
+      group.push(card)
+      if (group.length === 3) return group
+      byCreature.set(card.creatureId, group)
+    }
+    return null
+  }
+
+  /** Swaps three cards for their merged result, in one change event. Bails
+   * if any of the three left the hand mid-animation (e.g. was placed). */
+  mergeTriple(cardIds: string[], merged: HandCard): boolean {
+    const present = cardIds.every((id) => this.cards.some((card) => card.id === id))
+    if (!present) return false
+    this.cards = this.cards.filter((card) => !cardIds.includes(card.id))
+    if (this.selectedId && cardIds.includes(this.selectedId)) this.selectedId = null
+    this.cards.push(merged)
+    this.emit()
+    return true
+  }
+
   private emit(): void {
     for (const fn of this.listeners) fn()
   }

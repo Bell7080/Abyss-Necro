@@ -87,6 +87,8 @@ export class WaveSystem {
   private started = false
   private paused = false
   private pushTimeoutId: number | null = null
+  private clashTimeoutId: number | null = null
+  private spawnTimeoutIds: number[] = []
   private readonly changeListeners: Array<() => void> = []
   private readonly encounterListeners: Array<(result: EncounterResult) => void> = []
   private readonly checkpointListeners: Array<(info: CheckpointInfo) => void> = []
@@ -162,22 +164,27 @@ export class WaveSystem {
   }
 
   /** Called once the player acknowledges a checkpoint (proceed button, or
-   * after picking a relic) — restarts the push timer. */
+   * after picking a relic) — the wave that was held back during the lull
+   * arrives now, and the push timer restarts. */
   resumeFromCheckpoint(): void {
     this.paused = false
+    this.pushReinforcements()
     this.waveStartedAt = Date.now()
     this.schedulePush()
   }
 
-  /** Defeat: freeze movement/clashes and kill the pending push so nothing
-   * stirs behind the defeat screen. Unlike a checkpoint lull there is no
-   * resume — a new run starts from a page reload. */
+  /** Defeat: freeze movement/clashes and kill the pending push and any
+   * still-staggering spawns so nothing stirs behind the defeat screen.
+   * Unlike a checkpoint lull there is no resume — a new run starts from a
+   * page reload. */
   halt(): void {
     this.paused = true
     if (this.pushTimeoutId !== null) {
       window.clearTimeout(this.pushTimeoutId)
       this.pushTimeoutId = null
     }
+    for (const id of this.spawnTimeoutIds) window.clearTimeout(id)
+    this.spawnTimeoutIds = []
   }
 
   /** Direct single-target/burst damage formula — not currently wired to any
@@ -242,9 +249,12 @@ export class WaveSystem {
   }
 
   private handlePushTimeout(): void {
-    this.pushReinforcements()
     this.wavesSinceCheckpoint += 1
 
+    // Checkpoint first, wave later: the lull begins with the board as-is,
+    // and the wave that would have pushed here arrives only when the player
+    // proceeds (resumeFromCheckpoint) — no enemies pre-spawning into the
+    // rest stop.
     if (this.wavesSinceCheckpoint >= WAVES_PER_CHECKPOINT) {
       this.wavesSinceCheckpoint = 0
       this.checkpointCount += 1
@@ -256,9 +266,18 @@ export class WaveSystem {
       return
     }
 
+    this.pushReinforcements()
     this.waveStartedAt = Date.now()
     this.schedulePush()
   }
+
+  // Board tokens slide to their new cell over 0.85s (see .board-token's
+  // transform transition) — resolving clashes immediately would layer the
+  // lunge keyframe over an in-flight slide, which reads as the enemy
+  // snapping forward then "retreating" when the keyframe releases. Waiting
+  // out the slide keeps the two animations sequential; 0.9s still lands
+  // safely inside the 1.3s tick.
+  private static readonly CLASH_SETTLE_MS = 900
 
   private tick(): void {
     if (this.paused) return
@@ -272,15 +291,15 @@ export class WaveSystem {
     for (const [index, enemy] of toStep) this.stepEnemy(index, enemy)
     // Roaming summons move in lockstep with enemies so a summon walking
     // into an enemy's cell this tick is resolved by this same tick's
-    // clash check below, not a tick late.
+    // clash check, not a tick late.
     this.defenders?.stepSummons()
-    // Sync this tick's movement to the board before resolving clashes — a
-    // clash's onClash listener reads token positions, and an enemy (or
-    // summon) that just walked into a shared cell needs its new position
-    // on screen first or the lunge animation plays from its stale,
-    // pre-move spot.
     this.emitChange()
-    this.resolveClashes()
+
+    if (this.clashTimeoutId !== null) window.clearTimeout(this.clashTimeoutId)
+    this.clashTimeoutId = window.setTimeout(() => {
+      this.clashTimeoutId = null
+      if (!this.paused) this.resolveClashes()
+    }, WaveSystem.CLASH_SETTLE_MS)
   }
 
   private stepEnemy(index: number, enemy: EnemyToken): void {
@@ -357,34 +376,46 @@ export class WaveSystem {
   /** Initial board fill only — later waves arrive via pushReinforcements(). */
   private spawnWave(): void {
     this.cells = Array.from({ length: ROWS * COLS }, () => [])
-    for (let row = 0; row < ROWS; row += 1) {
-      this.cells[row * COLS + ENTRY_COL].push({
-        id: `enemy-${this.waveNumber}-${row}`,
-        creatureId: randomCreature().id,
-        row,
-        col: ENTRY_COL,
-        hp: ENEMY_BASE_HP,
-        maxHp: ENEMY_BASE_HP,
-      })
-    }
-    this.emitChange()
+    this.spawnWaveStaggered()
   }
 
   /** A forced wave push — always adds 3 fresh enemies to the entry column,
    * stacking on top of any stragglers already there. */
   private pushReinforcements(): void {
     this.waveNumber += 1
-    for (let row = 0; row < ROWS; row += 1) {
-      this.cells[row * COLS + ENTRY_COL].push({
-        id: `enemy-${this.waveNumber}-${row}`,
-        creatureId: randomCreature().id,
-        row,
-        col: ENTRY_COL,
-        hp: ENEMY_BASE_HP,
-        maxHp: ENEMY_BASE_HP,
-      })
-    }
-    this.emitChange()
+    this.spawnWaveStaggered()
+  }
+
+  /** The wave's 3 enemies trickle in one by one in a random row order with
+   * random gaps, instead of all three sliding in as a synchronized block.
+   * Pending arrivals are tracked so halt() can cancel them. */
+  private spawnWaveStaggered(): void {
+    // Previous wave's arrivals have long fired — drop the stale ids.
+    this.spawnTimeoutIds = []
+    const wave = this.waveNumber
+    const rows = [0, 1, 2].sort(() => Math.random() - 0.5)
+    let delay = 0
+
+    rows.forEach((row, i) => {
+      const spawn = (): void => {
+        this.cells[row * COLS + ENTRY_COL].push({
+          id: `enemy-${wave}-${row}`,
+          creatureId: randomCreature().id,
+          row,
+          col: ENTRY_COL,
+          hp: ENEMY_BASE_HP,
+          maxHp: ENEMY_BASE_HP,
+        })
+        this.emitChange()
+      }
+
+      if (i === 0) {
+        spawn()
+        return
+      }
+      delay += 340 + Math.random() * 520
+      this.spawnTimeoutIds.push(window.setTimeout(spawn, delay))
+    })
   }
 
   private emitChange(): void {

@@ -29,6 +29,9 @@ const ARRIVE_FX_MS = 340
 const LUNGE_FX_MS = 280
 // How far a token lunges toward its opponent on a clash, in px.
 const LUNGE_DISTANCE = 44
+// Must cover .board-token's 0.85s slide transition — a lunge starting
+// inside that window would fight the in-flight transform.
+const SLIDE_SETTLE_MS = 880
 
 interface Occupant {
   id: string
@@ -184,6 +187,13 @@ export class BoardRenderer {
   ): void {
     const existing = tokens.get(occupant.id)
     if (existing) {
+      // Stamp actual position changes so lunge fx can skip tokens whose
+      // slide transition is still in flight (see playClashFx).
+      const prevX = existing.style.getPropertyValue('--token-x')
+      const prevY = existing.style.getPropertyValue('--token-y')
+      if (prevX !== `${x}px` || prevY !== `${y}px`) {
+        existing.dataset.movedAt = `${Date.now()}`
+      }
       existing.style.setProperty('--token-x', `${x}px`)
       existing.style.setProperty('--token-y', `${y}px`)
       const fill = existing.querySelector<HTMLElement>('.entity-card-hp-fill')
@@ -215,6 +225,7 @@ export class BoardRenderer {
     if (spawnFromX !== undefined) {
       // Land on the phantom column first, then let the transition slide it
       // in to its real cell position on the next frame.
+      el.dataset.movedAt = `${Date.now()}`
       requestAnimationFrame(() => {
         el.style.setProperty('--token-x', `${x}px`)
       })
@@ -281,6 +292,12 @@ export class BoardRenderer {
 
   private lungeToken(el: HTMLElement | undefined, distance: number): void {
     if (!el) return
+    // A token whose slide transition is still in flight would visually
+    // teleport to its destination for the lunge keyframe, then appear to
+    // retreat when the keyframe releases — skip the lunge (the damage/burst
+    // still land), it re-engages next tick from a settled position.
+    const movedAt = Number(el.dataset.movedAt ?? 0)
+    if (Date.now() - movedAt < SLIDE_SETTLE_MS) return
     el.style.setProperty('--token-lunge-x', `${distance}px`)
     el.classList.add('is-lunging')
     window.setTimeout(() => el.classList.remove('is-lunging'), LUNGE_FX_MS)

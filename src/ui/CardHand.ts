@@ -2,6 +2,11 @@ import { getCreature } from '@data/CreatureDefinitions'
 import type { HandCard } from '@entities/Card'
 import { Icons } from '@ui/Icons'
 
+// Merge fx beats: outer cards snap onto the core, then the core jellies
+// while they dissolve — model swap (and its pop-in) lands at the end.
+const MERGE_GATHER_MS = 400
+const MERGE_JELLY_MS = 540
+
 // Fan math shared by render() and getNextSlotPoint() so a bubble aimed at
 // "where the next card will land" actually lands where the card appears.
 // A fixed per-card step (capped so a big hand still fits) keeps a small
@@ -41,8 +46,10 @@ export class CardHand {
     cards.forEach((card, i) => {
       const el = document.createElement('button')
       el.type = 'button'
+      el.dataset.cardId = card.id
       const creature = getCreature(card.creatureId)
       el.className = creature ? 'hand-card has-image' : 'hand-card'
+      if (card.tier === 2) el.classList.add('hand-card--tier2')
       if (i === total - 1) el.classList.add('is-new')
       if (card.id === selectedId) el.classList.add('is-selected')
       const { x, y, rot } = fanTransform(i, total)
@@ -64,5 +71,47 @@ export class CardHand {
     const rect = this.container.getBoundingClientRect()
     const { x, y } = fanTransform(nextCount - 1, nextCount)
     return { x: rect.left + rect.width / 2 + x, y: rect.bottom + y }
+  }
+
+  /** Unmelting-style jelly merge: the outer two cards magnetize onto the
+   * middle one with an elastic snap, the core squashes-and-stretches with a
+   * sparkle row while they dissolve into it, then onMerged swaps the model
+   * (whose re-render pops the merged card). Display only — card state moves
+   * in HandSystem.mergeTriple. */
+  playMergeFx(cardIds: string[], onMerged: () => void): void {
+    const els = cardIds
+      .map((id) => this.container.querySelector<HTMLElement>(`[data-card-id="${id}"]`))
+      .filter((el): el is HTMLElement => el !== null)
+    if (els.length !== 3) {
+      onMerged()
+      return
+    }
+
+    // Gather onto whichever of the three sits in the middle of the fan.
+    const sorted = [...els].sort(
+      (a, b) =>
+        parseFloat(a.style.getPropertyValue('--hand-x')) -
+        parseFloat(b.style.getPropertyValue('--hand-x'))
+    )
+    const [left, core, right] = sorted
+    const coreX = core.style.getPropertyValue('--hand-x')
+    const coreY = core.style.getPropertyValue('--hand-y')
+    const coreRot = core.style.getPropertyValue('--hand-rot')
+
+    core.classList.add('is-merge-core')
+    for (const outer of [left, right]) {
+      outer.classList.add('is-merge-gather')
+      outer.style.setProperty('--hand-x', coreX)
+      outer.style.setProperty('--hand-y', coreY)
+      outer.style.setProperty('--hand-rot', coreRot)
+    }
+
+    window.setTimeout(() => {
+      left.classList.add('is-merge-vanish')
+      right.classList.add('is-merge-vanish')
+      core.classList.add('is-merge-jelly')
+    }, MERGE_GATHER_MS)
+
+    window.setTimeout(onMerged, MERGE_GATHER_MS + MERGE_JELLY_MS)
   }
 }

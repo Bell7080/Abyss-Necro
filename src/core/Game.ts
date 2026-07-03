@@ -58,6 +58,7 @@ export class Game {
   private readonly rewardOverlay: RewardOverlay
   private readonly proceedButton: ProceedButton
   private readonly defeatOverlay: DefeatOverlay
+  private mergeInProgress = false
 
   constructor(root: HTMLElement) {
     const shell = document.createElement('div')
@@ -201,13 +202,14 @@ export class Game {
       const target = this.hand.getNextSlotPoint(nextCount)
       const creature = getCreature(result.creatureId)
 
-      this.blast.travelDrop(rect, target, () =>
+      this.blast.travelDrop(rect, target, () => {
         this.handSystem.addCard({
           id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           label: creature?.label ?? '심연의 것',
           creatureId: result.creatureId,
         })
-      )
+        this.tryMergeTriple()
+      })
     }
 
     if (result.dropItem && rect) {
@@ -225,6 +227,35 @@ export class Game {
         this.coins.pulse()
       })
     }
+  }
+
+  /** Three identical base cards in hand jelly-merge into one tier-2 card
+   * (placeholder rank until the real evolution roster lands). The fx runs
+   * first; the model swap happens on its final beat, and we re-check in
+   * case another triple completed while the animation played. */
+  private tryMergeTriple(): void {
+    if (this.mergeInProgress) return
+    const triple = this.handSystem.findTriple()
+    if (!triple) return
+
+    this.mergeInProgress = true
+    const base = triple[0]
+    this.hand.playMergeFx(
+      triple.map((card) => card.id),
+      () => {
+        this.handSystem.mergeTriple(
+          triple.map((card) => card.id),
+          {
+            id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            label: base.label,
+            creatureId: base.creatureId,
+            tier: 2,
+          }
+        )
+        this.mergeInProgress = false
+        this.tryMergeTriple()
+      }
+    )
   }
 
   /** A defender and enemy sharing a cell trade a hit — lunge the two tokens
