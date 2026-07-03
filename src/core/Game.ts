@@ -26,6 +26,9 @@ import type { Relic } from '@entities/Relic'
 const BASIC_ATTACK_DAMAGE = 2
 const ULTIMATE_DAMAGE = 4
 const RELIC_CHOICE_COUNT = 3
+// A beat of rest once the coin actually lands, so it visibly sits on the
+// ground before blasting off toward the panel instead of chaining instantly.
+const COIN_LAND_PAUSE_MS = 260
 
 export class Game {
   private readonly handSystem = new HandSystem()
@@ -195,13 +198,15 @@ export class Game {
       const origin = centerOf(rect)
       CoinDrop.fire(origin.x, origin.y, {
         onLand: () => {
-          const target = this.coins.getDropPoint()
-          BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
-            onArrive: () => {
-              this.coinSystem.addCoins(1)
-              this.coins.pulse()
-            },
-          })
+          window.setTimeout(() => {
+            const target = this.coins.getDropPoint()
+            BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
+              onArrive: () => {
+                this.coinSystem.addCoins(1)
+                this.coins.pulse()
+              },
+            })
+          }, COIN_LAND_PAUSE_MS)
         },
       })
     }
