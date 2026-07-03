@@ -63,6 +63,16 @@ export class DefenderSystem {
     return ally ? ally.attack ?? DEFAULT_ALLY_ATTACK : null
   }
 
+  /** Item card "치유 물결": every ally in the cell heals, capped at max.
+   * Returns false if the cell held no allies (card shouldn't be spent). */
+  healCell(cellIndex: number, amount: number): boolean {
+    const list = this.listFor(cellIndex)
+    if (list.length === 0) return false
+    for (const ally of list) ally.hp = Math.min(ally.maxHp, ally.hp + amount)
+    this.emit()
+    return true
+  }
+
   /** An enemy bumping into this cell calls this. Returns true if the front
    * defender died (freeing a slot). */
   damage(cellIndex: number, amount: number): boolean {

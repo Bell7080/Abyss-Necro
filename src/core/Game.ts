@@ -29,6 +29,7 @@ import {
 } from '@systems/WaveSystem'
 import { TickManager } from '@core/TickManager'
 import { getCreature } from '@data/CreatureDefinitions'
+import { getItemCard, randomItemCard } from '@data/ItemCardDefinitions'
 import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
 import type { Relic } from '@entities/Relic'
@@ -184,8 +185,36 @@ export class Game {
   }
 
   private tryPlaceCard(cellIndex: number, card: HandCard): void {
+    if (card.kind === 'item') {
+      this.useItemCard(cellIndex, card)
+      return
+    }
     if (!this.defenderSystem.place(cellIndex, card.label, card.creatureId)) return
     this.handSystem.removeCard(card.id)
+  }
+
+  /** Item cards resolve on the aimed cell and are consumed. A targeted card
+   * that finds nothing valid there (healing an empty cell) stays in hand. */
+  private useItemCard(cellIndex: number, card: HandCard): void {
+    const def = getItemCard(card.itemId ?? '')
+    if (!def) return
+
+    if (def.id === 'abyss-pulse') {
+      const results = this.waveSystem.damageAllEnemies(1)
+      for (const hit of results) {
+        const rect = this.board.getCellRect(hit.cellIndex)
+        if (rect) this.showHitNumber(hit.cellIndex, hit.amount, centerOf(rect))
+      }
+      this.handSystem.removeCard(card.id)
+      return
+    }
+
+    if (def.id === 'healing-bubble') {
+      if (!this.defenderSystem.healCell(cellIndex, 3)) return
+      const rect = this.board.getCellRect(cellIndex)
+      if (rect) this.blast.clashBurst(rect)
+      this.handSystem.removeCard(card.id)
+    }
   }
 
   private castBasicAttack(cellIndex: number): void {
@@ -240,18 +269,34 @@ export class Game {
     this.board.playDefeatFx(result.cellIndex)
     if (result.viaBossRoom) this.board.pulseBossRoom()
 
-    if (result.dropCard && rect) {
+    // Every kill hands over exactly one card — necro (places a defender)
+    // or item (one-shot usable), 50/50 with a wave-1 necro pity.
+    if (rect) {
       const nextCount = this.handSystem.getCards().length + 1
       const target = this.hand.getNextSlotPoint(nextCount)
-      const creature = getCreature(result.creatureId)
+      const id = `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 
-      this.blast.travelDrop(rect, target, () => {
-        this.handSystem.addCard({
-          id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          label: creature?.label ?? '심연의 것',
-          creatureId: result.creatureId,
+      if (result.drop === 'necro') {
+        const creature = getCreature(result.creatureId)
+        this.blast.travelDrop(rect, target, () => {
+          this.handSystem.addCard({
+            id,
+            label: creature?.label ?? '심연의 것',
+            creatureId: result.creatureId,
+          })
         })
-      })
+      } else {
+        const item = randomItemCard()
+        this.blast.travelDrop(rect, target, () => {
+          this.handSystem.addCard({
+            id,
+            label: item.label,
+            creatureId: '',
+            kind: 'item',
+            itemId: item.id,
+          })
+        })
+      }
     }
 
     // Every kill drops a coin: it lands on the ground in a short lobbed arc,
@@ -312,6 +357,7 @@ export class Game {
   private handlePlayerHit(info: PlayerHitInfo): void {
     this.playerSystem.damage(info.damage)
     this.board.pulseBossRoom()
+    this.board.flashPlayerHit()
     const rect = this.board.getPlayerRect()
     if (rect) {
       const center = centerOf(rect)

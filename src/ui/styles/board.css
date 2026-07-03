@@ -158,7 +158,7 @@ body {
 .board-mount {
   position: absolute;
   top: 46%;
-  left: 46%;
+  left: 50%;
   transform: translate(-50%, -56%);
   perspective: 1900px;
   perspective-origin: 50% -14%;
@@ -329,19 +329,18 @@ body {
   }
 }
 
-/* Cells are borderless pools of slightly deeper darkness on the seabed —
-   an inset whisper-ring stands in for the old hard 1px border, and every
-   state (occupied/hover/targeting) speaks through glow, not border color. */
+/* The floor reads as a constellation, not a grid of plates: the "#" lines
+   and their stars (see .board-constellation) carry the structure, and each
+   cell is only a whisper of deeper shadow so you sense the socket without
+   seeing a box. States still speak through glow. */
 .board-cell {
   width: 280px;
   height: 280px;
   padding: 0;
-  border-radius: 32px;
-  background: linear-gradient(180deg, rgba(14, 11, 26, 0.42), rgba(7, 5, 16, 0.62));
+  border-radius: 34px;
+  background: radial-gradient(circle at 50% 44%, rgba(8, 6, 18, 0.3), rgba(5, 4, 12, 0.12) 76%);
   border: 0;
-  box-shadow:
-    inset 0 0 0 1px rgba(150, 205, 255, 0.09),
-    inset 0 2px 14px rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 6px 22px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -351,17 +350,72 @@ body {
   transition: box-shadow 0.18s ease;
 }
 
+/* ---------- Constellation floor (the # drawn in starlight) ---------- */
+
+.board-constellation {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.board-constellation svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.board-constellation-line {
+  fill: none;
+  stroke: rgba(150, 205, 255, 0.15);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.board-star {
+  fill: #a8e4ff;
+  filter: drop-shadow(0 0 7px rgba(140, 220, 255, 0.85));
+  animation: star-twinkle 3.4s ease-in-out infinite;
+}
+
+.board-star--big {
+  fill: #d2f1ff;
+  filter: drop-shadow(0 0 11px rgba(160, 230, 255, 0.95));
+}
+
+/* Staggered phases so the constellation breathes instead of blinking. */
+.board-star--p1 {
+  animation-delay: 0.9s;
+}
+
+.board-star--p2 {
+  animation-delay: 1.7s;
+}
+
+.board-star--p3 {
+  animation-delay: 2.6s;
+}
+
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .board-cell.has-enemy {
   box-shadow:
     inset 0 0 0 1px rgba(150, 205, 255, 0.14),
-    inset 0 2px 14px rgba(0, 0, 0, 0.45),
+    inset 0 6px 22px rgba(0, 0, 0, 0.3),
     0 0 20px rgba(140, 210, 255, 0.14);
 }
 
 .board-cell.has-ally {
   box-shadow:
     inset 0 0 0 1px rgba(255, 190, 130, 0.14),
-    inset 0 2px 14px rgba(0, 0, 0, 0.45),
+    inset 0 6px 22px rgba(0, 0, 0, 0.3),
     0 0 20px rgba(255, 170, 110, 0.14);
 }
 
@@ -370,7 +424,7 @@ body {
 .board-cell:hover {
   box-shadow:
     inset 0 0 0 1px rgba(235, 190, 255, 0.4),
-    inset 0 2px 14px rgba(0, 0, 0, 0.45),
+    inset 0 6px 22px rgba(0, 0, 0, 0.3),
     0 0 26px rgba(220, 150, 255, 0.3);
 }
 
@@ -381,7 +435,7 @@ body {
   cursor: pointer;
   box-shadow:
     inset 0 0 0 2px rgba(255, 200, 140, 0.55),
-    inset 0 2px 14px rgba(0, 0, 0, 0.45),
+    inset 0 6px 22px rgba(0, 0, 0, 0.3),
     0 0 34px rgba(255, 180, 120, 0.3);
   animation: placement-beckon 1.6s ease-in-out infinite;
 }
@@ -389,7 +443,7 @@ body {
 .board-grid.is-placement-targeting .board-cell:hover {
   box-shadow:
     inset 0 0 0 3px rgba(255, 225, 180, 0.85),
-    inset 0 2px 14px rgba(0, 0, 0, 0.45),
+    inset 0 6px 22px rgba(0, 0, 0, 0.3),
     0 0 52px rgba(255, 190, 130, 0.55);
   animation: none;
 }
@@ -399,13 +453,13 @@ body {
   100% {
     box-shadow:
       inset 0 0 0 2px rgba(255, 200, 140, 0.42),
-      inset 0 2px 14px rgba(0, 0, 0, 0.45),
+      inset 0 6px 22px rgba(0, 0, 0, 0.3),
       0 0 26px rgba(255, 180, 120, 0.22);
   }
   50% {
     box-shadow:
       inset 0 0 0 2px rgba(255, 210, 160, 0.68),
-      inset 0 2px 14px rgba(0, 0, 0, 0.45),
+      inset 0 6px 22px rgba(0, 0, 0, 0.3),
       0 0 44px rgba(255, 190, 130, 0.42);
   }
 }
@@ -418,18 +472,18 @@ body {
   0% {
     box-shadow:
       inset 0 0 0 1px rgba(150, 205, 255, 0.09),
-      inset 0 2px 14px rgba(0, 0, 0, 0.45);
+      inset 0 6px 22px rgba(0, 0, 0, 0.3);
   }
   35% {
     box-shadow:
       inset 0 0 0 1px rgba(200, 230, 255, 0.4),
-      inset 0 2px 14px rgba(0, 0, 0, 0.45),
+      inset 0 6px 22px rgba(0, 0, 0, 0.3),
       0 0 30px rgba(180, 225, 255, 0.45);
   }
   100% {
     box-shadow:
       inset 0 0 0 1px rgba(150, 205, 255, 0.09),
-      inset 0 2px 14px rgba(0, 0, 0, 0.45);
+      inset 0 6px 22px rgba(0, 0, 0, 0.3);
   }
 }
 
@@ -437,6 +491,7 @@ body {
    read as upright standees rather than lying flat with the floor. */
 .board-figure {
   --board-figure-shift-x: 0px;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -448,10 +503,27 @@ body {
   transition: transform 0.18s ease;
 }
 
-/* Pushes the player's card well left of the boss cell so the (bigger) card
-   never overlaps allies/enemies standing in the room's center-right. */
+/* Elliptical contact shadow under every standing card — grounds it on the
+   constellation floor instead of floating. */
+.board-figure::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -15px;
+  width: 74%;
+  height: 30px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.52), transparent 68%);
+  filter: blur(2px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Pushes the player's card left of the boss cell — far enough to clear the
+   room's allies/enemies (whose offsets moved right to meet it halfway)
+   while staying fully on screen. */
 .board-figure--boss-player {
-  --board-figure-shift-x: -195px;
+  --board-figure-shift-x: -100px;
 }
 
 .board-figure.is-arrived {
@@ -661,6 +733,35 @@ body {
     opacity: 0;
     transform: scale(1.5) rotate(0deg);
   }
+}
+
+/* Item cards: teal-green usables — a vial glyph instead of creature art,
+   consumed on use rather than placed. */
+.hand-card--item {
+  box-shadow:
+    inset 0 0 0 1px rgba(140, 230, 200, 0.42),
+    0 14px 30px var(--abyss-shadow),
+    0 0 22px rgba(120, 220, 180, 0.26);
+}
+
+.hand-card--item .hand-card-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9fe8c8;
+}
+
+.hand-card--item .hand-card-art svg {
+  width: 52px;
+  height: 52px;
+  filter: drop-shadow(0 0 8px rgba(120, 220, 180, 0.6));
+}
+
+.hand-card--item.is-selected {
+  box-shadow:
+    inset 0 0 0 1px rgba(190, 250, 225, 0.75),
+    0 16px 28px var(--abyss-shadow),
+    0 0 28px rgba(140, 235, 195, 0.55);
 }
 
 /* Merged (tier-2) card: a violet-charged ring and glow set it apart in the
@@ -954,23 +1055,56 @@ body {
   isolation: isolate;
   background: #0c0918;
   border: 0;
+  /* Faction identity is a soft halo, not a border: a whisper ring plus a
+     wide outer glow in the faction color (enemy red / ally blue / player
+     violet, set via the variant's --card-ring/--card-glow). */
   box-shadow:
     inset 0 0 0 1px var(--card-ring),
     inset 0 -10px 22px rgba(0, 0, 0, 0.55),
     0 10px 20px rgba(0, 0, 0, 0.5),
-    0 0 18px var(--card-glow);
+    0 0 30px var(--card-glow);
+}
+
+/* Red blink on damage — ::before tints the whole face for a beat. */
+.entity-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: rgba(255, 62, 84, 0.5);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.entity-card.is-hit::before {
+  animation: card-hit-flash 0.26s ease-out;
+}
+
+@keyframes card-hit-flash {
+  0% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 .entity-card--enemy {
   width: 160px;
+  --card-ring: rgba(255, 120, 135, 0.3);
+  --card-glow: rgba(255, 70, 100, 0.26);
 }
 
 .entity-card--ally {
   width: 160px;
+  --card-ring: rgba(130, 185, 255, 0.32);
+  --card-glow: rgba(95, 160, 255, 0.26);
 }
 
 .entity-card--player {
   width: 250px;
+  --card-ring: rgba(205, 160, 255, 0.36);
+  --card-glow: rgba(175, 115, 255, 0.32);
 }
 
 /* The necromancer's name is the one name on the board that should read like
@@ -1016,21 +1150,16 @@ body {
   object-position: center 22%;
 }
 
+/* Watermark backdrops (creatures without real art yet) follow the same
+   faction colors as the halos: enemy red, ally blue. */
 .entity-card--enemy .entity-card-art {
-  background: radial-gradient(circle at 50% 30%, rgba(50, 110, 145, 0.5), rgba(8, 14, 26, 0.95) 78%);
-  color: rgba(170, 215, 255, 0.35);
-}
-
-/* Same silhouette as the enemy card, recolored cool-to-warm — the visual
-   shorthand for "this one has been necromanced" (see CONCEPT_ART.md). */
-.entity-card--ally {
-  --card-ring: rgba(255, 190, 140, 0.3);
-  --card-glow: rgba(255, 170, 110, 0.14);
+  background: radial-gradient(circle at 50% 30%, rgba(150, 55, 70, 0.5), rgba(24, 8, 12, 0.95) 78%);
+  color: rgba(255, 175, 185, 0.38);
 }
 
 .entity-card--ally .entity-card-art {
-  background: radial-gradient(circle at 50% 30%, rgba(180, 110, 40, 0.5), rgba(26, 14, 8, 0.95) 78%);
-  color: rgba(255, 200, 150, 0.45);
+  background: radial-gradient(circle at 50% 30%, rgba(55, 100, 170, 0.5), rgba(8, 12, 26, 0.95) 78%);
+  color: rgba(165, 205, 255, 0.42);
 }
 
 .entity-card--player .entity-card-art {

@@ -14,4 +14,6 @@ export interface EnemyToken {
    * judgement, see WaveSystem.applyDamage). */
   lastCellIndex?: number
   lastMovedAt?: number
+  /** Wave-1 tutorial pity: this kill always drops a necro card. */
+  guaranteedCard?: boolean
 }

@@ -11,15 +11,21 @@ const ENEMY_ATTACK_DAMAGE = 1
 // Fallback only, used if DefenderHooks isn't wired — DefenderSystem's own
 // getAttack() (placed card default or summon's own value) wins normally.
 const ALLY_COUNTER_DAMAGE = 2
-const CARD_DROP_CHANCE = 0.5
+// Every kill drops exactly one card: 50/50 necro vs item (wave-1 enemies
+// are pity-rigged to necro so the very first kill always teaches the loop).
+const NECRO_DROP_CHANCE = 0.5
 const MOVE_TICK_MS = 1300
 // A new wave forces its way in every 30 seconds regardless of clear state —
 // this is the actual pacing mechanism, not just a display countdown. If the
 // board clears before the timer runs out, the next wave pushes immediately
 // instead of waiting out the rest of the interval (see triggerInstantPush).
 const WAVE_PUSH_INTERVAL_MS = 30 * 1000
-const WAVES_PER_CHECKPOINT = 5
+// A round is 3 waves; the lull (shop/relic beat) follows each round.
+const WAVES_PER_CHECKPOINT = 3
 const CHECKPOINTS_PER_RELIC = 3
+// Clearing the board no longer summons the next wave instantly — a ~3s
+// breather keeps rounds readable.
+const CLEAR_PUSH_DELAY_MS = 3000
 // How long after leaving a cell an enemy still counts as hittable there —
 // covers the 0.85s slide-out plus the tail of a mortar already in flight,
 // so aiming at where the enemy visibly is doesn't whiff on the model.
@@ -28,9 +34,10 @@ const HIT_GRACE_MS = 950
 export interface EncounterResult {
   /** Grid cell (or BOSS_CELL_INDEX) the enemy was standing in when it died. */
   cellIndex: number
-  /** Which creature died — the dropped card (if any) carries this. */
+  /** Which creature died — a necro drop carries this. */
   creatureId: string
-  dropCard: boolean
+  /** Every kill drops exactly one card — this says which flavor. */
+  drop: 'necro' | 'item'
   /** Always true — every kill drops exactly one coin. */
   dropCoin: boolean
   viaBossRoom: boolean
@@ -223,6 +230,22 @@ export class WaveSystem {
     return this.applyGraceDamage(cellIndex, amount)
   }
 
+  /** Board-wide hit (item card "심연 파동"): every enemy on the grid and in
+   * the boss room takes the damage. Returns one result per struck enemy so
+   * the caller can float numbers over each cell. */
+  damageAllEnemies(amount: number): DamageResult[] {
+    const results: DamageResult[] = []
+    this.cells.forEach((list, index) => {
+      for (const enemy of [...list]) {
+        results.push(this.damageEnemy(list, index, enemy, amount, false))
+      }
+    })
+    for (const enemy of [...this.bossEnemies]) {
+      results.push(this.damageEnemy(this.bossEnemies, BOSS_CELL_INDEX, enemy, amount, true))
+    }
+    return results
+  }
+
   /** The clicked cell is empty — find the most recent enemy to have left it
    * inside the grace window and hit that one where it now stands. */
   private applyGraceDamage(clickedIndex: number, amount: number): DamageResult | null {
@@ -262,9 +285,10 @@ export class WaveSystem {
     if (enemy.hp <= 0) {
       const i = list.indexOf(enemy)
       if (i >= 0) list.splice(i, 1)
-      const dropCard = Math.random() < CARD_DROP_CHANCE
+      const drop: 'necro' | 'item' =
+        enemy.guaranteedCard || Math.random() < NECRO_DROP_CHANCE ? 'necro' : 'item'
       this.emitChange()
-      this.emitEncounter({ cellIndex, creatureId: enemy.creatureId, dropCard, dropCoin: true, viaBossRoom })
+      this.emitEncounter({ cellIndex, creatureId: enemy.creatureId, drop, dropCoin: true, viaBossRoom })
       this.triggerInstantPushIfClear()
       return { cellIndex, amount, defeated: true }
     }
@@ -291,8 +315,9 @@ export class WaveSystem {
     }, remaining)
   }
 
-  /** Every enemy on the board (grid + boss room) is dead — don't make the
-   * player wait out the rest of the push timer for the next wave. */
+  /** Every enemy on the board (grid + boss room) is dead — shorten the wait
+   * to a ~3s breather rather than the full push timer (and rather than the
+   * old instant slam). */
   private triggerInstantPushIfClear(): void {
     if (this.paused) return
     if (!this.isBoardClear()) return
@@ -300,7 +325,11 @@ export class WaveSystem {
       window.clearTimeout(this.pushTimeoutId)
       this.pushTimeoutId = null
     }
-    this.handlePushTimeout()
+    // Re-arm as a short countdown so the HUD keeps reading true and pause/
+    // halt paths still find a live timeout to clear.
+    this.pushEffElapsedMs = WAVE_PUSH_INTERVAL_MS - CLEAR_PUSH_DELAY_MS
+    this.pushMarkAt = Date.now()
+    this.armPushTimeout()
   }
 
   private isBoardClear(): boolean {
@@ -448,14 +477,23 @@ export class WaveSystem {
     this.spawnWaveStaggered()
   }
 
-  /** The wave's 3 enemies trickle in one by one in a random row order with
-   * random gaps, instead of all three sliding in as a synchronized block.
-   * Pending arrivals are tracked so halt() can cancel them. */
+  /** Early-level curve: round 1 stays tiny (1/1/2) so the capture/merge
+   * loop can be learned in peace; later rounds ramp toward full rows. */
+  private enemyCountForWave(wave: number): number {
+    if (wave <= 2) return 1
+    if (wave === 3) return 2
+    if (wave <= 5) return 2
+    return 3
+  }
+
+  /** The wave's enemies trickle in one by one on random rows with random
+   * gaps, instead of sliding in as a synchronized block. Pending arrivals
+   * are tracked so halt() can cancel them. */
   private spawnWaveStaggered(): void {
     // Previous wave's arrivals have long fired — drop the stale ids.
     this.spawnTimeoutIds = []
     const wave = this.waveNumber
-    const rows = [0, 1, 2].sort(() => Math.random() - 0.5)
+    const rows = [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, this.enemyCountForWave(wave))
     let delay = 0
 
     rows.forEach((row, i) => {
@@ -467,6 +505,8 @@ export class WaveSystem {
           col: ENTRY_COL,
           hp: ENEMY_BASE_HP,
           maxHp: ENEMY_BASE_HP,
+          // The very first kill must hand the player a necro card.
+          guaranteedCard: wave === 1,
         })
         this.emitChange()
       }

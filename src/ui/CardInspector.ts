@@ -1,4 +1,5 @@
 import { getCreature } from '@data/CreatureDefinitions'
+import { getItemCard } from '@data/ItemCardDefinitions'
 import type { HandCard } from '@entities/Card'
 
 // Left-side card description panel, shown while a hand card is selected —
@@ -42,14 +43,22 @@ export class CardInspector {
   }
 
   show(card: HandCard): void {
-    const creature = getCreature(card.creatureId)
-    this.artEl.style.backgroundImage = creature ? `url('${creature.allyArt}')` : ''
-    this.titleEl.textContent = card.label
-    this.tagsEl.textContent = card.tier === 2 ? '진화체 · 강화된 사령' : '사령 카드'
-    this.descEl.textContent =
-      card.tier === 2
-        ? '세 장의 기억이 하나로 뭉친 사령. 칸을 골라 배치하면 아군 디펜더로 깨어난다.'
-        : '심연에서 건져 올린 사령. 칸을 골라 배치하면 아군 디펜더로 깨어나 그 자리를 지킨다.'
+    if (card.kind === 'item') {
+      const item = getItemCard(card.itemId ?? '')
+      this.artEl.style.backgroundImage = ''
+      this.titleEl.textContent = card.label
+      this.tagsEl.textContent = '아이템 카드 · 사용형'
+      this.descEl.textContent = item?.desc ?? '사용하면 소모된다.'
+    } else {
+      const creature = getCreature(card.creatureId)
+      this.artEl.style.backgroundImage = creature ? `url('${creature.allyArt}')` : ''
+      this.titleEl.textContent = card.label
+      this.tagsEl.textContent = card.tier === 2 ? '진화체 · 강화된 사령' : '사령 카드'
+      this.descEl.textContent =
+        card.tier === 2
+          ? '세 장의 기억이 하나로 뭉친 사령. 칸을 골라 배치하면 아군 디펜더로 깨어난다.'
+          : '심연에서 건져 올린 사령. 칸을 골라 배치하면 아군 디펜더로 깨어나 그 자리를 지킨다.'
+    }
     this.panel.classList.add('is-shown')
     this.panel.setAttribute('aria-hidden', 'false')
   }

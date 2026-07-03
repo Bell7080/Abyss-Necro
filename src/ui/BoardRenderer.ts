@@ -21,8 +21,8 @@ const STACK_GAP_Y = 40
 // In the boss/player cell: player leftmost (shifted well outside the cell,
 // see --board-figure-shift-x), allies in the middle, enemies rightmost —
 // the same "standing off against each other" composition.
-const BOSS_ALLY_OFFSET_X = 28
-const BOSS_ENEMY_OFFSET_X = 108
+const BOSS_ALLY_OFFSET_X = 120
+const BOSS_ENEMY_OFFSET_X = 152
 
 const DEFEAT_FX_MS = 420
 const ENGAGE_FX_MS = 520
@@ -105,6 +105,15 @@ export class BoardRenderer {
 
     this.gridEl = document.createElement('div')
     this.gridEl.className = 'board-grid'
+    // Constellation floor: the # of the grid drawn as faint starlight lines
+    // with glowing stars at the crossings — appended first so cells and
+    // tokens paint over it.
+    const constellation = document.createElement('div')
+    constellation.className = 'board-constellation'
+    constellation.setAttribute('aria-hidden', 'true')
+    constellation.innerHTML = constellationSvg()
+    this.gridEl.appendChild(constellation)
+
     this.cellEls = []
     for (let i = 0; i < CELL_COUNT; i += 1) {
       const cell = document.createElement('button')
@@ -199,6 +208,10 @@ export class BoardRenderer {
       existing.style.setProperty('--token-y', `${y}px`)
       const fill = existing.querySelector<HTMLElement>('.entity-card-hp-fill')
       if (fill) fill.style.width = `${Math.round((occupant.hp / occupant.maxHp) * 100)}%`
+      // Red hit-flash whenever this occupant's hp went down since last sync.
+      const prevHp = Number(existing.dataset.hp ?? occupant.maxHp)
+      if (occupant.hp < prevHp) flashCard(existing.querySelector('.entity-card'))
+      existing.dataset.hp = `${occupant.hp}`
       return
     }
 
@@ -208,13 +221,16 @@ export class BoardRenderer {
     // layer an extra offset on top without fighting the slide transition.
     el.style.setProperty('--token-x', `${spawnFromX ?? x}px`)
     el.style.setProperty('--token-y', `${y}px`)
+    el.dataset.hp = `${occupant.hp}`
     const creature = occupant.creatureId ? getCreature(occupant.creatureId) : undefined
     const imageUrl = creature ? (variant === 'ally' ? creature.allyArt : creature.enemyArt) : undefined
     el.innerHTML = `<div class="board-figure is-arrived">${entityCardHtml({
       variant,
       art: Icons.enemyToken(),
       imageUrl,
-      name: occupant.label,
+      // Enemies show their creature name too — every card on the board is
+      // labeled now, not just deployed allies.
+      name: occupant.label ?? creature?.label,
       hpRatio: occupant.hp / occupant.maxHp,
     })}</div>`
     container.appendChild(el)
@@ -274,6 +290,11 @@ export class BoardRenderer {
     if (this.playerHpFill) this.playerHpFill.style.width = `${Math.round((hp / maxHp) * 100)}%`
   }
 
+  /** Red hit-flash on the necromancer card (enemy struck the player). */
+  flashPlayerHit(): void {
+    flashCard(this.playerCellEl.querySelector('.entity-card'))
+  }
+
   /** Front-of-queue enemy/ally briefly lunge at each other for a clash tick.
    * Ally sits left of enemy in both the grid (role offset) and the boss
    * room (BOSS_ALLY_OFFSET_X < BOSS_ENEMY_OFFSET_X), so the lunge direction
@@ -303,4 +324,58 @@ export class BoardRenderer {
     el.classList.add('is-lunging')
     window.setTimeout(() => el.classList.remove('is-lunging'), LUNGE_FX_MS)
   }
+}
+
+const HIT_FLASH_MS = 260
+
+/** Quick red blink on an entity card that just took damage. */
+function flashCard(card: Element | null): void {
+  if (!card) return
+  card.classList.remove('is-hit')
+  // Force a reflow so back-to-back hits restart the animation.
+  void (card as HTMLElement).offsetWidth
+  card.classList.add('is-hit')
+  window.setTimeout(() => card.classList.remove('is-hit'), HIT_FLASH_MS)
+}
+
+// Four-point star path for the constellation crossings.
+function starPath(cx: number, cy: number, r: number): string {
+  const w = r * 0.26
+  return `M${cx} ${cy - r} L${cx + w} ${cy - w} L${cx + r} ${cy} L${cx + w} ${cy + w} L${cx} ${cy + r} L${cx - w} ${cy + w} L${cx - r} ${cy} L${cx - w} ${cy - w} Z`
+}
+
+/** The 3×3 grid's inner boundaries drawn as a "#" constellation: two
+ * vertical and two horizontal starlight lines through the gap centers, big
+ * stars at the four crossings, small ones where lines meet the grid edge. */
+function constellationSvg(): string {
+  const size = GRID_COLS * CELL_SIZE + (GRID_COLS - 1) * CELL_GAP
+  const a = CELL_SIZE + CELL_GAP / 2
+  const b = CELL_SIZE * 2 + CELL_GAP + CELL_GAP / 2
+  const lines = [`M${a} 0 L${a} ${size}`, `M${b} 0 L${b} ${size}`, `M0 ${a} L${size} ${a}`, `M0 ${b} L${size} ${b}`]
+  const crossings: Array<[number, number]> = [
+    [a, a],
+    [a, b],
+    [b, a],
+    [b, b],
+  ]
+  const edges: Array<[number, number]> = [
+    [a, 0],
+    [b, 0],
+    [a, size],
+    [b, size],
+    [0, a],
+    [0, b],
+    [size, a],
+    [size, b],
+  ]
+
+  const linesHtml = lines.map((d) => `<path class="board-constellation-line" d="${d}"/>`).join('')
+  const bigStars = crossings
+    .map(([x, y], i) => `<path class="board-star board-star--big board-star--p${i}" d="${starPath(x, y, 11)}"/>`)
+    .join('')
+  const smallStars = edges
+    .map(([x, y], i) => `<path class="board-star board-star--p${i % 4}" d="${starPath(x, y, 5.5)}"/>`)
+    .join('')
+
+  return `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${linesHtml}${bigStars}${smallStars}</svg>`
 }
