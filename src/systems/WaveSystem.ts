@@ -4,10 +4,9 @@ import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import type { PassiveEvent } from '@systems/PassiveEvent'
 import { randomCreature } from '@data/CreatureDefinitions'
 
-const ROWS = 3
+const ROWS = 3 // lanes — enemies march straight down their own lane
 const COLS = 3
 const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss room
-const CENTER_ROW = 1 // enemies always enter from the middle row, then fan out
 const ENEMY_BASE_HP = 4
 const ENEMY_ATTACK_DAMAGE = 1
 // Fallback only, used if DefenderHooks isn't wired — DefenderSystem's own
@@ -77,19 +76,19 @@ export interface DefenderHooks {
   stepSummons(): void
 }
 
-// Enemies enter at the grid's far edge (opposite the boss room) and wander
-// toward it a step per tick, moving freely through any cell — allies don't
-// block movement anymore. Any number of enemies can share a cell; combat
-// only starts once an enemy and a defender actually occupy the same cell,
-// and while that fight is on the enemy holds still there instead of
-// wandering off (see stepEnemy's early-out). Enemies that walk off the
-// grid's near edge don't auto-resolve — they cross into the boss room and
-// stand there as a real, attackable threat next to the player, which can
-// also hold defenders. A new wave of 3 forces its way in every
-// WAVE_PUSH_INTERVAL_MS; every 5 pushes is a checkpoint (movement/the push
-// timer pause for a lull), and every 3rd checkpoint offers a relic instead
-// of just resuming. Enemy tokens and hp are placeholder values until the
-// 40-enemy roster and real combat stats land — the movement/encounter/
+// Lane rush: each grid row is a lane. A wave spawns spread across lanes at
+// the far (entry) column and every enemy marches straight down its own lane
+// toward the boss room one cell per tick — no wandering, so a wave reads as
+// a rising tide bearing down on the player, not a stroll. Any number of
+// enemies can stack in a lane cell (they queue); combat starts once an enemy
+// and a defender share a cell, and while that fight is on the front enemy
+// holds instead of advancing (see stepEnemy's early-out) — that's how a
+// defender plugs a lane. Enemies that march off the near edge cross into the
+// boss room and stand as a real, attackable threat beside the player, which
+// can also hold defenders. A new wave forces in every WAVE_PUSH_INTERVAL_MS;
+// every 3 pushes is a checkpoint (movement/push timer pause for a lull), and
+// every 3rd checkpoint offers a relic instead of just resuming. Enemy hp is
+// a placeholder until the real combat stats land — the movement/encounter/
 // checkpoint/clash rules themselves are not stubs.
 export class WaveSystem {
   private cells: EnemyToken[][] = Array.from({ length: ROWS * COLS }, () => [])
@@ -435,45 +434,31 @@ export class WaveSystem {
   }
 
   private stepEnemy(index: number, enemy: EnemyToken): void {
-    // A defender shares this cell — stand and fight instead of wandering
-    // off; resolveClashes() handles the actual damage trade this tick.
+    // A defender shares this cell — stand and fight instead of advancing;
+    // resolveClashes() handles the actual damage trade this tick. This is
+    // how a placed defender plugs the lane and stops the march.
     if (this.defenders?.getHp(index) != null) return
 
     const list = this.cells[index]
-    const roll = Math.random()
-    let targetRow = enemy.row
-    let targetCol = enemy.col
-
-    // Advance chance deliberately under half — with the slower tick this
-    // gives the player ~10s before a fresh spawn reaches the room, room to
-    // actually aim/deploy instead of being rushed.
-    if (roll < 0.4) {
-      targetCol = enemy.col - 1 // advance toward the boss room
-    } else if (roll < 0.6 && enemy.row > 0) {
-      targetRow = enemy.row - 1 // wander up
-    } else if (roll < 0.8 && enemy.row < ROWS - 1) {
-      targetRow = enemy.row + 1 // wander down
-    } else {
-      return // idle this tick
-    }
+    // Lane rush: march one cell toward the boss room every tick, staying in
+    // the same lane (row). No wandering — the pressure is the point.
+    const targetCol = enemy.col - 1
 
     if (targetCol < 0) {
       list.splice(list.indexOf(enemy), 1)
       enemy.lastCellIndex = index
       enemy.lastMovedAt = Date.now()
-      enemy.row = targetRow
       enemy.col = targetCol
       this.bossEnemies.push(enemy)
       return
     }
 
-    // Enemies move freely into any cell, including defended ones — combat
-    // only starts once they actually share it (see resolveClashes()).
-    const targetIndex = targetRow * COLS + targetCol
+    // Enemies advance into any cell, including defended ones downstream —
+    // combat only starts once they actually share it (see resolveClashes()).
+    const targetIndex = enemy.row * COLS + targetCol
     list.splice(list.indexOf(enemy), 1)
     enemy.lastCellIndex = index
     enemy.lastMovedAt = Date.now()
-    enemy.row = targetRow
     enemy.col = targetCol
     this.cells[targetIndex].push(enemy)
 
@@ -529,32 +514,35 @@ export class WaveSystem {
     this.spawnWaveStaggered()
   }
 
-  /** Early-level curve: round 1 stays tiny (1/1/2) so the capture/merge
-   * loop can be learned in peace; later rounds ramp toward full rows. */
+  /** Early-level curve: wave 1 stays a single enemy (necro pity) so the
+   * capture loop can be learned in peace; later waves fill lanes to keep the
+   * tide bearing down. */
   private enemyCountForWave(wave: number): number {
-    if (wave <= 2) return 1
-    if (wave === 3) return 2
-    if (wave <= 5) return 2
-    return 3
+    if (wave <= 1) return 1
+    if (wave === 2) return 2
+    if (wave <= 5) return 3
+    return 4
   }
 
-  /** The wave's enemies trickle in one by one from the center-row entry
-   * cell (they fan out into other rows as they wander inward), with random
-   * gaps rather than sliding in as a synchronized block. Pending arrivals
-   * are tracked so halt() can cancel them. */
+  /** The wave's enemies trickle in one by one with random gaps rather than
+   * sliding in as a synchronized block. They're spread across lanes (rows)
+   * from a random starting lane so a wave pressures several lanes at once —
+   * a rising tide. Pending arrivals are tracked so halt() can cancel them. */
   private spawnWaveStaggered(): void {
     // Previous wave's arrivals have long fired — drop the stale ids.
     this.spawnTimeoutIds = []
     const wave = this.waveNumber
     const count = this.enemyCountForWave(wave)
+    const startLane = Math.floor(Math.random() * ROWS)
     let delay = 0
 
     for (let i = 0; i < count; i += 1) {
+      const lane = (startLane + i) % ROWS
       const spawn = (): void => {
-        this.cells[CENTER_ROW * COLS + ENTRY_COL].push({
+        this.cells[lane * COLS + ENTRY_COL].push({
           id: `enemy-${wave}-${i}`,
           creatureId: randomCreature().id,
-          row: CENTER_ROW,
+          row: lane,
           col: ENTRY_COL,
           hp: ENEMY_BASE_HP,
           maxHp: ENEMY_BASE_HP,
