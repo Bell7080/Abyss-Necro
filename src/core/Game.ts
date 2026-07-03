@@ -1,6 +1,7 @@
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
 import { CoinPanel } from '@ui/CoinPanel'
+import { IntroOverlay } from '@ui/IntroOverlay'
 import { ItemInventory } from '@ui/ItemInventory'
 import { ProceedButton } from '@ui/ProceedButton'
 import { RelicInventory } from '@ui/RelicInventory'
@@ -78,6 +79,7 @@ export class Game {
       onChoose: (relic, cardEl) => this.resolveRelicChoice(relic, cardEl),
     })
     this.proceedButton = new ProceedButton(shell, () => this.waveSystem.resumeFromCheckpoint())
+    new IntroOverlay(shell, () => this.startRun())
 
     this.waveSystem.onChange(() => this.board.syncCells())
     this.waveSystem.onEncounter((result) => this.handleEncounter(result))
@@ -102,6 +104,13 @@ export class Game {
 
   boot(): void {
     this.board.render()
+  }
+
+  /** Fired once, when the player dismisses the intro veil — nothing spawns
+   * or moves before this. */
+  private startRun(): void {
+    this.waveSystem.start()
+    this.abilitySystem.start()
   }
 
   private handleCellClick(cellIndex: number): void {

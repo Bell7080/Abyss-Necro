@@ -76,6 +76,7 @@ export class WaveSystem {
   private wavesSinceCheckpoint = 0
   private checkpointCount = 0
   private waveStartedAt = Date.now()
+  private started = false
   private paused = false
   private pushTimeoutId: number | null = null
   private readonly changeListeners: Array<() => void> = []
@@ -83,7 +84,15 @@ export class WaveSystem {
   private readonly checkpointListeners: Array<(info: CheckpointInfo) => void> = []
   private readonly clashListeners: Array<(info: ClashInfo) => void> = []
 
-  constructor(private readonly defenders?: DefenderHooks) {
+  constructor(private readonly defenders?: DefenderHooks) {}
+
+  /** Spawns the first wave and starts the movement/push timers — held off
+   * until the player dismisses the intro veil and clicks "시작하기", so
+   * nothing moves or spawns while that screen is up. */
+  start(): void {
+    if (this.started) return
+    this.started = true
+    this.waveStartedAt = Date.now()
     this.spawnWave()
     window.setInterval(() => this.tick(), MOVE_TICK_MS)
     this.schedulePush()
@@ -121,8 +130,10 @@ export class WaveSystem {
     return this.paused
   }
 
-  /** Milliseconds left until the next forced wave push (HUD only while unpaused). */
+  /** Milliseconds left until the next forced wave push (HUD only while unpaused).
+   * Shows the full interval, unticking, until start() actually begins the run. */
   getRemainingMs(): number {
+    if (!this.started) return WAVE_PUSH_INTERVAL_MS
     return Math.max(0, WAVE_PUSH_INTERVAL_MS - (Date.now() - this.waveStartedAt))
   }
 

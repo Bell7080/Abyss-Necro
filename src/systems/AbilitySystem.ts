@@ -5,14 +5,15 @@ export const ULTIMATE_COST = 10
 
 // Owns the player's cost pool. Basic attack fires unconditionally on cell
 // click (no arming step) as long as it's affordable; the ultimate only
-// fires from its own skill-orb click. Both summon a roaming minion
-// (DefenderSystem.summon) rather than dealing instant damage — this system
-// only decides whether a cast is affordable.
+// fires from its own skill-orb click. This system only decides whether a
+// cast is affordable — combat resolution lives in WaveSystem.
 export class AbilitySystem {
   private cost = MAX_COST
   private readonly listeners: Array<() => void> = []
 
-  constructor() {
+  /** Starts cost regen — held off until the player dismisses the intro
+   * veil, so the pool isn't quietly ticking up before the run begins. */
+  start(): void {
     window.setInterval(() => this.regen(), REGEN_TICK_MS)
   }
 

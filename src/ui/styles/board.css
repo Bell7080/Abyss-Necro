@@ -655,6 +655,70 @@ body {
   transition: width 0.28s ease;
 }
 
+/* ---------- Intro veil (boot screen, once per session) ---------- */
+
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.intro-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(10, 6, 18, 0.7) 0%, rgba(2, 1, 5, 0.99) 78%),
+    #010005;
+  opacity: 1;
+  transition: opacity 2.4s ease-out;
+}
+
+.intro-overlay.is-lit .intro-veil {
+  opacity: 0;
+}
+
+.intro-overlay.is-dismissed .intro-veil {
+  transition: opacity 0.5s ease-out;
+}
+
+.intro-start-button {
+  position: relative;
+  z-index: 1;
+  padding: 16px 46px;
+  border-radius: 999px;
+  border: 1px solid rgba(150, 205, 255, 0.5);
+  background: linear-gradient(160deg, rgba(70, 46, 112, 0.9), rgba(14, 10, 24, 0.97));
+  color: var(--abyss-lavender-bright);
+  font-size: 16px;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px) scale(0.94);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
+}
+
+.intro-overlay.is-button-visible .intro-start-button {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  animation: proceed-pulse 1.3s ease-in-out infinite;
+}
+
+.intro-overlay.is-dismissed .intro-start-button {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.94);
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
+}
+
 /* ---------- Relic reward overlay (every 3 waves cleared) ---------- */
 
 .reward-overlay {

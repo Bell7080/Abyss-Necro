@@ -42,11 +42,12 @@ npm run dist              # electron-builder로 exe 패키징
 - `src/entities` — 적/카드/디펜더/투사체 데이터 모델.
 - `src/ui` — 보드 렌더러/HUD/도감(표시·애니메이션 전담, 상태 변경 금지).
 - `src/data` — 40종 적/40종 카드/20종 진화체/5종 보스 등 밸런스·명단 테이블.
-- `src/assets` — sprites(webp)/audio(mp3)/fonts(woff2).
+- `src/assets` — sprites(webp)/audio(mp3)/fonts(woff2). `sprites/`는 `enemies/`(적)·`allies/`(사령된 아군)·`backgrounds/`(배경) 하위 폴더로 미리 분리해뒀다(현재 `.gitkeep`만 존재, 원화 투입 대기 중).
 - `build/` — electron-builder 리소스(아이콘 등). 아이콘 확정 전까지 비워둠.
 
 ## 구현 우선 사실(2026-07-03 기준)
 - 메인 화면 골격 구현됨: 3D로 기울인 중앙 보드판(좌측 본진 1칸 + 3×3 적 그리드, `--board-tilt` CSS 변수), 하단 손패 부채꼴, 우측 하단 유물 인벤토리, 좌측 하단 스킬 오르브 2개(기본 공격/스킬).
+- `IntroOverlay`: 게임 진입 시 어두운 비네틱 화면이 2.4초에 걸쳐 밝아지며 보드를 드러내고, 중앙에 "시작하기" 버튼이 페이드인된다. 버튼을 눌러야 `WaveSystem.start()`/`AbilitySystem.start()`가 호출되어 웨이브 스폰·이동·코스트 회복이 시작된다 — 그 전까지 보드는 비어 있고 웨이브 HUD도 정지해 있다.
 - `WaveSystem`: 적은 그리드 우측 열(본진 반대편) 바깥 가상 칸에서 슬라이드해 들어와 매 틱 본진 방향으로 전진/배회하며, 아군이 있는 칸에도 자유롭게 진입한다. 웨이브는 30초마다 강제로 밀려오고, 그 전에 필드의 적을 모두 처치하면 타이머를 기다리지 않고 즉시 다음 웨이브가 밀려온다. 5웨이브마다 체크포인트(정비 소강상태 + 진행 버튼), 3번째 체크포인트마다 유물 3택 화면.
 - `AbilitySystem`: 코스트 풀(최대10, 1.2초당 +1). 기본 공격(코스트2, 단일 칸 클릭 즉시 발동)과 스킬(코스트10, 생존 적 전체)은 `CurseMortar`로 본진 카드에서 곡선 발사되어 착탄 시에만 실제 피해가 들어간다(`WaveSystem.applyDamage`, 착탄 지점에 `FloatingDamage`). 임시 소환수 실험(`DefenderSystem.summon`/`stepSummons`/`getAttack`, `AllyToken.attack`/`movesLeft`)은 플레이 결과 롤백되어 현재 어느 능력에도 연결돼 있지 않지만, 추후 재사용을 위해 코드는 보존돼 있다.
 - `DefenderSystem`: 손패 카드를 선택해 칸(적이 있어도 무관, 칸당 최대 3기)에 배치하면 아군 디펜더(hp3)가 된다. 전투는 적과 아군이 실제로 같은 칸에 있을 때만 시작되어 매 틱 서로 피해를 교환한다.
