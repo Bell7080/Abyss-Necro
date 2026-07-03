@@ -11,6 +11,9 @@ const ITEM_DROP_CHANCE = 0.35
 const WAVES_PER_RELIC = 3
 const NEXT_WAVE_DELAY_MS = 600
 const MOVE_TICK_MS = 1100
+// Display-only pacing — clearing a wave doesn't currently require the full
+// 3 minutes, this just gives the HUD countdown something to count down.
+const WAVE_DISPLAY_DURATION_MS = 3 * 60 * 1000
 
 export interface EncounterResult {
   /** Grid cell the enemy was standing in when the fight resolved. */
@@ -47,6 +50,7 @@ export class WaveSystem {
   private waveNumber = 1
   private wavesSinceRelic = 0
   private aliveInWave = 0
+  private waveStartedAt = Date.now()
   private paused = false
   private pendingSpawnWave = false
   private readonly changeListeners: Array<() => void> = []
@@ -84,6 +88,11 @@ export class WaveSystem {
 
   getWaveNumber(): number {
     return this.waveNumber
+  }
+
+  /** Milliseconds left in the current wave's display countdown (HUD only). */
+  getRemainingMs(): number {
+    return Math.max(0, WAVE_DISPLAY_DURATION_MS - (Date.now() - this.waveStartedAt))
   }
 
   getAliveCellIndices(): number[] {
@@ -186,6 +195,7 @@ export class WaveSystem {
   }
 
   private spawnWave(): void {
+    this.waveStartedAt = Date.now()
     this.cells = new Array(ROWS * COLS).fill(null)
     for (let row = 0; row < ROWS; row += 1) {
       this.cells[row * COLS + ENTRY_COL] = {

@@ -4,6 +4,7 @@ import { ItemInventory } from '@ui/ItemInventory'
 import { RelicInventory } from '@ui/RelicInventory'
 import { RewardOverlay } from '@ui/RewardOverlay'
 import { SkillBar } from '@ui/SkillBar'
+import { WaveHud } from '@ui/WaveHud'
 import { BubbleBurst } from '@ui/effects/BubbleBurst'
 import { CurseMortar } from '@ui/effects/CurseMortar'
 import { showDamageNumber } from '@ui/effects/FloatingDamage'
@@ -48,6 +49,8 @@ export class Game {
     const sidePanels = document.createElement('div')
     sidePanels.className = 'side-panels'
     shell.appendChild(sidePanels)
+
+    new WaveHud(shell, this.waveSystem)
 
     this.relics = new RelicInventory(sidePanels)
     this.items = new ItemInventory(sidePanels)
