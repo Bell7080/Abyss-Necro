@@ -1,18 +1,20 @@
 /**
  * BubbleBurst — travel-style visual effect for "kill drops a card/item/relic".
  *
- * Restyled to match Unmelting's SquareBurst philosophy: flat solid-color
- * pieces from a small palette (no gradients, no glow), so a cluster of
- * overlapping circles reads as a clean layered silhouette rather than a
- * painterly glassy sphere. Unlike SquareBurst (scatters outward from one
- * origin), these travel from an origin point to a target point (the hand's
- * next fan slot, a panel, etc.), arcing upward like they're floating
- * through water. Call `onArrive` to time the actual state change to when
- * the bubbles visually land.
+ * Flat solid-color pieces from a small palette (no gradients, no glow) —
+ * closely follows Unmelting's SquareBurst technique (snappy easing curve,
+ * a grow-then-settle scale arc, outward-biased distance, slight per-burst
+ * count variance) reinterpreted as circular "bubbles" for the abyss theme
+ * instead of Unmelting's squares. `travelTo` carries pieces from an origin
+ * point to a target point (the hand's next fan slot, a panel, etc.), arcing
+ * upward like they're floating through water; `burstAt` scatters them
+ * outward from one point for a stationary pop (e.g. a clash landing). Call
+ * `onArrive` to time the actual state change to when the bubbles visually
+ * land.
  */
 
 export interface BubbleTravelOptions {
-  /** How many bubbles to spawn (default 10). */
+  /** How many bubbles to spawn (default random 9-13, like SquareBurst's variance). */
   count?: number
   /** Travel duration in ms (default 620). */
   duration?: number
@@ -23,7 +25,7 @@ export interface BubbleTravelOptions {
 }
 
 export interface BubbleBurstOptions {
-  /** How many bubbles to spawn (default 7). */
+  /** How many bubbles to spawn (default random 6-9). */
   count?: number
   /** Pop duration in ms (default 340). */
   duration?: number
@@ -39,6 +41,10 @@ const STYLE_ID = 'bubble-burst-styles'
 // Dark-to-light cyan, same cool "abyss" family as the rest of the UI —
 // a flat 4-shade set rather than a single gradient sphere.
 const PALETTE = ['#0d3a52', '#1f6f8f', '#5fc2dd', '#d9f4ff']
+
+// Unmelting SquareBurst's exact snappy deceleration curve — reused here so
+// every flat-color burst across both games shares the same felt timing.
+const BURST_EASING = 'cubic-bezier(0.18, 0.78, 0.28, 1)'
 
 function getOverlay(): HTMLElement {
   let el = document.getElementById(OVERLAY_ID)
@@ -109,18 +115,18 @@ function spawnBubble(
 
   const anim = piece.animate(
     [
-      { transform: 'translate(0px, 0px) scale(0.4)', opacity: 0 },
+      { transform: 'translate(0px, 0px) scale(0.5)', opacity: 0 },
       {
-        transform: `translate(${midX - startX}px, ${midY - startY}px) scale(1)`,
+        transform: `translate(${midX - startX}px, ${midY - startY}px) scale(1.05)`,
         opacity: 0.95,
-        offset: 0.5,
+        offset: 0.45,
       },
       {
-        transform: `translate(${targetX - startX}px, ${targetY - startY}px) scale(0.5)`,
+        transform: `translate(${targetX - startX}px, ${targetY - startY}px) scale(0.6)`,
         opacity: 0,
       },
     ],
-    { duration, delay, easing: 'cubic-bezier(0.2, 0.7, 0.25, 1)', fill: 'forwards' }
+    { duration, delay, easing: BURST_EASING, fill: 'forwards' }
   )
 
   anim.onfinish = () => piece.remove()
@@ -139,7 +145,9 @@ function spawnImpactBubble(
   piece.className = 'bubble-burst-piece'
   const size = rand(sizeRange[0], sizeRange[1])
   const angle = rand(0, Math.PI * 2)
-  const distance = rand(spread * 0.4, spread)
+  // Bias the radius outward, same as SquareBurst, so the pop reads as a
+  // chunky ring rather than a tight cluster collapsing on itself.
+  const distance = rand(spread * 0.35, spread)
   const dx = Math.cos(angle) * distance
   const dy = Math.sin(angle) * distance
 
@@ -152,10 +160,11 @@ function spawnImpactBubble(
 
   const anim = piece.animate(
     [
-      { transform: 'translate(0px, 0px) scale(0.5)', opacity: 0.95 },
-      { transform: `translate(${dx}px, ${dy}px) scale(1)`, opacity: 0 },
+      { transform: 'translate(0px, 0px) scale(0.5)', opacity: 1 },
+      { transform: `translate(${dx * 0.55}px, ${dy * 0.55}px) scale(1)`, opacity: 0.9, offset: 0.45 },
+      { transform: `translate(${dx}px, ${dy}px) scale(0.8)`, opacity: 0 },
     ],
-    { duration, easing: 'ease-out', fill: 'forwards' }
+    { duration, easing: BURST_EASING, fill: 'forwards' }
   )
 
   anim.onfinish = () => piece.remove()
@@ -167,7 +176,7 @@ export const BubbleBurst = {
   burstAt(x: number, y: number, opts: BubbleBurstOptions = {}): void {
     ensureStyles()
     const overlay = getOverlay()
-    const count = opts.count ?? 7
+    const count = opts.count ?? Math.floor(rand(6, 9))
     const duration = opts.duration ?? 340
     const sizeRange = opts.size ?? [5, 11]
     const spread = opts.spread ?? 26
@@ -186,7 +195,7 @@ export const BubbleBurst = {
   ): void {
     ensureStyles()
     const overlay = getOverlay()
-    const count = opts.count ?? 10
+    const count = opts.count ?? Math.floor(rand(9, 13))
     const duration = opts.duration ?? 620
     const sizeRange = opts.size ?? [9, 18]
 

@@ -1,3 +1,5 @@
+import type { TickManager } from '@core/TickManager'
+
 const MAX_COST = 10
 const REGEN_TICK_MS = 1200
 export const BASIC_ATTACK_COST = 2
@@ -11,10 +13,11 @@ export class AbilitySystem {
   private cost = MAX_COST
   private readonly listeners: Array<() => void> = []
 
-  /** Starts cost regen — held off until the player dismisses the intro
-   * veil, so the pool isn't quietly ticking up before the run begins. */
-  start(): void {
-    window.setInterval(() => this.regen(), REGEN_TICK_MS)
+  /** Registers cost regen on the shared TickManager — held off until the
+   * player dismisses the intro veil, so the pool isn't quietly ticking up
+   * before the run begins. */
+  start(tickManager: TickManager): void {
+    tickManager.register(() => this.regen(), REGEN_TICK_MS)
   }
 
   onChange(fn: () => void): void {

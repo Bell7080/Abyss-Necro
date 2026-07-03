@@ -2,6 +2,14 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-03 (22) — 폰트 매니저 도입 + 플레이어 이름 "넥슈" + 블라스트/틱 매니저로 이펙트·타이머 중앙화
+- **버블 이펙트를 Unmelting 스타일로 정제**: `BubbleBurst`가 Unmelting `SquareBurst`의 스냅감 있는 이징(`cubic-bezier(0.18, 0.78, 0.28, 1)`)과 3단계 확대-안착 스케일 곡선, 바깥쪽으로 편향된 거리 분포(`rand(spread*0.35, spread)`), 개수 소폭 랜덤화를 그대로 가져와 단색 원형 조각이 더 정돈되고 경쾌하게 움직이도록 다듬었다. 사각형 전용인 회전은 원에는 의미가 없어 제외.
+- 신규 `FontManager`(`src/ui/FontManager.ts`): Unmelting의 동명 클래스와 같은 패턴으로 `@font-face` 등록(`loadCustomFont`)과 전역 폰트 지정(`setPrimaryFamily`)을 한 곳에서 관리. 업로드된 `Griun Simsimche` 폰트를 `src/assets/fonts/griun_simsimche.woff2`로 넣고 `index.ts` 부팅 시점에 로드해 `body` 기본 폰트로 지정했다(개별 컴포넌트가 폰트 문자열을 직접 다루지 않게).
+- 플레이어 카드 이름을 "네크로맨서"에서 "넥슈"로 변경(`BoardRenderer`).
+- 신규 `TickManager`(`src/core/TickManager.ts`): `WaveSystem`(이동 틱)과 `AbilitySystem`(코스트 회복)이 각자 따로 갖고 있던 `window.setInterval`을 하나의 매니저로 모았다. 두 시스템은 `start(tickManager)`에서 자기 콜백/주기만 `register()`하고, 실제 인터벌 시작은 `Game.startRun()`이 `tickManager.start()`를 호출하는 한 지점으로 통일했다(전체 게임 시계를 한 번에 멈추는 `stop()`도 마련). 웨이브 푸시 타이머처럼 정지/재개로 지연이 동적인 것은 여전히 각 시스템 로컬 `setTimeout` 체인으로 남겨뒀다.
+- 신규 `BlastManager`(`src/ui/effects/BlastManager.ts`): `Game.ts`에 흩어져 있던 `BubbleBurst`/`CoinDrop` 직접 호출 4곳(카드/아이템/유물 드롭, 코인 드롭, 클래시 팝)을 `travelDrop`/`coinDrop`/`clashBurst` 세 메서드로 정리했다. `Game.ts`는 이제 이펙트 라이브러리를 직접 import하지 않고 소스 rect·목적지 좌표·onArrive 콜백만 넘기며, 실제 상태 변경(`addCard`/`addItem`/`addCoins`/`addRelic`)은 그대로 콜백 안에 남아 있다.
+- Playwright로 확인: 폰트가 실제로 `body`에 적용되고 `@font-face` 규칙이 주입되는 것, 플레이어 카드가 "넥슈"로 표시되는 것, 틱 매니저 경유로도 웨이브 이동·코스트 회복·즉시 다음 웨이브 푸시가 정상 동작하는 것, 블라스트 매니저 경유로 처치 시 카드 드롭 버블이 손패까지 도착해 실제 카드가 추가되는 것까지 전체 흐름.
+
 ## 2026-07-03 (21) — GitHub Pages 배포 재시도 버그 수정 + 보드/카드 2배 확대 + 손패 아트를 사령 후 형태로
 - **배포 워크플로 수정**: `deploy.yml`에 "같은 run을 Re-run하면 100% 실패하는" 버그를 고쳤다. `upload-pages-artifact`가 내부적으로 `overwrite: false`로 업로드하기 때문에, 실패한 run을 재시도하면 이전 시도의 `github-pages` 아티팩트가 남아있는 채로 새 아티팩트가 또 생겨 `deploy-pages`가 "Multiple artifacts... found"로 확정 실패하는 것이 원인이었다. `actions: write` 권한을 추가하고, 업로드 전에 현재 run의 기존 `github-pages` 아티팩트를 `gh api` DELETE로 미리 지우는 스텝을 넣어 재시도해도 항상 성공하게 했다.
 - **보드/카드 2배 확대**: `BoardRenderer`의 셀 픽셀 상수(`CELL_SIZE` 140→280, `CELL_GAP` 16→32, 역할 오프셋·스택 간격·클래시 돌진 거리 전부 비례 확대)와 `board.css`의 대응 치수(`.board-cell`/`.board-token` 140→280, `.board-player-cell` 160→320, `.board-layout` 그리드 트랙, `.entity-card` 계열 80~96px→160~190px, 카드 내부 이름/체력바/패딩)를 전부 2배 안팎으로 키웠다. 큰 지오메트리에 맞춰 `perspective`(950→1900)·`translateZ`(16→32)도 비례 조정해 기울기 강도는 그대로 유지. 커진 보드가 우측 유물/인벤토리 패널과 겹쳐서 `.board-mount`의 수평 앵커(`left` 54%→46%)도 같이 조정했다.

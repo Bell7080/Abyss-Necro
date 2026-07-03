@@ -8,8 +8,7 @@ import { RelicInventory } from '@ui/RelicInventory'
 import { RewardOverlay } from '@ui/RewardOverlay'
 import { SkillBar } from '@ui/SkillBar'
 import { WaveHud } from '@ui/WaveHud'
-import { BubbleBurst } from '@ui/effects/BubbleBurst'
-import { CoinDrop } from '@ui/effects/CoinDrop'
+import { BlastManager } from '@ui/effects/BlastManager'
 import { CurseMortar } from '@ui/effects/CurseMortar'
 import { showDamageNumber } from '@ui/effects/FloatingDamage'
 import { AbilitySystem } from '@systems/AbilitySystem'
@@ -19,6 +18,7 @@ import { HandSystem } from '@systems/HandSystem'
 import { ItemSystem } from '@systems/ItemSystem'
 import { RelicSystem } from '@systems/RelicSystem'
 import { WaveSystem, type CheckpointInfo, type ClashInfo, type EncounterResult } from '@systems/WaveSystem'
+import { TickManager } from '@core/TickManager'
 import { drawRandomConsumable } from '@data/ConsumablePool'
 import { getCreature } from '@data/CreatureDefinitions'
 import { drawRelicOptions } from '@data/RelicPool'
@@ -28,9 +28,6 @@ import type { Relic } from '@entities/Relic'
 const BASIC_ATTACK_DAMAGE = 2
 const ULTIMATE_DAMAGE = 4
 const RELIC_CHOICE_COUNT = 3
-// A beat of rest once the coin actually lands, so it visibly sits on the
-// ground before blasting off toward the panel instead of chaining instantly.
-const COIN_LAND_PAUSE_MS = 260
 
 export class Game {
   private readonly handSystem = new HandSystem()
@@ -40,6 +37,8 @@ export class Game {
   private readonly defenderSystem = new DefenderSystem()
   private readonly waveSystem = new WaveSystem(this.defenderSystem)
   private readonly abilitySystem = new AbilitySystem()
+  private readonly tickManager = new TickManager()
+  private readonly blast = new BlastManager()
   private readonly board: BoardRenderer
   private readonly hand: CardHand
   private readonly relics: RelicInventory
@@ -110,8 +109,9 @@ export class Game {
   /** Fired once, when the player dismisses the intro veil — nothing spawns
    * or moves before this. */
   private startRun(): void {
-    this.waveSystem.start()
-    this.abilitySystem.start()
+    this.waveSystem.start(this.tickManager)
+    this.abilitySystem.start(this.tickManager)
+    this.tickManager.start()
   }
 
   private handleCellClick(cellIndex: number): void {
@@ -181,45 +181,30 @@ export class Game {
     if (result.dropCard && rect) {
       const nextCount = this.handSystem.getCards().length + 1
       const target = this.hand.getNextSlotPoint(nextCount)
-      const origin = centerOf(rect)
       const creature = getCreature(result.creatureId)
 
-      BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
-        onArrive: () =>
-          this.handSystem.addCard({
-            id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            label: creature?.label ?? '심연의 것',
-            creatureId: result.creatureId,
-          }),
-      })
+      this.blast.travelDrop(rect, target, () =>
+        this.handSystem.addCard({
+          id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          label: creature?.label ?? '심연의 것',
+          creatureId: result.creatureId,
+        })
+      )
     }
 
     if (result.dropItem && rect) {
       const target = this.items.getDropPoint()
-      const origin = centerOf(rect)
-
-      BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
-        onArrive: () => this.itemSystem.addItem(drawRandomConsumable()),
-      })
+      this.blast.travelDrop(rect, target, () => this.itemSystem.addItem(drawRandomConsumable()))
     }
 
     // Every kill drops a coin: it lands on the ground in a short lobbed arc,
     // then blasts from that exact spot into the coin panel as a bubble
     // travel-in, same beat the counter bumps.
     if (result.dropCoin && rect) {
-      const origin = centerOf(rect)
-      CoinDrop.fire(origin.x, origin.y, {
-        onLand: () => {
-          window.setTimeout(() => {
-            const target = this.coins.getDropPoint()
-            BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
-              onArrive: () => {
-                this.coinSystem.addCoins(1)
-                this.coins.pulse()
-              },
-            })
-          }, COIN_LAND_PAUSE_MS)
-        },
+      const target = this.coins.getDropPoint()
+      this.blast.coinDrop(rect, target, () => {
+        this.coinSystem.addCoins(1)
+        this.coins.pulse()
       })
     }
   }
@@ -229,10 +214,9 @@ export class Game {
   private handleClash(info: ClashInfo): void {
     const rect = this.board.getCellRect(info.cellIndex)
     if (!rect) return
-    const center = centerOf(rect)
 
     this.board.playClashFx(info.cellIndex)
-    BubbleBurst.burstAt(center.x, center.y, { count: 6, size: [6, 12] })
+    this.blast.clashBurst(rect)
   }
 
   /** Every 5 forced waves the game pauses for a lull; every 3rd such
@@ -246,15 +230,12 @@ export class Game {
   }
 
   private resolveRelicChoice(relic: Relic, cardEl: HTMLElement): void {
-    const origin = centerOf(cardEl.getBoundingClientRect())
     const target = this.relics.getDropPoint()
 
     this.rewardOverlay.hide()
     this.waveSystem.resumeFromCheckpoint()
 
-    BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
-      onArrive: () => this.relicSystem.addRelic(relic),
-    })
+    this.blast.travelDrop(cardEl.getBoundingClientRect(), target, () => this.relicSystem.addRelic(relic))
   }
 }
 

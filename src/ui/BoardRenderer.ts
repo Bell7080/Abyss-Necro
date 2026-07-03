@@ -87,7 +87,7 @@ export class BoardRenderer {
     playerFigure.innerHTML = entityCardHtml({
       variant: 'player',
       imageUrl: playerArt,
-      name: '네크로맨서',
+      name: '넥슈',
     })
     this.playerCellEl.appendChild(playerFigure)
     layout.appendChild(this.playerCellEl)

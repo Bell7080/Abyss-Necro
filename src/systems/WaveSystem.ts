@@ -1,3 +1,4 @@
+import type { TickManager } from '@core/TickManager'
 import type { EnemyToken } from '@entities/EnemyToken'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import { randomCreature } from '@data/CreatureDefinitions'
@@ -91,13 +92,15 @@ export class WaveSystem {
 
   /** Spawns the first wave and starts the movement/push timers — held off
    * until the player dismisses the intro veil and clicks "시작하기", so
-   * nothing moves or spawns while that screen is up. */
-  start(): void {
+   * nothing moves or spawns while that screen is up. Movement rides the
+   * shared TickManager; the push timer stays a local setTimeout chain since
+   * its delay is dynamic (paused/resumed by checkpoints). */
+  start(tickManager: TickManager): void {
     if (this.started) return
     this.started = true
     this.waveStartedAt = Date.now()
     this.spawnWave()
-    window.setInterval(() => this.tick(), MOVE_TICK_MS)
+    tickManager.register(() => this.tick(), MOVE_TICK_MS)
     this.schedulePush()
   }
 
