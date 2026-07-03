@@ -47,9 +47,10 @@ export class CardHand {
       const el = document.createElement('button')
       el.type = 'button'
       el.dataset.cardId = card.id
-      const creature = card.kind === 'item' ? undefined : getCreature(card.creatureId)
+      const creature = card.kind ? undefined : getCreature(card.creatureId)
       el.className = creature ? 'hand-card has-image' : 'hand-card'
       if (card.kind === 'item') el.classList.add('hand-card--item')
+      if (card.kind === 'epic') el.classList.add('hand-card--epic')
       if (card.tier === 2) el.classList.add('hand-card--tier2')
       if (i === total - 1) el.classList.add('is-new')
       if (card.id === selectedId) el.classList.add('is-selected')
@@ -59,12 +60,14 @@ export class CardHand {
       el.style.setProperty('--hand-rot', `${rot}deg`)
       el.style.setProperty('--hand-i', `${i}`)
       // Necro cards preview the necromanced (after) form — the ally you'll
-      // get on placement. Item cards show a flat vial glyph instead.
+      // get on placement. Items show a vial, epics a sparkle facility star.
       const artHtml = creature
         ? `<img class="hand-card-image" src="${creature.allyArt}" alt="" />`
         : card.kind === 'item'
           ? Icons.itemVial()
-          : Icons.enemyToken()
+          : card.kind === 'epic'
+            ? Icons.coinSparkle()
+            : Icons.enemyToken()
       el.innerHTML = `<div class="hand-card-art">${artHtml}</div><div class="hand-card-label">${card.label}</div>`
       el.addEventListener('click', () => this.onCardClick(card.id))
       this.container.appendChild(el)

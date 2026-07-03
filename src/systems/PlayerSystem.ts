@@ -7,6 +7,7 @@ const PLAYER_MAX_HP = 10
 // until cleared.
 export class PlayerSystem {
   private hp = PLAYER_MAX_HP
+  private maxHp = PLAYER_MAX_HP
   private defeated = false
   private readonly changeListeners: Array<() => void> = []
   private readonly defeatListeners: Array<() => void> = []
@@ -24,7 +25,14 @@ export class PlayerSystem {
   }
 
   getMaxHp(): number {
-    return PLAYER_MAX_HP
+    return this.maxHp
+  }
+
+  /** Epic 심연의 심장: permanently bigger life pool, healed by the growth. */
+  increaseMaxHp(amount: number): void {
+    this.maxHp += amount
+    this.hp = Math.min(this.maxHp, this.hp + amount)
+    for (const fn of this.changeListeners) fn()
   }
 
   isDefeated(): boolean {

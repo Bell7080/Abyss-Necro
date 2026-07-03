@@ -1,5 +1,4 @@
-// Owns coin currency earned from kills. Spending it (at a future checkpoint
-// shop) isn't implemented yet — this system only accumulates and reports.
+// Owns the 별빛 currency earned from kills and spent at the checkpoint shop.
 export class CoinSystem {
   private coins = 0
   private readonly listeners: Array<(coins: number) => void> = []
@@ -15,6 +14,14 @@ export class CoinSystem {
   addCoins(amount: number): void {
     this.coins += amount
     this.emit()
+  }
+
+  /** Shop purchase — returns false (and changes nothing) if unaffordable. */
+  spend(amount: number): boolean {
+    if (this.coins < amount) return false
+    this.coins -= amount
+    this.emit()
+    return true
   }
 
   private emit(): void {

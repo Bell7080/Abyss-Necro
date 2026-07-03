@@ -6,9 +6,9 @@ export interface HandCard {
   label: string
   /** Empty string for item cards — they have no creature. */
   creatureId: string
-  /** Undefined = necro (placeable). 'item' = consumed on use. */
-  kind?: 'necro' | 'item'
-  /** ItemCardDefinitions id, set only when kind === 'item'. */
+  /** Undefined = necro (placeable). 'item'/'epic' = consumed on use. */
+  kind?: 'necro' | 'item' | 'epic'
+  /** Item/EpicCardDefinitions id, set when kind is 'item' or 'epic'. */
   itemId?: string
   /** 2 = the result of merging three identical cards. Placeholder rank
    * until the real 20-evolution roster lands — visually distinct in hand,

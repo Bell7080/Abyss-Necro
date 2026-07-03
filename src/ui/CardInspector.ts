@@ -1,4 +1,5 @@
 import { getCreature } from '@data/CreatureDefinitions'
+import { getEpicCard } from '@data/EpicCardDefinitions'
 import { getItemCard } from '@data/ItemCardDefinitions'
 import type { HandCard } from '@entities/Card'
 
@@ -6,16 +7,13 @@ import type { HandCard } from '@entities/Card'
 // a straight port of Unmelting's hearth inspector anatomy (full-bleed art
 // on top, near-black gradient converging downward, title/divider/tags/desc
 // anchored at the vertical middle), mirrored for the left edge and recolored
-// for the abyss. Its bottom hosts the relic tab (mounted by Game) so the
-// panel's lower half never sits empty.
+// for the abyss.
 export class CardInspector {
   private readonly panel: HTMLElement
   private readonly artEl: HTMLElement
   private readonly titleEl: HTMLElement
   private readonly tagsEl: HTMLElement
   private readonly descEl: HTMLElement
-  /** Slot the relic inventory renders into (Game mounts it once). */
-  readonly relicSlot: HTMLElement
 
   constructor(root: HTMLElement) {
     this.panel = document.createElement('div')
@@ -31,19 +29,23 @@ export class CardInspector {
         <div class="card-inspector-divider" aria-hidden="true"></div>
         <div class="card-inspector-tags"></div>
         <div class="card-inspector-desc"></div>
-        <div class="card-inspector-relics"></div>
       </div>`
 
     this.artEl = this.panel.querySelector('.card-inspector-art') as HTMLElement
     this.titleEl = this.panel.querySelector('.card-inspector-title') as HTMLElement
     this.tagsEl = this.panel.querySelector('.card-inspector-tags') as HTMLElement
     this.descEl = this.panel.querySelector('.card-inspector-desc') as HTMLElement
-    this.relicSlot = this.panel.querySelector('.card-inspector-relics') as HTMLElement
     root.appendChild(this.panel)
   }
 
   show(card: HandCard): void {
-    if (card.kind === 'item') {
+    if (card.kind === 'epic') {
+      const epic = getEpicCard(card.itemId ?? '')
+      this.artEl.style.backgroundImage = ''
+      this.titleEl.textContent = card.label
+      this.tagsEl.textContent = '에픽 · 시설 카드'
+      this.descEl.textContent = epic?.desc ?? '영구적인 효과를 남긴다.'
+    } else if (card.kind === 'item') {
       const item = getItemCard(card.itemId ?? '')
       this.artEl.style.backgroundImage = ''
       this.titleEl.textContent = card.label

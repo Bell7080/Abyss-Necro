@@ -45,7 +45,7 @@ export class HandSystem {
   findTriple(): HandCard[] | null {
     const byCreature = new Map<string, HandCard[]>()
     for (const card of this.cards) {
-      if (card.tier !== undefined || card.kind === 'item') continue
+      if (card.tier !== undefined || card.kind !== undefined) continue
       const group = byCreature.get(card.creatureId) ?? []
       group.push(card)
       if (group.length === 3) return group

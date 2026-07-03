@@ -21,6 +21,8 @@ const DEFAULT_ALLY_ATTACK = 2
 export class DefenderSystem {
   private cells: AllyToken[][] = Array.from({ length: CELL_COUNT }, () => [])
   private bossAllies: AllyToken[] = []
+  // Epic 증가별 stacks — permanent, applies to every current & future ally.
+  private attackBonus = 0
   private readonly listeners: Array<() => void> = []
 
   onChange(fn: () => void): void {
@@ -57,10 +59,17 @@ export class DefenderSystem {
   }
 
   /** Front defender's attack, for WaveSystem to apply on a clash — summons
-   * carry their own value, placed cards fall back to the shared default. */
+   * carry their own value, placed cards fall back to the shared default,
+   * and the epic 증가별 bonus rides on top of either. */
   getAttack(cellIndex: number): number | null {
     const ally = this.listFor(cellIndex)[0]
-    return ally ? ally.attack ?? DEFAULT_ALLY_ATTACK : null
+    return ally ? (ally.attack ?? DEFAULT_ALLY_ATTACK) + this.attackBonus : null
+  }
+
+  /** Epic 증가별: +1 attack for all placed allies, forever. Stackable. */
+  addAttackBonus(amount: number): void {
+    this.attackBonus += amount
+    this.emit()
   }
 
   /** Item card "치유 물결": every ally in the cell heals, capped at max.

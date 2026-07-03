@@ -334,6 +334,7 @@ body {
    cell is only a whisper of deeper shadow so you sense the socket without
    seeing a box. States still speak through glow. */
 .board-cell {
+  position: relative;
   width: 280px;
   height: 280px;
   padding: 0;
@@ -348,6 +349,21 @@ body {
   cursor: pointer;
   transform-style: preserve-3d;
   transition: box-shadow 0.18s ease;
+}
+
+/* Trap-star marker: a crimson star + stack count in the cell's corner. */
+.board-cell.has-trap::after {
+  content: '✦ ' attr(data-traps);
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  font-size: 17px;
+  font-weight: 900;
+  color: #ff92a4;
+  text-shadow:
+    0 0 10px rgba(255, 90, 120, 0.85),
+    0 1px 3px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
 }
 
 /* ---------- Constellation floor (the # drawn in starlight) ---------- */
@@ -764,6 +780,34 @@ body {
     0 0 28px rgba(140, 235, 195, 0.55);
 }
 
+/* Epic facility cards: violet-gold star usables with a permanent payoff. */
+.hand-card--epic {
+  box-shadow:
+    inset 0 0 0 1px rgba(225, 180, 255, 0.55),
+    0 14px 30px var(--abyss-shadow),
+    0 0 26px rgba(200, 140, 255, 0.4);
+}
+
+.hand-card--epic .hand-card-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d9b8ff;
+}
+
+.hand-card--epic .hand-card-art svg {
+  width: 52px;
+  height: 52px;
+  filter: drop-shadow(0 0 10px rgba(210, 160, 255, 0.75));
+}
+
+.hand-card--epic.is-selected {
+  box-shadow:
+    inset 0 0 0 1px rgba(240, 215, 255, 0.85),
+    0 16px 28px var(--abyss-shadow),
+    0 0 32px rgba(220, 170, 255, 0.6);
+}
+
 /* Merged (tier-2) card: a violet-charged ring and glow set it apart in the
    fan until real evolution art replaces it. */
 .hand-card--tier2 {
@@ -797,15 +841,22 @@ body {
   }
 }
 
-/* ---------- Relic tab (lives inside the card inspector's lower half) ---------- */
-/* The item inventory is gone (consumables will re-enter as hand cards);
-   relics render as a compact slot row under the inspector's description. */
+/* ---------- Relic dock (fixed, bottom-right, always visible) ---------- */
+
+.relic-dock {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  z-index: 60;
+}
 
 .relic-panel {
-  padding: 0;
-  background: none;
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(16, 12, 28, 0.34), rgba(6, 4, 14, 0.52));
   border: 0;
   box-shadow: none;
+  backdrop-filter: blur(6px);
 }
 
 .relic-panel-title {
@@ -1394,12 +1445,6 @@ body {
   color: rgba(196, 186, 214, 0.86);
 }
 
-/* Relic tab anchored to the panel's bottom — fills the lower half so the
-   inspector never trails off into empty darkness. */
-.card-inspector-relics {
-  margin-top: auto;
-}
-
 /* ---------- Intro veil (boot screen, once per session) ---------- */
 
 .intro-overlay {
@@ -1866,48 +1911,230 @@ body {
   }
 }
 
-/* ---------- Proceed button (checkpoint lull, below the board) ---------- */
+/* ---------- Shop overlay (checkpoint lull, unfolds from center) ---------- */
 
-.proceed-button {
-  position: absolute;
-  left: 50%;
-  bottom: 200px;
-  padding: 14px 38px;
-  border-radius: 999px;
-  border: 1px solid rgba(150, 205, 255, 0.5);
-  background: linear-gradient(160deg, rgba(70, 46, 112, 0.88), rgba(14, 10, 24, 0.96));
-  color: var(--abyss-lavender-bright);
-  font-size: 14px;
-  letter-spacing: 0.12em;
-  cursor: pointer;
+.shop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 3, 10, 0);
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, 10px) scale(0.92);
   transition:
-    opacity 0.3s ease,
-    transform 0.3s ease;
-  z-index: 60;
+    background 0.4s ease,
+    opacity 0.4s ease;
 }
 
-.proceed-button.is-visible {
+.shop-overlay.is-visible {
+  background: rgba(4, 3, 10, 0.78);
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-50%, 0) scale(1);
-  animation: proceed-pulse 1.3s ease-in-out infinite;
 }
 
-@keyframes proceed-pulse {
+/* The panel unfolds sparkling from the screen center. */
+.shop-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  padding: 40px 54px 34px;
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(127, 232, 255, 0.08), transparent 60%),
+    linear-gradient(180deg, rgba(18, 14, 32, 0.92), rgba(7, 5, 16, 0.96));
+  box-shadow:
+    inset 0 0 0 1px rgba(150, 205, 255, 0.14),
+    0 30px 70px rgba(0, 0, 0, 0.65);
+  transform: scale(0.55);
+  opacity: 0;
+  transition:
+    transform 0.44s cubic-bezier(0.2, 1.1, 0.3, 1),
+    opacity 0.32s ease;
+}
+
+.shop-overlay.is-visible .shop-panel {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Sparkle row blooming off the panel as it lands. */
+.shop-overlay.is-visible .shop-panel::before {
+  content: '✦ ✧ ✦';
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 17px;
+  letter-spacing: 0.4em;
+  color: rgba(217, 244, 255, 0.95);
+  text-shadow:
+    0 0 10px rgba(180, 244, 255, 0.9),
+    0 0 24px rgba(127, 232, 255, 0.6);
+  animation: coin-sparks 0.9s ease-out 0.36s both;
+  pointer-events: none;
+}
+
+.shop-title {
+  font-size: 22px;
+  letter-spacing: 0.34em;
+  padding-left: 0.34em;
+  color: var(--abyss-lavender-bright);
+  text-shadow: 0 0 18px rgba(150, 205, 255, 0.4);
+}
+
+.shop-cards {
+  display: flex;
+  gap: 24px;
+}
+
+.shop-card {
+  position: relative;
+  width: 150px;
+  aspect-ratio: 3 / 4;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(46, 32, 78, 0.9), rgba(14, 10, 24, 0.96));
+  color: var(--abyss-lavender-bright);
+  cursor: pointer;
+  box-shadow:
+    inset 0 0 0 1px rgba(180, 220, 255, 0.22),
+    0 16px 34px rgba(0, 0, 0, 0.55);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.shop-card:hover:not(.is-sold) {
+  transform: translateY(-6px) scale(1.04);
+  box-shadow:
+    inset 0 0 0 1px rgba(220, 240, 255, 0.5),
+    0 20px 40px rgba(0, 0, 0, 0.6),
+    0 0 26px rgba(150, 205, 255, 0.3);
+}
+
+.shop-card--epic {
+  box-shadow:
+    inset 0 0 0 1px rgba(225, 180, 255, 0.5),
+    0 16px 34px rgba(0, 0, 0, 0.55),
+    0 0 26px rgba(200, 140, 255, 0.35);
+}
+
+.shop-card.is-sold {
+  opacity: 0.32;
+  cursor: default;
+  filter: grayscale(0.6);
+}
+
+.shop-card.is-denied {
+  animation: shop-deny-shake 0.3s ease;
+}
+
+@keyframes shop-deny-shake {
   0%,
   100% {
-    box-shadow:
-      0 14px 30px var(--abyss-shadow),
-      0 0 14px rgba(150, 205, 255, 0.35);
-    border-color: rgba(150, 205, 255, 0.5);
+    transform: translateX(0);
   }
-  50% {
-    box-shadow:
-      0 14px 30px var(--abyss-shadow),
-      0 0 34px rgba(190, 225, 255, 0.75);
-    border-color: rgba(200, 230, 255, 0.9);
+  30% {
+    transform: translateX(-6px);
   }
+  60% {
+    transform: translateX(6px);
+  }
+}
+
+.shop-card-art {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shop-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
+
+.shop-card-glyph {
+  color: #bdaaf0;
+}
+
+.shop-card-glyph svg {
+  width: 46px;
+  height: 46px;
+  filter: drop-shadow(0 0 10px rgba(190, 150, 255, 0.6));
+}
+
+.shop-card--item .shop-card-glyph {
+  color: #9fe8c8;
+}
+
+.shop-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 8, 16, 0) 52%, rgba(8, 6, 14, 0.92) 100%);
+  pointer-events: none;
+}
+
+.shop-card-label {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 34px;
+  z-index: 1;
+  font-size: 14px;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.shop-card-price {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #7fe8ff;
+  text-shadow: 0 0 8px rgba(127, 232, 255, 0.55);
+}
+
+.shop-card-price svg {
+  width: 12px;
+  height: 12px;
+}
+
+.shop-leave-button {
+  padding: 14px 46px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(160deg, rgba(70, 46, 112, 0.9), rgba(12, 8, 22, 0.96));
+  color: var(--abyss-lavender-bright);
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  padding-left: calc(46px + 0.2em);
+  cursor: pointer;
+  box-shadow:
+    inset 0 0 0 1px rgba(180, 220, 255, 0.24),
+    0 14px 30px rgba(0, 0, 0, 0.5);
+  transition: box-shadow 0.2s ease;
+}
+
+.shop-leave-button:hover {
+  box-shadow:
+    inset 0 0 0 1px rgba(220, 240, 255, 0.5),
+    0 14px 30px rgba(0, 0, 0, 0.5),
+    0 0 26px rgba(150, 205, 255, 0.3);
 }

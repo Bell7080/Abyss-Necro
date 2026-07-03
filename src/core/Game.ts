@@ -6,9 +6,9 @@ import { CoinPanel } from '@ui/CoinPanel'
 import { DefeatOverlay } from '@ui/DefeatOverlay'
 import { IntroOverlay } from '@ui/IntroOverlay'
 import { MergeButton } from '@ui/MergeButton'
-import { ProceedButton } from '@ui/ProceedButton'
 import { RelicInventory } from '@ui/RelicInventory'
 import { RewardOverlay } from '@ui/RewardOverlay'
+import { ShopOverlay, type ShopOffer } from '@ui/ShopOverlay'
 import { SkillBar } from '@ui/SkillBar'
 import { WaveHud } from '@ui/WaveHud'
 import { BlastManager } from '@ui/effects/BlastManager'
@@ -29,6 +29,7 @@ import {
 } from '@systems/WaveSystem'
 import { TickManager } from '@core/TickManager'
 import { getCreature } from '@data/CreatureDefinitions'
+import { getEpicCard, randomEpicCard } from '@data/EpicCardDefinitions'
 import { getItemCard, randomItemCard } from '@data/ItemCardDefinitions'
 import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
@@ -57,8 +58,11 @@ export class Game {
   private readonly coins: CoinPanel
   private readonly skillBar: SkillBar
   private readonly rewardOverlay: RewardOverlay
-  private readonly proceedButton: ProceedButton
+  private readonly shopOverlay: ShopOverlay
   private readonly defeatOverlay: DefeatOverlay
+  // Epic permanent upgrades to the player's own casts.
+  private basicDamageBonus = 0
+  private ultimateDamageBonus = 0
   private readonly inspector: CardInspector
   private readonly mergeButton: MergeButton
   private readonly shellEl: HTMLElement
@@ -88,9 +92,12 @@ export class Game {
     this.coins = new CoinPanel(shell)
 
     this.inspector = new CardInspector(shell)
-    // The relic tab lives in the inspector's lower half — the old
-    // bottom-right side panel (and the item inventory with it) is gone.
-    this.relics = new RelicInventory(this.inspector.relicSlot)
+    // Relics keep a fixed dock at the bottom-right, always visible —
+    // independent of the inspector, which only exists while aiming.
+    const relicDock = document.createElement('div')
+    relicDock.className = 'relic-dock'
+    shell.appendChild(relicDock)
+    this.relics = new RelicInventory(relicDock)
     this.hand = new CardHand(shell, (cardId) => {
       this.handSystem.toggleSelect(cardId)
     })
@@ -104,7 +111,10 @@ export class Game {
     this.rewardOverlay = new RewardOverlay({
       onChoose: (relic, cardEl) => this.resolveRelicChoice(relic, cardEl),
     })
-    this.proceedButton = new ProceedButton(shell, () => this.waveSystem.resumeFromCheckpoint())
+    this.shopOverlay = new ShopOverlay({
+      onBuy: (offer, cardEl) => this.buyShopOffer(offer, cardEl),
+      onLeave: () => this.waveSystem.resumeFromCheckpoint(),
+    })
     new AbyssAmbience(shell)
     this.defeatOverlay = new DefeatOverlay(shell)
     new IntroOverlay(shell, () => this.startRun())
@@ -189,7 +199,34 @@ export class Game {
       this.useItemCard(cellIndex, card)
       return
     }
+    if (card.kind === 'epic') {
+      this.useEpicCard(cellIndex, card)
+      return
+    }
     if (!this.defenderSystem.place(cellIndex, card.label, card.creatureId)) return
+    this.handSystem.removeCard(card.id)
+  }
+
+  /** Epic facility cards: 함정별 needs a grid cell; the global ones apply
+   * their permanent buff wherever the click lands. */
+  private useEpicCard(cellIndex: number, card: HandCard): void {
+    const def = getEpicCard(card.itemId ?? '')
+    if (!def) return
+
+    if (def.id === 'trap-star') {
+      if (!this.waveSystem.addCellTrap(cellIndex)) return
+    } else if (def.id === 'power-star') {
+      this.defenderSystem.addAttackBonus(1)
+    } else if (def.id === 'vitality-star') {
+      this.playerSystem.increaseMaxHp(2)
+    } else if (def.id === 'sharpen-star') {
+      this.basicDamageBonus += 1
+    } else if (def.id === 'overload-star') {
+      this.ultimateDamageBonus += 2
+    }
+
+    const rect = this.board.getCellRect(cellIndex)
+    if (rect) this.blast.clashBurst(rect)
     this.handSystem.removeCard(card.id)
   }
 
@@ -227,7 +264,7 @@ export class Game {
 
     CurseMortar.fire(origin.x, origin.y, target.x, target.y, {
       onImpact: () => {
-        const result = this.waveSystem.applyDamage(cellIndex, BASIC_ATTACK_DAMAGE)
+        const result = this.waveSystem.applyDamage(cellIndex, BASIC_ATTACK_DAMAGE + this.basicDamageBonus)
         if (result) this.showHitNumber(result.cellIndex, result.amount, target)
       },
     })
@@ -257,7 +294,7 @@ export class Game {
       CurseMortar.fire(origin.x, origin.y, target.x, target.y, {
         delay: Math.random() * 140,
         onImpact: () => {
-          const result = this.waveSystem.applyDamage(cellIndex, ULTIMATE_DAMAGE)
+          const result = this.waveSystem.applyDamage(cellIndex, ULTIMATE_DAMAGE + this.ultimateDamageBonus)
           if (result) this.showHitNumber(result.cellIndex, result.amount, target)
         },
       })
@@ -285,7 +322,7 @@ export class Game {
             creatureId: result.creatureId,
           })
         })
-      } else {
+      } else if (result.drop === 'item') {
         const item = randomItemCard()
         this.blast.travelDrop(rect, target, () => {
           this.handSystem.addCard({
@@ -294,6 +331,17 @@ export class Game {
             creatureId: '',
             kind: 'item',
             itemId: item.id,
+          })
+        })
+      } else {
+        const epic = randomEpicCard()
+        this.blast.travelDrop(rect, target, () => {
+          this.handSystem.addCard({
+            id,
+            label: epic.label,
+            creatureId: '',
+            kind: 'epic',
+            itemId: epic.id,
           })
         })
       }
@@ -373,14 +421,34 @@ export class Game {
     this.defeatOverlay.show(this.waveSystem.getWaveNumber())
   }
 
-  /** Every 5 forced waves the game pauses for a lull; every 3rd such
-   * checkpoint offers a relic instead of just a "proceed" prompt. */
+  /** Each 3-wave round ends in a lull: the sparkling center shop unfolds,
+   * except every 3rd checkpoint, which offers a relic pick instead. */
   private handleCheckpoint(info: CheckpointInfo): void {
     if (info.isRelicCheckpoint) {
       this.rewardOverlay.show(drawRelicOptions(RELIC_CHOICE_COUNT))
     } else {
-      this.proceedButton.show()
+      this.shopOverlay.show()
     }
+  }
+
+  /** Shop purchase: pay 별빛, then the bought card bubbles into the hand. */
+  private buyShopOffer(offer: ShopOffer, cardEl: HTMLElement): boolean {
+    if (!this.coinSystem.spend(offer.price)) return false
+
+    const nextCount = this.handSystem.getCards().length + 1
+    const target = this.hand.getNextSlotPoint(nextCount)
+    const id = `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+
+    this.blast.travelDrop(cardEl.getBoundingClientRect(), target, () => {
+      if (offer.kind === 'necro' && offer.creature) {
+        this.handSystem.addCard({ id, label: offer.creature.label, creatureId: offer.creature.id })
+      } else if (offer.kind === 'item' && offer.item) {
+        this.handSystem.addCard({ id, label: offer.item.label, creatureId: '', kind: 'item', itemId: offer.item.id })
+      } else if (offer.kind === 'epic' && offer.epic) {
+        this.handSystem.addCard({ id, label: offer.epic.label, creatureId: '', kind: 'epic', itemId: offer.epic.id })
+      }
+    })
+    return true
   }
 
   private resolveRelicChoice(relic: Relic, cardEl: HTMLElement): void {

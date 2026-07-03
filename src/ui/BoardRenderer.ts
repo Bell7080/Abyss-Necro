@@ -135,6 +135,12 @@ export class BoardRenderer {
 
     enemyCells.forEach((list, i) => this.cellEls[i]?.classList.toggle('has-enemy', list.length > 0))
     allyCells.forEach((list, i) => this.cellEls[i]?.classList.toggle('has-ally', list.length > 0))
+    this.waveSystem.getCellTraps().forEach((count, i) => {
+      const cell = this.cellEls[i]
+      if (!cell) return
+      cell.classList.toggle('has-trap', count > 0)
+      cell.dataset.traps = count > 0 ? `${count}` : ''
+    })
 
     this.syncGridRole(this.enemyTokens, enemyCells, 'enemy')
     this.syncGridRole(this.allyTokens, allyCells, 'ally')

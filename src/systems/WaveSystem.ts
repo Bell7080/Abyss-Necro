@@ -11,8 +11,10 @@ const ENEMY_ATTACK_DAMAGE = 1
 // Fallback only, used if DefenderHooks isn't wired — DefenderSystem's own
 // getAttack() (placed card default or summon's own value) wins normally.
 const ALLY_COUNTER_DAMAGE = 2
-// Every kill drops exactly one card: 50/50 necro vs item (wave-1 enemies
-// are pity-rigged to necro so the very first kill always teaches the loop).
+// Every kill drops exactly one card: a slim epic roll first, then 50/50
+// necro vs item (wave-1 enemies are pity-rigged to necro so the very first
+// kill always teaches the loop).
+const EPIC_DROP_CHANCE = 0.06
 const NECRO_DROP_CHANCE = 0.5
 const MOVE_TICK_MS = 1300
 // A new wave forces its way in every 30 seconds regardless of clear state —
@@ -37,7 +39,7 @@ export interface EncounterResult {
   /** Which creature died — a necro drop carries this. */
   creatureId: string
   /** Every kill drops exactly one card — this says which flavor. */
-  drop: 'necro' | 'item'
+  drop: 'necro' | 'item' | 'epic'
   /** Always true — every kill drops exactly one coin. */
   dropCoin: boolean
   viaBossRoom: boolean
@@ -92,6 +94,8 @@ export class WaveSystem {
   private waveNumber = 1
   private wavesSinceCheckpoint = 0
   private checkpointCount = 0
+  // Trap-star stacks per grid cell — enemies entering pay 1 hp per stack.
+  private cellTraps: number[] = Array.from({ length: ROWS * COLS }, () => 0)
   private started = false
   private paused = false
   private pushTimeoutId: number | null = null
@@ -169,6 +173,18 @@ export class WaveSystem {
 
   getWaveNumber(): number {
     return this.waveNumber
+  }
+
+  getCellTraps(): readonly number[] {
+    return this.cellTraps
+  }
+
+  /** Epic 함정별: one more permanent trap stack on a grid cell. */
+  addCellTrap(cellIndex: number): boolean {
+    if (cellIndex === BOSS_CELL_INDEX) return false
+    this.cellTraps[cellIndex] += 1
+    this.emitChange()
+    return true
   }
 
   isPaused(): boolean {
@@ -285,8 +301,13 @@ export class WaveSystem {
     if (enemy.hp <= 0) {
       const i = list.indexOf(enemy)
       if (i >= 0) list.splice(i, 1)
-      const drop: 'necro' | 'item' =
-        enemy.guaranteedCard || Math.random() < NECRO_DROP_CHANCE ? 'necro' : 'item'
+      const drop: 'necro' | 'item' | 'epic' = enemy.guaranteedCard
+        ? 'necro'
+        : Math.random() < EPIC_DROP_CHANCE
+          ? 'epic'
+          : Math.random() < NECRO_DROP_CHANCE
+            ? 'necro'
+            : 'item'
       this.emitChange()
       this.emitEncounter({ cellIndex, creatureId: enemy.creatureId, drop, dropCoin: true, viaBossRoom })
       this.triggerInstantPushIfClear()
@@ -431,6 +452,13 @@ export class WaveSystem {
     enemy.row = targetRow
     enemy.col = targetCol
     this.cells[targetIndex].push(enemy)
+
+    // Trap-star toll: stepping onto a trapped cell costs 1 hp per stack —
+    // damageEnemy handles a death here like any other kill (drops included).
+    const traps = this.cellTraps[targetIndex]
+    if (traps > 0) {
+      this.damageEnemy(this.cells[targetIndex], targetIndex, enemy, traps, false)
+    }
   }
 
   /** Wherever a defender and an enemy now occupy the same cell, the front
