@@ -2,6 +2,14 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-03 (13) — 웨이브 30초 주기 + 클리어 즉시 다음 웨이브 + 스킬 발동 방식 정리
+- `WAVE_PUSH_INTERVAL_MS`를 3분→30초로 단축. `WaveSystem`에 `pushTimeoutId`를 두고 `damageEnemy`에서 처치 직후 그리드+본진에 살아있는 적이 하나도 없으면(`isBoardClear`) 대기 중인 푸시 타이머를 즉시 취소하고 `handlePushTimeout`을 그 자리에서 실행해 다음 웨이브가 30초를 다 기다리지 않고 바로 밀려오게 했다(`triggerInstantPushIfClear`). 체크포인트로 정비 중(`paused`)일 때는 발동하지 않는다.
+- 스킬 발동 방식 변경: 기본 공격(코스트1)은 더 이상 스킬 오르브를 먼저 클릭해 "조준"할 필요 없이 보드 칸을 클릭하는 즉시 무조건 발동한다. 스킬(코스트10, 전체 타격)은 기존과 동일하게 스킬 아이콘을 직접 클릭해야만 발동한다.
+- `AbilitySystem`에서 `basicArmed`/`isBasicArmed`/`toggleArmBasic`/`disarmBasic`을 전부 제거(코스트 보유 여부만 판단). `SkillBar`의 기본 공격 오르브는 클릭 리스너 없는 순수 코스트 표시로 남고 `SkillBarHandlers`도 `onUltimateClick`만 남았다.
+- `BoardRenderer.setTargeting`/`is-targeting`/`is-targetable` 관련 CSS·메서드를 제거하고, 기본 공격에 조준 단계가 없어진 만큼 모든 칸(그리드+본진)이 항상 클릭 가능하도록 커서/호버 하이라이트를 상시 적용으로 전환했다. 배치 모드(`is-placement-targeting`)는 기존과 동일하게 카드 선택 시에만 켜진다.
+- 더 이상 쓰이지 않게 된 `HandSystem.clearSelection()`, `.skill-orb.is-armed` 펄스 애니메이션도 함께 제거.
+- Playwright로 확인: 오르브를 누르지 않고 칸을 바로 클릭하면 코스트가 즉시 차감되며 공격이 나가고, 기본 오르브를 눌러도 아무 일도 일어나지 않는 것(코스트 불변, 타겟팅 클래스 없음), 3칸을 모두 처치하면 30초를 기다리지 않고 곧바로 다음 웨이브가 밀려오는 것(처치 후 약 0.15초 만에 웨이브 번호 증가)까지 확인.
+
 ## 2026-07-03 (12) — 동일 칸 조우 전투 + 돌진 클래시 이펙트 + 적 입장 슬라이드
 - 전투 발생 조건 변경: `WaveSystem.stepEnemy`가 더 이상 인접 접근만으로 이동을 막지 않고, 적은 아군이 있는 칸에도 자유롭게 걸어 들어간다. 실제로 같은 칸(또는 본진)에 적과 아군이 함께 있을 때만 `resolveClashes`가 매 틱 서로 피해를 교환하고, 그동안 그 칸의 적은 배회를 멈춘다(`stepEnemy` 조기 반환).
 - `WaveSystem`에 `onClash` 이벤트 추가(`ClashInfo{cellIndex}`), 클래시가 발생한 칸을 매 틱 UI에 통지한다.

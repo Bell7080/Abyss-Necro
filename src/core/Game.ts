@@ -57,19 +57,12 @@ export class Game {
     this.relics = new RelicInventory(sidePanels)
     this.items = new ItemInventory(sidePanels)
     this.hand = new CardHand(shell, (cardId) => {
-      // Selecting a card for placement and aiming an attack are mutually
-      // exclusive targeting modes.
-      this.abilitySystem.disarmBasic()
       this.handSystem.toggleSelect(cardId)
     })
     this.board = new BoardRenderer(boardMount, this.waveSystem, this.defenderSystem, (cellIndex) =>
       this.handleCellClick(cellIndex)
     )
     this.skillBar = new SkillBar(shell, this.abilitySystem, {
-      onBasicClick: () => {
-        this.handSystem.clearSelection()
-        this.abilitySystem.toggleArmBasic()
-      },
       onUltimateClick: () => this.castUltimate(),
     })
     this.rewardOverlay = new RewardOverlay({
@@ -88,10 +81,7 @@ export class Game {
     })
     this.relicSystem.onChange((relics) => this.relics.render(relics))
     this.itemSystem.onChange((items) => this.items.render(items))
-    this.abilitySystem.onChange(() => {
-      this.skillBar.render()
-      this.board.setTargeting(this.abilitySystem.isBasicArmed())
-    })
+    this.abilitySystem.onChange(() => this.skillBar.render())
 
     this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
     this.relics.render(this.relicSystem.getRelics())
@@ -110,7 +100,8 @@ export class Game {
       return
     }
 
-    if (!this.abilitySystem.isBasicArmed()) return
+    // Basic attack fires unconditionally on click — no arming step. Only
+    // the ultimate needs its own skill-orb click (see onUltimateClick).
     if (!this.abilitySystem.tryCastBasic()) return
     this.castBasicAttack(cellIndex)
   }

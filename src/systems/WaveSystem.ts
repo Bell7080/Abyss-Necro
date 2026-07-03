@@ -10,10 +10,11 @@ const ALLY_COUNTER_DAMAGE = 2
 const CARD_DROP_CHANCE = 0.5
 const ITEM_DROP_CHANCE = 0.35
 const MOVE_TICK_MS = 1100
-// A new wave forces its way in every 3 minutes regardless of whether the
-// board is cleared — this is the actual pacing mechanism, not just a
-// display countdown.
-const WAVE_PUSH_INTERVAL_MS = 3 * 60 * 1000
+// A new wave forces its way in every 30 seconds regardless of clear state —
+// this is the actual pacing mechanism, not just a display countdown. If the
+// board clears before the timer runs out, the next wave pushes immediately
+// instead of waiting out the rest of the interval (see triggerInstantPush).
+const WAVE_PUSH_INTERVAL_MS = 30 * 1000
 const WAVES_PER_CHECKPOINT = 5
 const CHECKPOINTS_PER_RELIC = 3
 
@@ -70,6 +71,7 @@ export class WaveSystem {
   private checkpointCount = 0
   private waveStartedAt = Date.now()
   private paused = false
+  private pushTimeoutId: number | null = null
   private readonly changeListeners: Array<() => void> = []
   private readonly encounterListeners: Array<(result: EncounterResult) => void> = []
   private readonly checkpointListeners: Array<(info: CheckpointInfo) => void> = []
@@ -164,6 +166,7 @@ export class WaveSystem {
       const dropItem = Math.random() < ITEM_DROP_CHANCE
       this.emitChange()
       this.emitEncounter({ cellIndex, dropCard, dropItem, viaBossRoom })
+      this.triggerInstantPushIfClear()
       return { cellIndex, amount, defeated: true }
     }
 
@@ -172,7 +175,26 @@ export class WaveSystem {
   }
 
   private schedulePush(): void {
-    window.setTimeout(() => this.handlePushTimeout(), WAVE_PUSH_INTERVAL_MS)
+    this.pushTimeoutId = window.setTimeout(() => {
+      this.pushTimeoutId = null
+      this.handlePushTimeout()
+    }, WAVE_PUSH_INTERVAL_MS)
+  }
+
+  /** Every enemy on the board (grid + boss room) is dead — don't make the
+   * player wait out the rest of the push timer for the next wave. */
+  private triggerInstantPushIfClear(): void {
+    if (this.paused) return
+    if (!this.isBoardClear()) return
+    if (this.pushTimeoutId !== null) {
+      window.clearTimeout(this.pushTimeoutId)
+      this.pushTimeoutId = null
+    }
+    this.handlePushTimeout()
+  }
+
+  private isBoardClear(): boolean {
+    return this.bossEnemies.length === 0 && this.cells.every((list) => list.length === 0)
   }
 
   private handlePushTimeout(): void {

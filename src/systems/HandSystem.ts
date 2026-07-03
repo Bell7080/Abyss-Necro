@@ -33,12 +33,6 @@ export class HandSystem {
     this.emit()
   }
 
-  clearSelection(): void {
-    if (!this.selectedId) return
-    this.selectedId = null
-    this.emit()
-  }
-
   /** Removes a card once it's been placed on the board as a defender. */
   removeCard(cardId: string): void {
     this.cards = this.cards.filter((card) => card.id !== cardId)

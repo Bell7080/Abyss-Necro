@@ -222,12 +222,6 @@ export class BoardRenderer {
     }
   }
 
-  /** Toggles the "pick a target" affordance while basic attack is armed. */
-  setTargeting(active: boolean): void {
-    this.gridEl.classList.toggle('is-targeting', active)
-    this.playerCellEl.classList.toggle('is-targetable', active)
-  }
-
   /** Toggles the "pick a cell to deploy" affordance while a hand card is selected. */
   setPlacementTargeting(active: boolean): void {
     this.gridEl.classList.toggle('is-placement-targeting', active)

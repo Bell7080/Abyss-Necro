@@ -2,12 +2,13 @@ import type { AbilitySystem } from '@systems/AbilitySystem'
 import { Icons } from '@ui/Icons'
 
 export interface SkillBarHandlers {
-  onBasicClick: () => void
   onUltimateClick: () => void
 }
 
-// Bottom-left pair of round skill orbs. Display only — AbilitySystem owns
-// cost/armed state, Game.ts owns what a click actually does.
+// Bottom-left pair of round skill orbs. The basic orb is a cost readout
+// only — basic attack fires directly from a board cell click, never from
+// this button. Only the ultimate orb is clickable, since it hits every
+// alive cell at once and has no single target to click instead.
 export class SkillBar {
   private readonly basicBtn: HTMLButtonElement
   private readonly ultimateBtn: HTMLButtonElement
@@ -25,7 +26,6 @@ export class SkillBar {
     this.basicBtn.type = 'button'
     this.basicBtn.className = 'skill-orb skill-orb--basic'
     this.basicBtn.innerHTML = `${Icons.curseBolt()}<span class="skill-orb-cost">1</span>`
-    this.basicBtn.addEventListener('click', handlers.onBasicClick)
 
     this.ultimateBtn = document.createElement('button')
     this.ultimateBtn.type = 'button'
@@ -45,7 +45,6 @@ export class SkillBar {
   render(): void {
     const cost = this.ability.getCost()
     const max = this.ability.getMaxCost()
-    this.basicBtn.classList.toggle('is-armed', this.ability.isBasicArmed())
     this.basicBtn.classList.toggle('is-disabled', !this.ability.canCastBasic())
     this.ultimateBtn.classList.toggle('is-disabled', !this.ability.canCastUltimate())
     this.readout.textContent = `코스트 ${cost}/${max}`

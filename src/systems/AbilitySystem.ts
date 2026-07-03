@@ -3,12 +3,12 @@ const REGEN_TICK_MS = 1200
 export const BASIC_ATTACK_COST = 1
 export const ULTIMATE_COST = 10
 
-// Owns the player's cost pool and the basic-attack targeting ("armed")
-// state. Damage numbers and combat resolution live in WaveSystem — this
-// system only decides whether a cast is affordable.
+// Owns the player's cost pool. Basic attack fires unconditionally on cell
+// click (no arming step) as long as it's affordable; the ultimate only
+// fires from its own skill-orb click. Damage numbers and combat resolution
+// live in WaveSystem — this system only decides whether a cast is affordable.
 export class AbilitySystem {
   private cost = MAX_COST
-  private basicArmed = false
   private readonly listeners: Array<() => void> = []
 
   constructor() {
@@ -27,10 +27,6 @@ export class AbilitySystem {
     return MAX_COST
   }
 
-  isBasicArmed(): boolean {
-    return this.basicArmed
-  }
-
   canCastBasic(): boolean {
     return this.cost >= BASIC_ATTACK_COST
   }
@@ -39,25 +35,10 @@ export class AbilitySystem {
     return this.cost >= ULTIMATE_COST
   }
 
-  /** Toggle basic-attack targeting mode; the next board click resolves it. */
-  toggleArmBasic(): void {
-    this.basicArmed = this.canCastBasic() && !this.basicArmed
-    this.emit()
-  }
-
-  /** Cancels targeting without spending cost — used when selecting a hand
-   * card for placement instead. */
-  disarmBasic(): void {
-    if (!this.basicArmed) return
-    this.basicArmed = false
-    this.emit()
-  }
-
-  /** Spends the cost and disarms atomically once a target cell is chosen. */
+  /** Spends the cost for a direct cell-click basic attack. */
   tryCastBasic(): boolean {
     if (!this.canCastBasic()) return false
     this.cost -= BASIC_ATTACK_COST
-    this.basicArmed = false
     this.emit()
     return true
   }
