@@ -14,12 +14,12 @@ const CELL_GAP = 16
 // Allies sit slightly left of a cell's center, enemies slightly right, so
 // a shared cell reads as a face-off instead of a pile. Multiple occupants
 // on the same side stack with a small vertical offset.
-const GRID_ROLE_OFFSET_X = 34
+const GRID_ROLE_OFFSET_X = 40
 const STACK_GAP_Y = 20
 // In the boss/player cell: player leftmost, allies in the middle, enemies
 // rightmost — the same "standing off against each other" composition.
 const BOSS_ALLY_OFFSET_X = 0
-const BOSS_ENEMY_OFFSET_X = 44
+const BOSS_ENEMY_OFFSET_X = 52
 
 const DEFEAT_FX_MS = 420
 const ENGAGE_FX_MS = 520

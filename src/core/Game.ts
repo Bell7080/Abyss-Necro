@@ -102,6 +102,9 @@ export class Game {
 
     // Basic attack fires unconditionally on click — no arming step. Only
     // the ultimate needs its own skill-orb click (see onUltimateClick).
+    // Neither fires during a checkpoint lull — leftover enemies just stand
+    // there unharmed until the player proceeds.
+    if (this.waveSystem.isPaused()) return
     if (!this.abilitySystem.tryCastBasic()) return
     this.castBasicAttack(cellIndex)
   }
@@ -128,6 +131,7 @@ export class Game {
   }
 
   private castUltimate(): void {
+    if (this.waveSystem.isPaused()) return
     if (!this.abilitySystem.tryCastUltimate()) return
     const originRect = this.board.getPlayerRect()
     if (!originRect) return

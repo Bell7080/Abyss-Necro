@@ -226,8 +226,12 @@ export class WaveSystem {
     })
 
     for (const [index, enemy] of toStep) this.stepEnemy(index, enemy)
-    this.resolveClashes()
+    // Sync this tick's movement to the board before resolving clashes — a
+    // clash's onClash listener reads token positions, and an enemy that
+    // just walked into a defended cell needs its new position on screen
+    // first or the lunge animation plays from its stale, pre-move spot.
     this.emitChange()
+    this.resolveClashes()
   }
 
   private stepEnemy(index: number, enemy: EnemyToken): void {

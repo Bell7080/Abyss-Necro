@@ -295,7 +295,7 @@ body {
 /* Shifts the player's own card left within the (now wider) boss cell so
    allies/enemies standing there have room on its right. */
 .board-figure--boss-player {
-  --board-figure-shift-x: -50px;
+  --board-figure-shift-x: -60px;
 }
 
 .board-figure.is-arrived {
@@ -330,8 +330,8 @@ body {
   position: absolute;
   left: 50%;
   bottom: 0;
-  width: 64px;
-  height: 88px;
+  width: 72px;
+  height: 96px;
   transform: translate(-50%, 0) translate(var(--hand-x, 0px), var(--hand-y, 0px))
     rotate(var(--hand-rot, 0deg));
   transform-origin: bottom center;
@@ -562,15 +562,15 @@ body {
 }
 
 .entity-card--enemy {
-  width: 68px;
+  width: 80px;
 }
 
 .entity-card--ally {
-  width: 68px;
+  width: 80px;
 }
 
 .entity-card--player {
-  width: 80px;
+  width: 96px;
 }
 
 .entity-card-art {
