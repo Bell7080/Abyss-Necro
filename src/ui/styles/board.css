@@ -503,10 +503,15 @@ body {
   }
 }
 
-/* Icons/labels standing on a tile counter-rotate the board's tilt so they
-   read as upright standees rather than lying flat with the floor. */
+/* Cards stand up on the tilted floor as standees: instead of fully
+   cancelling the board tilt (which reads as a flat billboard), we leave a
+   small backward lean (--figure-lean) so the top recedes with perspective,
+   and lift them off the floor (translateZ) so they pop rather than lie flat.
+   --figure-rise slides a figure up the slope (used to raise the player). */
 .board-figure {
   --board-figure-shift-x: 0px;
+  --figure-lean: 14deg;
+  --figure-rise: 0px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -515,7 +520,8 @@ body {
   gap: 8px;
   transform-style: preserve-3d;
   transform-origin: 50% 100%;
-  transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(32px) translateX(var(--board-figure-shift-x));
+  transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 + var(--figure-lean)))
+    translateZ(58px) translateX(var(--board-figure-shift-x));
   transition: transform 0.18s ease;
 }
 
@@ -535,11 +541,12 @@ body {
   pointer-events: none;
 }
 
-/* Pushes the player's card left of the boss cell — far enough to clear the
-   room's allies/enemies (whose offsets moved right to meet it halfway)
-   while staying fully on screen. */
+/* Pushes the player's card left of the boss cell (clearing the room's
+   allies/enemies) and raises it up the slope so it sits nearer the middle
+   of the screen instead of hugging the bottom-left. */
 .board-figure--boss-player {
   --board-figure-shift-x: -100px;
+  --figure-rise: -150px;
 }
 
 .board-figure.is-arrived {
@@ -548,13 +555,13 @@ body {
 
 @keyframes figure-pop {
   0% {
-    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(32px) translateX(var(--board-figure-shift-x))
-      scale(0.4);
+    transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 + var(--figure-lean)))
+      translateZ(58px) translateX(var(--board-figure-shift-x)) scale(0.4);
     opacity: 0;
   }
   100% {
-    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(32px) translateX(var(--board-figure-shift-x))
-      scale(1);
+    transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 + var(--figure-lean)))
+      translateZ(58px) translateX(var(--board-figure-shift-x)) scale(1);
     opacity: 1;
   }
 }
