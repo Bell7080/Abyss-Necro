@@ -20,6 +20,8 @@ export interface BubbleTravelOptions {
   duration?: number
   /** Min/max bubble diameter in px (default [9, 18]). */
   size?: [number, number]
+  /** Override palette (e.g. gold star essence); defaults to abyss cyan. */
+  colors?: string[]
   /** Fired once, timed to when the swarm reaches the target. */
   onArrive?: () => void
 }
@@ -84,10 +86,6 @@ function rand(min: number, max: number): number {
   return min + Math.random() * (max - min)
 }
 
-function pickShade(): string {
-  return PALETTE[Math.floor(Math.random() * PALETTE.length)]
-}
-
 function spawnBubble(
   overlay: HTMLElement,
   originX: number,
@@ -96,7 +94,8 @@ function spawnBubble(
   targetY: number,
   duration: number,
   sizeRange: [number, number],
-  delay: number
+  delay: number,
+  colors: string[]
 ): void {
   const piece = document.createElement('div')
   piece.className = 'bubble-burst-piece'
@@ -112,7 +111,7 @@ function spawnBubble(
   piece.style.height = `${size}px`
   piece.style.left = `${startX - size / 2}px`
   piece.style.top = `${startY - size / 2}px`
-  piece.style.background = pickShade()
+  piece.style.background = colors[Math.floor(Math.random() * colors.length)]
   overlay.appendChild(piece)
 
   const anim = piece.animate(
@@ -202,9 +201,10 @@ export const BubbleBurst = {
     const count = opts.count ?? Math.floor(rand(9, 13))
     const duration = opts.duration ?? 620
     const sizeRange = opts.size ?? [9, 18]
+    const colors = opts.colors ?? PALETTE
 
     for (let i = 0; i < count; i += 1) {
-      spawnBubble(overlay, originX, originY, targetX, targetY, duration, sizeRange, rand(0, 90))
+      spawnBubble(overlay, originX, originY, targetX, targetY, duration, sizeRange, rand(0, 90), colors)
     }
 
     if (opts.onArrive) {

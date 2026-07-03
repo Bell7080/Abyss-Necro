@@ -34,6 +34,7 @@ export class DefenderSystem {
   private attackBonus = 0
   private readonly listeners: Array<() => void> = []
   private readonly passiveListeners: Array<(e: PassiveEvent) => void> = []
+  private readonly deathListeners: Array<(e: AllyDeath) => void> = []
 
   onChange(fn: () => void): void {
     this.listeners.push(fn)
@@ -41,6 +42,11 @@ export class DefenderSystem {
 
   onPassive(fn: (e: PassiveEvent) => void): void {
     this.passiveListeners.push(fn)
+  }
+
+  /** A creature-ally fell — Game turns it into a graveyard star. */
+  onAllyDeath(fn: (e: AllyDeath) => void): void {
+    this.deathListeners.push(fn)
   }
 
   getCells(): readonly AllyToken[][] {
@@ -127,6 +133,10 @@ export class DefenderSystem {
       list.shift()
       if (ally.creatureId && getCreature(ally.creatureId)?.passiveId === 'rabbit-heal') {
         this.triggerRabbitHeal(cellIndex)
+      }
+      // Only captured creatures (not abstract summons) leave a star.
+      if (ally.creatureId) {
+        this.emitDeath({ creatureId: ally.creatureId, label: ally.label, cellIndex })
       }
     }
     this.emit()
@@ -267,4 +277,14 @@ export class DefenderSystem {
   private emitPassive(e: PassiveEvent): void {
     for (const fn of this.passiveListeners) fn(e)
   }
+
+  private emitDeath(e: AllyDeath): void {
+    for (const fn of this.deathListeners) fn(e)
+  }
+}
+
+export interface AllyDeath {
+  creatureId: string
+  label: string
+  cellIndex: number
 }

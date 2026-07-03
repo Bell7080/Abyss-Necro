@@ -5,6 +5,7 @@ import { CardInspector, type InspectorData } from '@ui/CardInspector'
 import { CellMergeButton } from '@ui/CellMergeButton'
 import { CoinPanel } from '@ui/CoinPanel'
 import { DefeatOverlay } from '@ui/DefeatOverlay'
+import { GraveyardPanel } from '@ui/GraveyardPanel'
 import { IntroOverlay } from '@ui/IntroOverlay'
 import { MergeButton } from '@ui/MergeButton'
 import { RelicInventory } from '@ui/RelicInventory'
@@ -17,7 +18,8 @@ import { CurseMortar } from '@ui/effects/CurseMortar'
 import { showDamageNumber } from '@ui/effects/FloatingDamage'
 import { AbilitySystem } from '@systems/AbilitySystem'
 import { CoinSystem } from '@systems/CoinSystem'
-import { DefenderSystem } from '@systems/DefenderSystem'
+import { DefenderSystem, type AllyDeath } from '@systems/DefenderSystem'
+import { GraveyardSystem } from '@systems/GraveyardSystem'
 import { HandSystem } from '@systems/HandSystem'
 import { PlayerSystem } from '@systems/PlayerSystem'
 import { RelicSystem } from '@systems/RelicSystem'
@@ -52,6 +54,7 @@ export class Game {
   private readonly coinSystem = new CoinSystem()
   private readonly playerSystem = new PlayerSystem()
   private readonly defenderSystem = new DefenderSystem()
+  private readonly graveyardSystem = new GraveyardSystem()
   private readonly waveSystem = new WaveSystem(this.defenderSystem)
   private readonly abilitySystem = new AbilitySystem()
   private readonly tickManager = new TickManager()
@@ -70,6 +73,7 @@ export class Game {
   private readonly inspector: CardInspector
   private readonly mergeButton: MergeButton
   private readonly cellMergeButton: CellMergeButton
+  private readonly graveyard: GraveyardPanel
   private readonly shellEl: HTMLElement
   private mergeInProgress = false
   private aiming = false
@@ -109,6 +113,7 @@ export class Game {
     })
     this.mergeButton = new MergeButton(shell, () => this.performMerge())
     this.cellMergeButton = new CellMergeButton(shell, () => this.performCellMerge())
+    this.graveyard = new GraveyardPanel(shell)
     this.board = new BoardRenderer(
       boardMount,
       this.waveSystem,
@@ -124,7 +129,7 @@ export class Game {
     })
     this.shopOverlay = new ShopOverlay({
       onBuy: (offer, cardEl) => this.buyShopOffer(offer, cardEl),
-      onLeave: () => this.waveSystem.resumeFromCheckpoint(),
+      onLeave: () => this.resumeRun(),
     })
     new AbyssAmbience(shell)
     this.defeatOverlay = new DefeatOverlay(shell)
@@ -145,6 +150,8 @@ export class Game {
       this.board.syncCells()
       this.refreshCellMerge()
     })
+    this.defenderSystem.onAllyDeath((e) => this.handleAllyDeath(e))
+    this.graveyardSystem.onChange(() => this.graveyard.render(this.graveyardSystem.getStars()))
     this.handSystem.onChange(() => this.handleHandChange())
     this.relicSystem.onChange((relics) => this.relics.render(relics))
     this.coinSystem.onChange((coins) => this.coins.render(coins))
@@ -153,6 +160,7 @@ export class Game {
     this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
     this.relics.render(this.relicSystem.getRelics())
     this.coins.render(this.coinSystem.getCoins())
+    this.graveyard.render(this.graveyardSystem.getStars())
     this.skillBar.render()
   }
 
@@ -593,9 +601,45 @@ export class Game {
     const target = this.relics.getDropPoint()
 
     this.rewardOverlay.hide()
-    this.waveSystem.resumeFromCheckpoint()
+    this.resumeRun()
 
     this.blast.travelDrop(cardEl.getBoundingClientRect(), target, () => this.relicSystem.addRelic(relic))
+  }
+
+  /** Leaving the round-end lull: reclaim any graveyard triples as cards,
+   * then let the waves push again. */
+  private resumeRun(): void {
+    this.reclaimGraveyardTriples()
+    this.waveSystem.resumeFromCheckpoint()
+  }
+
+  /** A fallen ally rises as a gold star and drifts to the graveyard dock. */
+  private handleAllyDeath(e: AllyDeath): void {
+    const rect = this.board.getCellRect(e.cellIndex)
+    const from = rect ? centerOf(rect) : this.graveyard.getDropPoint()
+    this.blast.starFly(from, this.graveyard.getDropPoint(), () =>
+      this.graveyardSystem.addStar(e.creatureId, e.label)
+    )
+  }
+
+  /** Round-end recovery: every three same-creature stars fuse back into one
+   * whole card, each flying from the graveyard into the hand. */
+  private reclaimGraveyardTriples(): void {
+    const reclaimed = this.graveyardSystem.combineTriples()
+    reclaimed.forEach((card, i) => {
+      window.setTimeout(() => {
+        const from = this.graveyard.getDropPoint()
+        const nextCount = this.handSystem.getCards().length + 1
+        const target = this.hand.getNextSlotPoint(nextCount)
+        this.blast.starFly(from, target, () =>
+          this.handSystem.addCard({
+            id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            label: card.label,
+            creatureId: card.creatureId,
+          })
+        )
+      }, i * 260)
+    })
   }
 }
 

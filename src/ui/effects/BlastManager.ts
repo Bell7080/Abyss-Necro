@@ -27,6 +27,18 @@ export class BlastManager {
     BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, { onArrive })
   }
 
+  /** A fallen ally's essence rises as a gold star and drifts to the
+   * graveyard (or, when reclaimed, from the graveyard to the hand). */
+  starFly(from: Point, target: Point, onArrive: () => void): void {
+    BubbleBurst.travelTo(from.x, from.y, target.x, target.y, {
+      count: 7,
+      size: [7, 15],
+      duration: 720,
+      colors: ['#ffe6a2', '#ffd27a', '#fff4d8', '#e8b85a'],
+      onArrive,
+    })
+  }
+
   /** Coin drop: a short lobbed arc onto the ground, a brief pause, then the
    * same bubble travel into the coin panel. */
   coinDrop(originRect: DOMRect, target: Point, onArrive: () => void): void {

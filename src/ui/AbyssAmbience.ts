@@ -10,6 +10,7 @@ export class AbyssAmbience {
     el.innerHTML = `
       <div class="abyss-caustic abyss-caustic--a"></div>
       <div class="abyss-caustic abyss-caustic--b"></div>
+      <div class="abyss-caustic abyss-caustic--c"></div>
       <div class="abyss-ambience-vignette"></div>`
     root.appendChild(el)
   }
