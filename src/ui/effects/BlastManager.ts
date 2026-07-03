@@ -46,9 +46,9 @@ export class BlastManager {
     BubbleBurst.burstAt(center.x, center.y, { count: 6, size: [6, 12] })
   }
 
-  /** Passive fx at a cell: a bright electric spark (jelly-amp) or a soft
-   * green heal bloom (rabbit-heal), themed by flat-color palette. */
-  passiveBurst(cellRect: DOMRect, kind: 'spark' | 'heal'): void {
+  /** Passive fx at a cell: an electric cyan spark (jelly-amp), a soft green
+   * heal bloom (rabbit-heal), or a warm amber shield pop (crab-guard). */
+  passiveBurst(cellRect: DOMRect, kind: 'spark' | 'heal' | 'shield'): void {
     const center = centerOf(cellRect)
     if (kind === 'spark') {
       BubbleBurst.burstAt(center.x, center.y, {
@@ -57,12 +57,19 @@ export class BlastManager {
         spread: 34,
         colors: ['#7fe8ff', '#bff4ff', '#ffffff', '#4aa8e0'],
       })
-    } else {
+    } else if (kind === 'heal') {
       BubbleBurst.burstAt(center.x, center.y, {
         count: 8,
         size: [6, 13],
         spread: 30,
         colors: ['#3fae74', '#67c498', '#bff5d8', '#e8fff2'],
+      })
+    } else {
+      BubbleBurst.burstAt(center.x, center.y, {
+        count: 8,
+        size: [6, 13],
+        spread: 32,
+        colors: ['#e0782a', '#ffb057', '#ffd9a0', '#fff1dc'],
       })
     }
   }

@@ -1,7 +1,9 @@
 import jellyfishEnemyArt from '@/assets/sprites/enemies/en_001.webp'
 import seaRabbitEnemyArt from '@/assets/sprites/enemies/en_002.webp'
+import crabEnemyArt from '@/assets/sprites/enemies/en_003.webp'
 import jellyfishAllyArt from '@/assets/sprites/allies/al_001.webp'
 import seaRabbitAllyArt from '@/assets/sprites/allies/al_002.webp'
+import crabAllyArt from '@/assets/sprites/allies/al_003.webp'
 
 // First two of the eventual 40-creature roster. Each entry is the before
 // (enemy) / after (necromanced ally) illustration pair the whole card
@@ -11,7 +13,7 @@ import seaRabbitAllyArt from '@/assets/sprites/allies/al_002.webp'
 // `passiveId` is the machine key the systems act on (jelly-amp aura, rabbit
 // death-heal). Passives apply to the necromanced ally form the player
 // deploys.
-export type PassiveId = 'jelly-amp' | 'rabbit-heal'
+export type PassiveId = 'jelly-amp' | 'rabbit-heal' | 'crab-guard'
 
 export interface CreatureDefinition {
   id: string
@@ -38,6 +40,14 @@ export const CREATURES: CreatureDefinition[] = [
     allyArt: seaRabbitAllyArt,
     passive: '폭신 도약 — 처치될 때 인접한 아군의 체력을 2 회복시킨다.',
     passiveId: 'rabbit-heal',
+  },
+  {
+    id: 'crab',
+    label: '꽃게',
+    enemyArt: crabEnemyArt,
+    allyArt: crabAllyArt,
+    passive: '단단한 등껍질 — 두꺼운 껍질로 더 많은 체력(6)을 지니고 배치된다.',
+    passiveId: 'crab-guard',
   },
 ]
 

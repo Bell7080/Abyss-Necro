@@ -13,6 +13,8 @@ const ALLY_BASE_HP = 3
 const DEFAULT_ALLY_ATTACK = 2
 // Sea-rabbit death-heal amount to adjacent allies.
 const RABBIT_HEAL = 2
+// Crab's hard-shell life pool on placement (vs the ALLY_BASE_HP default).
+const CRAB_ALLY_HP = 6
 // A merged 2-star ally: doubled life, +1 attack over the base card.
 const MERGED_ALLY_HP = ALLY_BASE_HP * 2
 const MERGED_ALLY_ATTACK = DEFAULT_ALLY_ATTACK + 1
@@ -60,14 +62,18 @@ export class DefenderSystem {
 
   place(cellIndex: number, label: string, creatureId: string): boolean {
     if (!this.canPlace(cellIndex)) return false
+    // 단단한 등껍질: a crab enters with a bigger life pool (and a shield blast).
+    const guarded = getCreature(creatureId)?.passiveId === 'crab-guard'
+    const hp = guarded ? CRAB_ALLY_HP : ALLY_BASE_HP
     this.listFor(cellIndex).push({
       id: `ally-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       label,
       creatureId,
-      hp: ALLY_BASE_HP,
-      maxHp: ALLY_BASE_HP,
+      hp,
+      maxHp: hp,
     })
     this.emit()
+    if (guarded) this.emitPassive({ passiveId: 'crab-guard', cellIndex })
     return true
   }
 

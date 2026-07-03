@@ -501,7 +501,8 @@ export class Game {
   private handlePassive(e: PassiveEvent): void {
     const rect = this.board.getCellRect(e.cellIndex)
     if (!rect) return
-    this.blast.passiveBurst(rect, e.passiveId === 'jelly-amp' ? 'spark' : 'heal')
+    const kind = e.passiveId === 'jelly-amp' ? 'spark' : e.passiveId === 'rabbit-heal' ? 'heal' : 'shield'
+    this.blast.passiveBurst(rect, kind)
   }
 
   /** Shows the cell-merge button over the first cell holding a same-creature
