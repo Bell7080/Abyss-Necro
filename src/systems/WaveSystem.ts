@@ -12,7 +12,6 @@ const ENEMY_ATTACK_DAMAGE = 1
 // getAttack() (placed card default or summon's own value) wins normally.
 const ALLY_COUNTER_DAMAGE = 2
 const CARD_DROP_CHANCE = 0.5
-const ITEM_DROP_CHANCE = 0.35
 const MOVE_TICK_MS = 1300
 // A new wave forces its way in every 30 seconds regardless of clear state —
 // this is the actual pacing mechanism, not just a display countdown. If the
@@ -32,7 +31,6 @@ export interface EncounterResult {
   /** Which creature died — the dropped card (if any) carries this. */
   creatureId: string
   dropCard: boolean
-  dropItem: boolean
   /** Always true — every kill drops exactly one coin. */
   dropCoin: boolean
   viaBossRoom: boolean
@@ -87,12 +85,17 @@ export class WaveSystem {
   private waveNumber = 1
   private wavesSinceCheckpoint = 0
   private checkpointCount = 0
-  private waveStartedAt = Date.now()
   private started = false
   private paused = false
   private pushTimeoutId: number | null = null
   private clashTimeoutId: number | null = null
   private spawnTimeoutIds: number[] = []
+  // Push-timer bookkeeping in "effective" (scale-adjusted) time so aim-mode
+  // slow motion stretches the countdown too: effective elapsed accumulates
+  // at `timeScale` speed from the last mark.
+  private timeScale = 1
+  private pushEffElapsedMs = 0
+  private pushMarkAt = Date.now()
   private readonly changeListeners: Array<() => void> = []
   private readonly encounterListeners: Array<(result: EncounterResult) => void> = []
   private readonly checkpointListeners: Array<(info: CheckpointInfo) => void> = []
@@ -109,10 +112,24 @@ export class WaveSystem {
   start(tickManager: TickManager): void {
     if (this.started) return
     this.started = true
-    this.waveStartedAt = Date.now()
     this.spawnWave()
     tickManager.register(() => this.tick(), MOVE_TICK_MS)
     this.schedulePush()
+  }
+
+  /** Aim-mode slow motion for the push countdown (movement/regen slow via
+   * TickManager.setRate — this covers the wave timer, which lives on its
+   * own timeout chain). 1 = normal speed. */
+  setTimeScale(scale: number): void {
+    if (scale === this.timeScale) return
+    const now = Date.now()
+    this.pushEffElapsedMs += (now - this.pushMarkAt) * this.timeScale
+    this.pushMarkAt = now
+    this.timeScale = scale
+    if (this.pushTimeoutId !== null) {
+      window.clearTimeout(this.pushTimeoutId)
+      this.armPushTimeout()
+    }
   }
 
   onChange(fn: () => void): void {
@@ -151,11 +168,14 @@ export class WaveSystem {
     return this.paused
   }
 
-  /** Milliseconds left until the next forced wave push (HUD only while unpaused).
-   * Shows the full interval, unticking, until start() actually begins the run. */
+  /** Effective (scale-adjusted) milliseconds left until the next forced
+   * wave push (HUD only while unpaused). Shows the full interval, unticking,
+   * until start() actually begins the run. */
   getRemainingMs(): number {
     if (!this.started) return WAVE_PUSH_INTERVAL_MS
-    return Math.max(0, WAVE_PUSH_INTERVAL_MS - (Date.now() - this.waveStartedAt))
+    const running = !this.paused && this.pushTimeoutId !== null
+    const eff = this.pushEffElapsedMs + (running ? (Date.now() - this.pushMarkAt) * this.timeScale : 0)
+    return Math.max(0, WAVE_PUSH_INTERVAL_MS - eff)
   }
 
   getAliveCellIndices(): number[] {
@@ -173,7 +193,6 @@ export class WaveSystem {
   resumeFromCheckpoint(): void {
     this.paused = false
     this.pushReinforcements()
-    this.waveStartedAt = Date.now()
     this.schedulePush()
   }
 
@@ -244,9 +263,8 @@ export class WaveSystem {
       const i = list.indexOf(enemy)
       if (i >= 0) list.splice(i, 1)
       const dropCard = Math.random() < CARD_DROP_CHANCE
-      const dropItem = Math.random() < ITEM_DROP_CHANCE
       this.emitChange()
-      this.emitEncounter({ cellIndex, creatureId: enemy.creatureId, dropCard, dropItem, dropCoin: true, viaBossRoom })
+      this.emitEncounter({ cellIndex, creatureId: enemy.creatureId, dropCard, dropCoin: true, viaBossRoom })
       this.triggerInstantPushIfClear()
       return { cellIndex, amount, defeated: true }
     }
@@ -255,11 +273,22 @@ export class WaveSystem {
     return { cellIndex, amount, defeated: false }
   }
 
+  /** Starts a fresh full-interval countdown (new wave / resume). */
   private schedulePush(): void {
+    this.pushEffElapsedMs = 0
+    this.pushMarkAt = Date.now()
+    this.armPushTimeout()
+  }
+
+  /** (Re)arms the timeout for whatever effective time remains, stretched by
+   * the current time scale — setTimeScale re-arms through here. */
+  private armPushTimeout(): void {
+    const remaining = Math.max(0, WAVE_PUSH_INTERVAL_MS - this.pushEffElapsedMs) / this.timeScale
     this.pushTimeoutId = window.setTimeout(() => {
       this.pushTimeoutId = null
+      this.pushEffElapsedMs = WAVE_PUSH_INTERVAL_MS
       this.handlePushTimeout()
-    }, WAVE_PUSH_INTERVAL_MS)
+    }, remaining)
   }
 
   /** Every enemy on the board (grid + boss room) is dead — don't make the
@@ -297,7 +326,6 @@ export class WaveSystem {
     }
 
     this.pushReinforcements()
-    this.waveStartedAt = Date.now()
     this.schedulePush()
   }
 

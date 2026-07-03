@@ -27,13 +27,39 @@ body {
   margin: 0;
   font-family: var(--font-family-primary, system-ui, sans-serif);
   color: var(--abyss-lavender-bright);
-  /* Real illustrated seabed backdrop; a soft bottom vignette on top keeps
-     the HUD/panels legible without hiding the art. */
+  /* Real illustrated seabed backdrop, toned well down: a flat dark scrim on
+     top of the art keeps it a stage floor rather than a competing painting,
+     plus the usual soft bottom vignette for HUD legibility. */
   background:
     radial-gradient(circle at 50% 100%, rgba(7, 5, 15, 0) 0%, rgba(7, 5, 15, 0.6) 100%),
+    linear-gradient(rgba(7, 5, 15, 0.46), rgba(7, 5, 15, 0.46)),
     url('../../assets/sprites/backgrounds/bg_001.webp') center/cover no-repeat;
   background-color: var(--abyss-bg-deep);
   overflow: hidden;
+}
+
+/* ---------- Aim mode (a hand card is selected) ---------- */
+/* The dim sits UNDER the board in DOM order; while aiming, the board mount
+   is raised above it so the whole field pops out of the darkness and the
+   placement rings read as the only live surfaces. Hand/inspector float
+   above via their own z-indexes. */
+
+.aim-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  background: rgba(2, 1, 7, 0.62);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+
+.abyss-shell.is-aiming .aim-dim {
+  opacity: 1;
+}
+
+.abyss-shell.is-aiming .board-mount {
+  z-index: 72;
 }
 
 .abyss-shell {
@@ -348,18 +374,40 @@ body {
     0 0 26px rgba(220, 150, 255, 0.3);
 }
 
+/* Aim mode raises the whole board above the dim, so the targeting cue can
+   afford to be loud: a bright warm ring + standing glow on every placeable
+   cell, swelling further on hover. */
 .board-grid.is-placement-targeting .board-cell {
   cursor: pointer;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 190, 130, 0.32),
-    inset 0 2px 14px rgba(0, 0, 0, 0.45);
+    inset 0 0 0 2px rgba(255, 200, 140, 0.55),
+    inset 0 2px 14px rgba(0, 0, 0, 0.45),
+    0 0 34px rgba(255, 180, 120, 0.3);
+  animation: placement-beckon 1.6s ease-in-out infinite;
 }
 
 .board-grid.is-placement-targeting .board-cell:hover {
   box-shadow:
-    inset 0 0 0 1px rgba(255, 210, 160, 0.55),
+    inset 0 0 0 3px rgba(255, 225, 180, 0.85),
     inset 0 2px 14px rgba(0, 0, 0, 0.45),
-    0 0 26px rgba(255, 180, 120, 0.3);
+    0 0 52px rgba(255, 190, 130, 0.55);
+  animation: none;
+}
+
+@keyframes placement-beckon {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 200, 140, 0.42),
+      inset 0 2px 14px rgba(0, 0, 0, 0.45),
+      0 0 26px rgba(255, 180, 120, 0.22);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 210, 160, 0.68),
+      inset 0 2px 14px rgba(0, 0, 0, 0.45),
+      0 0 44px rgba(255, 190, 130, 0.42);
+  }
 }
 
 .board-cell.is-defeated {
@@ -400,10 +448,10 @@ body {
   transition: transform 0.18s ease;
 }
 
-/* Shifts the player's own card left within the (now wider) boss cell so
-   allies/enemies standing there have room on its right. */
+/* Pushes the player's card well left of the boss cell so the (bigger) card
+   never overlaps allies/enemies standing in the room's center-right. */
 .board-figure--boss-player {
-  --board-figure-shift-x: -120px;
+  --board-figure-shift-x: -195px;
 }
 
 .board-figure.is-arrived {
@@ -432,6 +480,8 @@ body {
   width: min(920px, 92vw);
   height: 0;
   transform: translateX(-50%);
+  /* Above the aim-mode dim (70) so the fan stays readable while aiming. */
+  z-index: 75;
 }
 
 .hand-card {
@@ -646,32 +696,18 @@ body {
   }
 }
 
-/* ---------- Relic + item panels (bottom right, stacked) ---------- */
+/* ---------- Relic tab (lives inside the card inspector's lower half) ---------- */
+/* The item inventory is gone (consumables will re-enter as hand cards);
+   relics render as a compact slot row under the inspector's description. */
 
-.side-panels {
-  position: absolute;
-  right: 22px;
-  bottom: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  align-items: flex-end;
-}
-
-/* Unmelting's score-panel recipe: the slots are the actors, so the back
-   plate is a borderless whisper of dark wash that melts into the vignette. */
-.relic-panel,
-.item-panel {
-  padding: 12px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(16, 12, 28, 0.34), rgba(6, 4, 14, 0.52));
+.relic-panel {
+  padding: 0;
+  background: none;
   border: 0;
   box-shadow: none;
-  backdrop-filter: blur(6px);
 }
 
-.relic-panel-title,
-.item-panel-title {
+.relic-panel-title {
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -680,15 +716,13 @@ body {
   margin-bottom: 8px;
 }
 
-.relic-grid,
-.item-grid {
+.relic-grid {
   display: grid;
   grid-template-columns: repeat(3, 44px);
   gap: 8px;
 }
 
-.relic-slot,
-.item-slot {
+.relic-slot {
   width: 44px;
   height: 44px;
   border-radius: 8px;
@@ -709,14 +743,6 @@ body {
   box-shadow:
     inset 0 0 0 1px rgba(200, 180, 255, 0.38),
     0 0 14px rgba(180, 150, 255, 0.32);
-}
-
-.item-slot.is-filled {
-  color: #bdf3e0;
-  background: rgba(20, 56, 46, 0.7);
-  box-shadow:
-    inset 0 0 0 1px rgba(140, 220, 190, 0.38),
-    0 0 14px rgba(120, 220, 180, 0.3);
 }
 
 /* ---------- Skill bar (bottom left) ---------- */
@@ -944,7 +970,21 @@ body {
 }
 
 .entity-card--player {
-  width: 190px;
+  width: 250px;
+}
+
+/* The necromancer's name is the one name on the board that should read like
+   a title — bigger, brighter, letterspaced, with a cyan-violet halo. */
+.entity-card--player .entity-card-name {
+  font-size: 30px;
+  letter-spacing: 0.12em;
+  padding-left: 0.12em;
+  text-align: center;
+  color: #eee6ff;
+  text-shadow:
+    0 0 14px rgba(180, 150, 255, 0.75),
+    0 0 30px rgba(127, 232, 255, 0.35),
+    0 2px 4px rgba(0, 0, 0, 0.9);
 }
 
 .entity-card-art {
@@ -1045,6 +1085,190 @@ body {
   border-radius: 999px;
   background: linear-gradient(90deg, #144a63, #2f89ab);
   transition: width 0.28s ease;
+}
+
+/* ---------- Merge button (left of the hand fan) ---------- */
+/* Lights up only while the hand holds three identical base cards — a small
+   round call-to-action that twinkles until pressed. */
+
+.merge-button {
+  position: absolute;
+  left: calc(50% - 470px);
+  bottom: 64px;
+  z-index: 76;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 84px;
+  height: 84px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  justify-content: center;
+  background: radial-gradient(
+    circle at 36% 30%,
+    rgba(150, 110, 220, 0.85),
+    rgba(52, 30, 92, 0.92) 52%,
+    rgba(12, 8, 22, 0.96) 80%
+  );
+  color: #ecd9ff;
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(10px) scale(0.8);
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(220, 180, 255, 0.35),
+    0 12px 28px rgba(0, 0, 0, 0.55),
+    0 0 22px rgba(200, 140, 255, 0.3);
+  transition:
+    opacity 0.24s ease,
+    transform 0.24s cubic-bezier(0.2, 1.1, 0.3, 1);
+}
+
+.merge-button.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  animation: merge-twinkle 1.4s ease-in-out infinite;
+}
+
+.merge-button:hover {
+  transform: translateY(-3px) scale(1.06);
+}
+
+.merge-button svg {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 0 6px rgba(220, 170, 255, 0.8));
+}
+
+@keyframes merge-twinkle {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(220, 180, 255, 0.35),
+      0 12px 28px rgba(0, 0, 0, 0.55),
+      0 0 20px rgba(200, 140, 255, 0.28);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px rgba(240, 210, 255, 0.65),
+      0 12px 28px rgba(0, 0, 0, 0.55),
+      0 0 42px rgba(215, 160, 255, 0.6);
+  }
+}
+
+/* ---------- Card inspector (left, while a hand card is held) ---------- */
+/* Unmelting's hearth inspector anatomy verbatim, mirrored for the left
+   edge: full-bleed art up top masked into a near-black downward gradient,
+   text block anchored at the vertical middle, and the relic tab keeping
+   the lower half company. */
+
+.card-inspector {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  width: 340px;
+  height: min(760px, 86vh);
+  transform: translateY(-50%) translateX(-18px);
+  z-index: 95;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.card-inspector.is-shown {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* Art + darkness composite in one parent, faded out toward the board (the
+   panel's right edge) with a single mask — no double-fade. */
+.card-inspector-scrim {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: linear-gradient(270deg, transparent 0, #000 30%, #000 100%);
+  mask-image: linear-gradient(270deg, transparent 0, #000 30%, #000 100%);
+}
+
+.card-inspector-art {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 62%;
+  background-color: #0c0918;
+  background-size: cover;
+  background-position: center 22%;
+  -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 78%, transparent 100%);
+}
+
+.card-inspector-grad {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 5, 16, 0) 0%,
+    rgba(7, 4, 14, 0.25) 22%,
+    rgba(5, 3, 10, 0.55) 42%,
+    rgba(3, 2, 6, 0.82) 60%,
+    rgba(1, 1, 3, 0.97) 78%,
+    rgba(0, 0, 1, 1) 100%
+  );
+}
+
+.card-inspector-body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 44%;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 26px 30px 26px 26px;
+}
+
+.card-inspector-title {
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1.12;
+  color: #ded2ff;
+  text-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.92),
+    0 0 22px rgba(150, 130, 220, 0.35);
+}
+
+.card-inspector-divider {
+  width: 46px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(182, 166, 232, 0.8), rgba(182, 166, 232, 0.05));
+}
+
+.card-inspector-tags {
+  font-size: 15px;
+  font-weight: 800;
+  color: rgba(158, 224, 255, 0.95);
+}
+
+.card-inspector-desc {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(196, 186, 214, 0.86);
+}
+
+/* Relic tab anchored to the panel's bottom — fills the lower half so the
+   inspector never trails off into empty darkness. */
+.card-inspector-relics {
+  margin-top: auto;
 }
 
 /* ---------- Intro veil (boot screen, once per session) ---------- */

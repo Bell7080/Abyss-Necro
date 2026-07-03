@@ -1,10 +1,11 @@
 import { AbyssAmbience } from '@ui/AbyssAmbience'
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
+import { CardInspector } from '@ui/CardInspector'
 import { CoinPanel } from '@ui/CoinPanel'
 import { DefeatOverlay } from '@ui/DefeatOverlay'
 import { IntroOverlay } from '@ui/IntroOverlay'
-import { ItemInventory } from '@ui/ItemInventory'
+import { MergeButton } from '@ui/MergeButton'
 import { ProceedButton } from '@ui/ProceedButton'
 import { RelicInventory } from '@ui/RelicInventory'
 import { RewardOverlay } from '@ui/RewardOverlay'
@@ -17,7 +18,6 @@ import { AbilitySystem } from '@systems/AbilitySystem'
 import { CoinSystem } from '@systems/CoinSystem'
 import { DefenderSystem } from '@systems/DefenderSystem'
 import { HandSystem } from '@systems/HandSystem'
-import { ItemSystem } from '@systems/ItemSystem'
 import { PlayerSystem } from '@systems/PlayerSystem'
 import { RelicSystem } from '@systems/RelicSystem'
 import {
@@ -28,7 +28,6 @@ import {
   type PlayerHitInfo,
 } from '@systems/WaveSystem'
 import { TickManager } from '@core/TickManager'
-import { drawRandomConsumable } from '@data/ConsumablePool'
 import { getCreature } from '@data/CreatureDefinitions'
 import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
@@ -37,11 +36,13 @@ import type { Relic } from '@entities/Relic'
 const BASIC_ATTACK_DAMAGE = 2
 const ULTIMATE_DAMAGE = 4
 const RELIC_CHOICE_COUNT = 3
+// While a hand card is held (selected for placement) the whole game clock
+// crawls, giving the player a slow-motion beat to read the board.
+const AIM_TIME_SCALE = 0.3
 
 export class Game {
   private readonly handSystem = new HandSystem()
   private readonly relicSystem = new RelicSystem()
-  private readonly itemSystem = new ItemSystem()
   private readonly coinSystem = new CoinSystem()
   private readonly playerSystem = new PlayerSystem()
   private readonly defenderSystem = new DefenderSystem()
@@ -52,13 +53,16 @@ export class Game {
   private readonly board: BoardRenderer
   private readonly hand: CardHand
   private readonly relics: RelicInventory
-  private readonly items: ItemInventory
   private readonly coins: CoinPanel
   private readonly skillBar: SkillBar
   private readonly rewardOverlay: RewardOverlay
   private readonly proceedButton: ProceedButton
   private readonly defeatOverlay: DefeatOverlay
+  private readonly inspector: CardInspector
+  private readonly mergeButton: MergeButton
+  private readonly shellEl: HTMLElement
   private mergeInProgress = false
+  private aiming = false
   // The intro overlay is pointer-transparent outside its button, so board/
   // orb clicks physically arrive before the run starts — gate them here.
   private runStarted = false
@@ -67,23 +71,29 @@ export class Game {
     const shell = document.createElement('div')
     shell.className = 'abyss-shell'
     root.appendChild(shell)
+    this.shellEl = shell
+
+    // Backdrop dim for aim mode — sits under the board (DOM order), so the
+    // raised board pops while everything else sinks into darkness.
+    const aimDim = document.createElement('div')
+    aimDim.className = 'aim-dim'
+    shell.appendChild(aimDim)
 
     const boardMount = document.createElement('div')
     boardMount.className = 'board-mount'
     shell.appendChild(boardMount)
 
-    const sidePanels = document.createElement('div')
-    sidePanels.className = 'side-panels'
-    shell.appendChild(sidePanels)
-
     new WaveHud(shell, this.waveSystem)
     this.coins = new CoinPanel(shell)
 
-    this.relics = new RelicInventory(sidePanels)
-    this.items = new ItemInventory(sidePanels)
+    this.inspector = new CardInspector(shell)
+    // The relic tab lives in the inspector's lower half — the old
+    // bottom-right side panel (and the item inventory with it) is gone.
+    this.relics = new RelicInventory(this.inspector.relicSlot)
     this.hand = new CardHand(shell, (cardId) => {
       this.handSystem.toggleSelect(cardId)
     })
+    this.mergeButton = new MergeButton(shell, () => this.performMerge())
     this.board = new BoardRenderer(boardMount, this.waveSystem, this.defenderSystem, (cellIndex) =>
       this.handleCellClick(cellIndex)
     )
@@ -108,20 +118,39 @@ export class Game {
     )
     this.playerSystem.onDefeat(() => this.handleDefeat())
     this.defenderSystem.onChange(() => this.board.syncCells())
-    this.handSystem.onChange(() => {
-      this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
-      this.board.setPlacementTargeting(!!this.handSystem.getSelectedId())
-    })
+    this.handSystem.onChange(() => this.handleHandChange())
     this.relicSystem.onChange((relics) => this.relics.render(relics))
-    this.itemSystem.onChange((items) => this.items.render(items))
     this.coinSystem.onChange((coins) => this.coins.render(coins))
     this.abilitySystem.onChange(() => this.skillBar.render())
 
     this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
     this.relics.render(this.relicSystem.getRelics())
-    this.items.render(this.itemSystem.getItems())
     this.coins.render(this.coinSystem.getCoins())
     this.skillBar.render()
+  }
+
+  /** Selection drives everything aim-related: the fan re-render, placement
+   * targeting, the inspector panel, the backdrop dim, and slow motion. */
+  private handleHandChange(): void {
+    const selected = this.handSystem.getSelectedCard()
+    this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
+    this.board.setPlacementTargeting(!!selected)
+    this.mergeButton.setVisible(!this.mergeInProgress && !!this.handSystem.findTriple())
+
+    if (selected) this.inspector.show(selected)
+    else this.inspector.hide()
+    this.setAiming(!!selected)
+  }
+
+  /** Aim mode: darken everything but the board and crawl the game clock —
+   * a held breath while choosing where the card goes. */
+  private setAiming(active: boolean): void {
+    if (this.aiming === active) return
+    this.aiming = active
+    this.shellEl.classList.toggle('is-aiming', active)
+    const scale = active ? AIM_TIME_SCALE : 1
+    this.tickManager.setRate(scale)
+    this.waveSystem.setTimeScale(scale)
   }
 
   boot(): void {
@@ -222,13 +251,7 @@ export class Game {
           label: creature?.label ?? '심연의 것',
           creatureId: result.creatureId,
         })
-        this.tryMergeTriple()
       })
-    }
-
-    if (result.dropItem && rect) {
-      const target = this.items.getDropPoint()
-      this.blast.travelDrop(rect, target, () => this.itemSystem.addItem(drawRandomConsumable()))
     }
 
     // Every kill drops a coin: it lands on the ground in a short lobbed arc,
@@ -243,16 +266,17 @@ export class Game {
     }
   }
 
-  /** Three identical base cards in hand jelly-merge into one tier-2 card
-   * (placeholder rank until the real evolution roster lands). The fx runs
-   * first; the model swap happens on its final beat, and we re-check in
-   * case another triple completed while the animation played. */
-  private tryMergeTriple(): void {
+  /** Player pressed the sparkling 합성 button: three identical base cards
+   * jelly-merge into one tier-2 card (placeholder rank until the real
+   * evolution roster lands). The fx runs first; the model swap happens on
+   * its final beat, and the button re-lights if another triple remains. */
+  private performMerge(): void {
     if (this.mergeInProgress) return
     const triple = this.handSystem.findTriple()
     if (!triple) return
 
     this.mergeInProgress = true
+    this.mergeButton.setVisible(false)
     const base = triple[0]
     this.hand.playMergeFx(
       triple.map((card) => card.id),
@@ -267,7 +291,7 @@ export class Game {
           }
         )
         this.mergeInProgress = false
-        this.tryMergeTriple()
+        this.mergeButton.setVisible(!!this.handSystem.findTriple())
       }
     )
   }

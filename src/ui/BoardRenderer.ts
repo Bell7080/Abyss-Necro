@@ -18,10 +18,11 @@ const CELL_GAP = 32
 // on the same side stack with a small vertical offset.
 const GRID_ROLE_OFFSET_X = 80
 const STACK_GAP_Y = 40
-// In the boss/player cell: player leftmost, allies in the middle, enemies
-// rightmost — the same "standing off against each other" composition.
-const BOSS_ALLY_OFFSET_X = 0
-const BOSS_ENEMY_OFFSET_X = 104
+// In the boss/player cell: player leftmost (shifted well outside the cell,
+// see --board-figure-shift-x), allies in the middle, enemies rightmost —
+// the same "standing off against each other" composition.
+const BOSS_ALLY_OFFSET_X = 28
+const BOSS_ENEMY_OFFSET_X = 108
 
 const DEFEAT_FX_MS = 420
 const ENGAGE_FX_MS = 520
