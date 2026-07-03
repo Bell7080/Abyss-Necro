@@ -756,3 +756,49 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(6px);
 }
+
+/* ---------- Proceed button (checkpoint lull, below the board) ---------- */
+
+.proceed-button {
+  position: absolute;
+  left: 50%;
+  bottom: 200px;
+  padding: 14px 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(150, 205, 255, 0.5);
+  background: linear-gradient(160deg, rgba(70, 46, 112, 0.88), rgba(14, 10, 24, 0.96));
+  color: var(--abyss-lavender-bright);
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 10px) scale(0.92);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+  z-index: 60;
+}
+
+.proceed-button.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0) scale(1);
+  animation: proceed-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes proceed-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 14px 30px var(--abyss-shadow),
+      0 0 14px rgba(150, 205, 255, 0.35);
+    border-color: rgba(150, 205, 255, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 14px 30px var(--abyss-shadow),
+      0 0 34px rgba(190, 225, 255, 0.75);
+    border-color: rgba(200, 230, 255, 0.9);
+  }
+}

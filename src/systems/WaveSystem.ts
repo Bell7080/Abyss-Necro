@@ -8,19 +8,19 @@ const ENEMY_ATTACK_DAMAGE = 1
 const ALLY_COUNTER_DAMAGE = 2
 const CARD_DROP_CHANCE = 0.5
 const ITEM_DROP_CHANCE = 0.35
-const WAVES_PER_RELIC = 3
-const NEXT_WAVE_DELAY_MS = 600
 const MOVE_TICK_MS = 1100
-// Display-only pacing — clearing a wave doesn't currently require the full
-// 3 minutes, this just gives the HUD countdown something to count down.
-const WAVE_DISPLAY_DURATION_MS = 3 * 60 * 1000
+// A new wave forces its way in every 3 minutes regardless of whether the
+// board is cleared — this is the actual pacing mechanism now, not just a
+// display countdown.
+const WAVE_PUSH_INTERVAL_MS = 3 * 60 * 1000
+const WAVES_PER_CHECKPOINT = 5
+const CHECKPOINTS_PER_RELIC = 3
 
 export interface EncounterResult {
   /** Grid cell the enemy was standing in when the fight resolved. */
   cellIndex: number
   dropCard: boolean
   dropItem: boolean
-  relicAwarded: boolean
   /** True if the enemy walked into the boss room instead of being attacked. */
   viaBossRoom: boolean
 }
@@ -29,6 +29,11 @@ export interface DamageResult {
   cellIndex: number
   amount: number
   defeated: boolean
+}
+
+export interface CheckpointInfo {
+  checkpointNumber: number
+  isRelicCheckpoint: boolean
 }
 
 // Lets WaveSystem clash with placed defenders without holding a reference to
@@ -40,38 +45,30 @@ export interface DefenderHooks {
 
 // Enemies enter at the grid's far edge (opposite the boss room) and wander
 // toward it a step per tick; reaching the boss room resolves as a fight the
-// same way a killing blow does, so ignoring the board has a real cost once
-// player HP/loss exists. A defender-occupied cell blocks the step and both
-// sides trade damage instead. Enemy tokens and hp are placeholder values
-// until the 40-enemy roster and real combat stats land — the movement/
-// encounter/clash rules themselves are not stubs.
+// same way a killing blow does. A defender-occupied cell blocks the step
+// and both sides trade damage instead. A new wave of 3 forces its way in
+// every WAVE_PUSH_INTERVAL_MS regardless of whether the board is cleared —
+// surviving stragglers just mean fewer entry slots are free for the push.
+// Every 5 pushes is a checkpoint: the push timer/movement pause for a lull,
+// and every 3rd checkpoint offers a relic instead of just resuming. Enemy
+// tokens and hp are placeholder values until the 40-enemy roster and real
+// combat stats land — the movement/encounter/checkpoint rules themselves
+// are not stubs.
 export class WaveSystem {
   private cells: Array<EnemyToken | null> = new Array(ROWS * COLS).fill(null)
   private waveNumber = 1
-  private wavesSinceRelic = 0
-  private aliveInWave = 0
+  private wavesSinceCheckpoint = 0
+  private checkpointCount = 0
   private waveStartedAt = Date.now()
   private paused = false
-  private pendingSpawnWave = false
   private readonly changeListeners: Array<() => void> = []
   private readonly encounterListeners: Array<(result: EncounterResult) => void> = []
+  private readonly checkpointListeners: Array<(info: CheckpointInfo) => void> = []
 
   constructor(private readonly defenders?: DefenderHooks) {
     this.spawnWave()
     window.setInterval(() => this.tick(), MOVE_TICK_MS)
-  }
-
-  /** Freezes enemy movement/spawns — used while the relic reward screen is up. */
-  pause(): void {
-    this.paused = true
-  }
-
-  resume(): void {
-    this.paused = false
-    if (this.pendingSpawnWave) {
-      this.pendingSpawnWave = false
-      this.spawnWave()
-    }
+    this.schedulePush()
   }
 
   onChange(fn: () => void): void {
@@ -82,6 +79,10 @@ export class WaveSystem {
     this.encounterListeners.push(fn)
   }
 
+  onCheckpoint(fn: (info: CheckpointInfo) => void): void {
+    this.checkpointListeners.push(fn)
+  }
+
   getCells(): readonly (EnemyToken | null)[] {
     return this.cells
   }
@@ -90,13 +91,25 @@ export class WaveSystem {
     return this.waveNumber
   }
 
-  /** Milliseconds left in the current wave's display countdown (HUD only). */
+  isPaused(): boolean {
+    return this.paused
+  }
+
+  /** Milliseconds left until the next forced wave push (HUD only while unpaused). */
   getRemainingMs(): number {
-    return Math.max(0, WAVE_DISPLAY_DURATION_MS - (Date.now() - this.waveStartedAt))
+    return Math.max(0, WAVE_PUSH_INTERVAL_MS - (Date.now() - this.waveStartedAt))
   }
 
   getAliveCellIndices(): number[] {
     return this.cells.map((enemy, index) => (enemy ? index : -1)).filter((index) => index >= 0)
+  }
+
+  /** Called once the player acknowledges a checkpoint (proceed button, or
+   * after picking a relic) — restarts the push timer. */
+  resumeFromCheckpoint(): void {
+    this.paused = false
+    this.waveStartedAt = Date.now()
+    this.schedulePush()
   }
 
   /** Player abilities land here — basic attack targets one cell, the
@@ -114,6 +127,29 @@ export class WaveSystem {
 
     this.emitChange()
     return { cellIndex, amount, defeated: false }
+  }
+
+  private schedulePush(): void {
+    window.setTimeout(() => this.handlePushTimeout(), WAVE_PUSH_INTERVAL_MS)
+  }
+
+  private handlePushTimeout(): void {
+    this.pushReinforcements()
+    this.wavesSinceCheckpoint += 1
+
+    if (this.wavesSinceCheckpoint >= WAVES_PER_CHECKPOINT) {
+      this.wavesSinceCheckpoint = 0
+      this.checkpointCount += 1
+      this.paused = true
+      this.emitCheckpoint({
+        checkpointNumber: this.checkpointCount,
+        isRelicCheckpoint: this.checkpointCount % CHECKPOINTS_PER_RELIC === 0,
+      })
+      return
+    }
+
+    this.waveStartedAt = Date.now()
+    this.schedulePush()
   }
 
   private tick(): void {
@@ -171,31 +207,13 @@ export class WaveSystem {
     this.cells[cellIndex] = null
     const dropCard = Math.random() < CARD_DROP_CHANCE
     const dropItem = Math.random() < ITEM_DROP_CHANCE
-    this.aliveInWave -= 1
-    let relicAwarded = false
-
-    if (this.aliveInWave <= 0) {
-      this.waveNumber += 1
-      this.wavesSinceRelic += 1
-      if (this.wavesSinceRelic >= WAVES_PER_RELIC) {
-        this.wavesSinceRelic = 0
-        relicAwarded = true
-      }
-      window.setTimeout(() => {
-        if (this.paused) {
-          this.pendingSpawnWave = true
-        } else {
-          this.spawnWave()
-        }
-      }, NEXT_WAVE_DELAY_MS)
-    }
 
     this.emitChange()
-    this.emitEncounter({ cellIndex, dropCard, dropItem, relicAwarded, viaBossRoom })
+    this.emitEncounter({ cellIndex, dropCard, dropItem, viaBossRoom })
   }
 
+  /** Initial board fill only — later waves arrive via pushReinforcements(). */
   private spawnWave(): void {
-    this.waveStartedAt = Date.now()
     this.cells = new Array(ROWS * COLS).fill(null)
     for (let row = 0; row < ROWS; row += 1) {
       this.cells[row * COLS + ENTRY_COL] = {
@@ -206,7 +224,24 @@ export class WaveSystem {
         maxHp: ENEMY_BASE_HP,
       }
     }
-    this.aliveInWave = ROWS
+    this.emitChange()
+  }
+
+  /** A forced wave push — tops up the entry column, skipping any cell a
+   * straggler is still standing in rather than overwriting it. */
+  private pushReinforcements(): void {
+    this.waveNumber += 1
+    for (let row = 0; row < ROWS; row += 1) {
+      const idx = row * COLS + ENTRY_COL
+      if (this.cells[idx]) continue
+      this.cells[idx] = {
+        id: `enemy-${this.waveNumber}-${row}`,
+        row,
+        col: ENTRY_COL,
+        hp: ENEMY_BASE_HP,
+        maxHp: ENEMY_BASE_HP,
+      }
+    }
     this.emitChange()
   }
 
@@ -216,5 +251,9 @@ export class WaveSystem {
 
   private emitEncounter(result: EncounterResult): void {
     for (const fn of this.encounterListeners) fn(result)
+  }
+
+  private emitCheckpoint(info: CheckpointInfo): void {
+    for (const fn of this.checkpointListeners) fn(info)
   }
 }

@@ -1,6 +1,7 @@
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
 import { ItemInventory } from '@ui/ItemInventory'
+import { ProceedButton } from '@ui/ProceedButton'
 import { RelicInventory } from '@ui/RelicInventory'
 import { RewardOverlay } from '@ui/RewardOverlay'
 import { SkillBar } from '@ui/SkillBar'
@@ -13,7 +14,7 @@ import { DefenderSystem } from '@systems/DefenderSystem'
 import { HandSystem } from '@systems/HandSystem'
 import { ItemSystem } from '@systems/ItemSystem'
 import { RelicSystem } from '@systems/RelicSystem'
-import { WaveSystem, type EncounterResult } from '@systems/WaveSystem'
+import { WaveSystem, type CheckpointInfo, type EncounterResult } from '@systems/WaveSystem'
 import { drawRandomConsumable } from '@data/ConsumablePool'
 import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
@@ -36,6 +37,7 @@ export class Game {
   private readonly items: ItemInventory
   private readonly skillBar: SkillBar
   private readonly rewardOverlay: RewardOverlay
+  private readonly proceedButton: ProceedButton
 
   constructor(root: HTMLElement) {
     const shell = document.createElement('div')
@@ -73,9 +75,11 @@ export class Game {
     this.rewardOverlay = new RewardOverlay({
       onChoose: (relic, cardEl) => this.resolveRelicChoice(relic, cardEl),
     })
+    this.proceedButton = new ProceedButton(shell, () => this.waveSystem.resumeFromCheckpoint())
 
     this.waveSystem.onChange(() => this.board.syncCells())
     this.waveSystem.onEncounter((result) => this.handleEncounter(result))
+    this.waveSystem.onCheckpoint((info) => this.handleCheckpoint(info))
     this.defenderSystem.onChange(() => this.board.syncCells())
     this.handSystem.onChange(() => {
       this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
@@ -180,15 +184,16 @@ export class Game {
         onArrive: () => this.itemSystem.addItem(drawRandomConsumable()),
       })
     }
-
-    if (result.relicAwarded) {
-      this.startRelicReward()
-    }
   }
 
-  private startRelicReward(): void {
-    this.waveSystem.pause()
-    this.rewardOverlay.show(drawRelicOptions(RELIC_CHOICE_COUNT))
+  /** Every 5 forced waves the game pauses for a lull; every 3rd such
+   * checkpoint offers a relic instead of just a "proceed" prompt. */
+  private handleCheckpoint(info: CheckpointInfo): void {
+    if (info.isRelicCheckpoint) {
+      this.rewardOverlay.show(drawRelicOptions(RELIC_CHOICE_COUNT))
+    } else {
+      this.proceedButton.show()
+    }
   }
 
   private resolveRelicChoice(relic: Relic, cardEl: HTMLElement): void {
@@ -196,7 +201,7 @@ export class Game {
     const target = this.relics.getDropPoint()
 
     this.rewardOverlay.hide()
-    this.waveSystem.resume()
+    this.waveSystem.resumeFromCheckpoint()
 
     BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
       onArrive: () => this.relicSystem.addRelic(relic),

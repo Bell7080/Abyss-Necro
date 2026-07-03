@@ -19,6 +19,10 @@ export class WaveHud {
 
   private render(): void {
     const wave = this.waveSystem.getWaveNumber()
+    if (this.waveSystem.isPaused()) {
+      this.el.textContent = `웨이브 ${wave} - 정비 중`
+      return
+    }
     const totalSeconds = Math.ceil(this.waveSystem.getRemainingMs() / 1000)
     const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0')
     const seconds = String(totalSeconds % 60).padStart(2, '0')
