@@ -503,14 +503,15 @@ body {
   }
 }
 
-/* Cards stand up on the tilted floor as standees: instead of fully
-   cancelling the board tilt (which reads as a flat billboard), we leave a
-   small backward lean (--figure-lean) so the top recedes with perspective,
-   and lift them off the floor (translateZ) so they pop rather than lie flat.
-   --figure-rise slides a figure up the slope (used to raise the player). */
+/* Cards stand up on the tilted floor as standees: we over-cancel the board
+   tilt by --figure-lean so the card's TOP comes toward the viewer and its
+   BOTTOM foreshortens back into the floor — reading as rooted-and-rising
+   rather than a flat billboard (or reclining backward). translateZ lifts
+   them off the floor; --figure-rise slides a figure up the slope (raises
+   the player). transform-origin at the bottom keeps the base planted. */
 .board-figure {
   --board-figure-shift-x: 0px;
-  --figure-lean: 14deg;
+  --figure-lean: 15deg;
   --figure-rise: 0px;
   position: relative;
   display: flex;
@@ -520,7 +521,7 @@ body {
   gap: 8px;
   transform-style: preserve-3d;
   transform-origin: 50% 100%;
-  transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 + var(--figure-lean)))
+  transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 - var(--figure-lean)))
     translateZ(58px) translateX(var(--board-figure-shift-x));
   transition: transform 0.18s ease;
 }
@@ -555,12 +556,12 @@ body {
 
 @keyframes figure-pop {
   0% {
-    transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 + var(--figure-lean)))
+    transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 - var(--figure-lean)))
       translateZ(58px) translateX(var(--board-figure-shift-x)) scale(0.4);
     opacity: 0;
   }
   100% {
-    transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 + var(--figure-lean)))
+    transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 - var(--figure-lean)))
       translateZ(58px) translateX(var(--board-figure-shift-x)) scale(1);
     opacity: 1;
   }
