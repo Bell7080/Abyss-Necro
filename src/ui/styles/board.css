@@ -512,7 +512,7 @@ body {
 .board-figure {
   --board-figure-shift-x: 0px;
   --figure-lean: 15deg;
-  --figure-rise: 0px;
+  --figure-rise: -105px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -520,11 +520,12 @@ body {
   justify-content: center;
   gap: 8px;
   transform-style: preserve-3d;
-  /* Pivot at the center so a placed card sits centered in its cell rather
-     than growing up from the bottom edge. The trailing scaleY restores the
-     height the lean's foreshortening compresses, so the standee reads tall
-     instead of squished. */
-  transform-origin: 50% 50%;
+  /* Pivot at the base (bottom) so the card rises up from where the contact
+     shadow sits — a standee planted on the floor. --figure-rise then lifts
+     that base up the slope to the cell's front so the tall body stands ON
+     the tile instead of being sunk into it. scaleY restores the height the
+     lean's foreshortening compresses so the standee reads tall, not pressed. */
+  transform-origin: 50% 100%;
   transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 - var(--figure-lean)))
     translateZ(58px) translateX(var(--board-figure-shift-x)) scaleY(1.16);
   transition: transform 0.18s ease;
@@ -551,7 +552,7 @@ body {
    of the screen instead of hugging the bottom-left. */
 .board-figure--boss-player {
   --board-figure-shift-x: -100px;
-  --figure-rise: -150px;
+  --figure-rise: -235px;
 }
 
 .board-figure.is-arrived {
