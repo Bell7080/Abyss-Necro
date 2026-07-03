@@ -26,7 +26,7 @@ function ensureStyles(): void {
 }
 .floating-damage-text {
   position: absolute;
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-family-primary, system-ui, sans-serif);
   font-weight: 700;
   font-size: 17px;
   color: #ffbdf0;

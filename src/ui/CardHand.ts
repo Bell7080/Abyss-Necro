@@ -4,13 +4,18 @@ import { Icons } from '@ui/Icons'
 
 // Fan math shared by render() and getNextSlotPoint() so a bubble aimed at
 // "where the next card will land" actually lands where the card appears.
+// A fixed per-card step (capped so a big hand still fits) keeps a small
+// hand gathered in an overlapping stack instead of spreading it out to a
+// count-proportional width, and the fan angle/arc grow with the count so
+// two cards sit nearly straight rather than splaying like a full hand.
 function fanTransform(index: number, total: number): { x: number; y: number; rot: number } {
-  const spreadPx = Math.min(480, 46 * total)
-  const step = total > 1 ? spreadPx / (total - 1) : 0
-  const x = total > 1 ? -spreadPx / 2 + step * index : 0
+  const step = total > 1 ? Math.min(74, 620 / (total - 1)) : 0
+  const spreadPx = step * (total - 1)
+  const x = -spreadPx / 2 + step * index
   const t = total > 1 ? index / (total - 1) : 0.5
-  const rot = (t - 0.5) * 36
-  const y = -Math.pow((t - 0.5) * 2, 2) * 26
+  const fanAngle = Math.min(36, 7 * total)
+  const rot = (t - 0.5) * fanAngle
+  const y = -Math.pow((t - 0.5) * 2, 2) * Math.min(30, 5 * total)
   return { x, y, rot }
 }
 

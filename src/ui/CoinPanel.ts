@@ -2,10 +2,11 @@ import { Icons } from '@ui/Icons'
 
 const POP_MS = 620
 
-// Top-left coin readout — Unmelting's 불빛/화폐 top-left panel reinterpreted
-// in the abyss cool palette. Kills always drop one coin (CoinDrop effect
-// lands it on the ground, then BubbleBurst carries it here); pulse() times
-// a brief rise-and-glow beat to that arrival.
+// Top-left 별빛 readout — mirrors Unmelting's score-panel-total anatomy
+// (small letterspaced kicker row above a large glowing tabular number)
+// reinterpreted in the abyss cool palette. Kills always drop one coin
+// (CoinDrop effect lands it on the ground, then BubbleBurst carries it
+// here); pulse() times a brief rise-and-glow beat to that arrival.
 export class CoinPanel {
   private readonly panel: HTMLElement
   private readonly countEl: HTMLElement
@@ -13,17 +14,16 @@ export class CoinPanel {
   constructor(root: HTMLElement) {
     this.panel = document.createElement('div')
     this.panel.className = 'coin-panel'
+    this.panel.innerHTML = `
+      <div class="coin-panel-kicker">
+        <span class="coin-panel-kicker-icon">${Icons.coinSparkle()}</span>별빛
+      </div>
+      <div class="coin-panel-value">
+        <span class="coin-panel-icon">${Icons.coinSparkle()}</span>
+        <span class="coin-panel-count">0</span>
+      </div>`
 
-    const icon = document.createElement('span')
-    icon.className = 'coin-panel-icon'
-    icon.innerHTML = Icons.coinSparkle()
-
-    this.countEl = document.createElement('span')
-    this.countEl.className = 'coin-panel-count'
-    this.countEl.textContent = '0'
-
-    this.panel.appendChild(icon)
-    this.panel.appendChild(this.countEl)
+    this.countEl = this.panel.querySelector('.coin-panel-count') as HTMLElement
     root.appendChild(this.panel)
   }
 

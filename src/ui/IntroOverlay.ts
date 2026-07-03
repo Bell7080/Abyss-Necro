@@ -17,6 +17,15 @@ export class IntroOverlay {
     const veil = document.createElement('div')
     veil.className = 'intro-veil'
 
+    // Flavor line + oversized button enter together as one centerpiece —
+    // the moment of stepping into the abyss, not a mere UI confirm.
+    const invite = document.createElement('div')
+    invite.className = 'intro-invite'
+
+    const caption = document.createElement('div')
+    caption.className = 'intro-caption'
+    caption.textContent = '심연이 그대를 기다린다'
+
     this.button = document.createElement('button')
     this.button.type = 'button'
     this.button.className = 'intro-start-button'
@@ -26,8 +35,10 @@ export class IntroOverlay {
       onStart()
     })
 
+    invite.appendChild(caption)
+    invite.appendChild(this.button)
     this.overlay.appendChild(veil)
-    this.overlay.appendChild(this.button)
+    this.overlay.appendChild(invite)
     root.appendChild(this.overlay)
 
     // Two rAFs so the fully-dark first frame actually paints before the

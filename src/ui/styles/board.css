@@ -16,9 +16,16 @@
   box-sizing: border-box;
 }
 
+/* Buttons don't inherit fonts by default — without this, every board cell,
+   card and orb (all <button>s) silently falls back to the UA font instead
+   of the FontManager-set primary family on <body>. */
+button {
+  font: inherit;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-family-primary, system-ui, sans-serif);
   color: var(--abyss-lavender-bright);
   /* Real illustrated seabed backdrop; a soft bottom vignette on top keeps
      the HUD/panels legible without hiding the art. */
@@ -431,18 +438,18 @@ body {
   position: absolute;
   left: 50%;
   bottom: 0;
-  width: 72px;
-  height: 96px;
+  width: 144px;
+  height: 192px;
   transform: translate(-50%, 0) translate(var(--hand-x, 0px), var(--hand-y, 0px))
     rotate(var(--hand-rot, 0deg));
   transform-origin: bottom center;
   background: linear-gradient(165deg, rgba(46, 32, 78, 0.92), rgba(16, 12, 26, 0.94));
   border: 0;
-  border-radius: 10px;
+  border-radius: 16px;
   box-shadow:
     inset 0 0 0 1px rgba(180, 220, 255, 0.2),
-    0 10px 22px var(--abyss-shadow),
-    0 0 16px rgba(150, 205, 255, 0.12);
+    0 14px 30px var(--abyss-shadow),
+    0 0 20px rgba(150, 205, 255, 0.12);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -450,7 +457,6 @@ body {
   gap: 4px;
   padding: 0;
   color: var(--abyss-lavender-bright);
-  font: inherit;
   cursor: pointer;
   z-index: calc(10 + var(--hand-i, 0));
   transition:
@@ -464,7 +470,7 @@ body {
 
 .hand-card.is-selected {
   transform: translate(-50%, 0)
-    translate(var(--hand-x, 0px), calc(var(--hand-y, 0px) - 16px)) rotate(var(--hand-rot, 0deg));
+    translate(var(--hand-x, 0px), calc(var(--hand-y, 0px) - 30px)) rotate(var(--hand-rot, 0deg));
   box-shadow:
     inset 0 0 0 1px rgba(225, 190, 255, 0.7),
     0 16px 28px var(--abyss-shadow),
@@ -472,7 +478,7 @@ body {
 }
 
 .hand-card-label {
-  font-size: 9px;
+  font-size: 14px;
   color: var(--abyss-lavender);
 }
 
@@ -500,16 +506,16 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 10px;
+  border-radius: 16px;
   background: linear-gradient(180deg, rgba(10, 8, 16, 0) 58%, rgba(8, 6, 14, 0.88) 100%);
   pointer-events: none;
 }
 
 .hand-card.has-image .hand-card-label {
   position: absolute;
-  left: 4px;
-  right: 4px;
-  bottom: 5px;
+  left: 8px;
+  right: 8px;
+  bottom: 10px;
   z-index: 1;
   text-align: center;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
@@ -878,38 +884,93 @@ body {
   transition: opacity 0.5s ease-out;
 }
 
-.intro-start-button {
+/* Caption + button rise together as one centerpiece. */
+.intro-invite {
   position: relative;
   z-index: 1;
-  padding: 16px 46px;
-  border-radius: 999px;
-  border: 1px solid rgba(150, 205, 255, 0.5);
-  background: linear-gradient(160deg, rgba(70, 46, 112, 0.9), rgba(14, 10, 24, 0.97));
-  color: var(--abyss-lavender-bright);
-  font-size: 16px;
-  letter-spacing: 0.16em;
-  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(10px) scale(0.94);
+  transform: translateY(14px);
   transition:
-    opacity 0.6s ease,
-    transform 0.6s ease;
+    opacity 0.9s ease,
+    transform 0.9s ease;
 }
 
-.intro-overlay.is-button-visible .intro-start-button {
+.intro-overlay.is-button-visible .intro-invite {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0) scale(1);
-  animation: proceed-pulse 1.3s ease-in-out infinite;
+  transform: translateY(0);
 }
 
-.intro-overlay.is-dismissed .intro-start-button {
+.intro-overlay.is-dismissed .intro-invite {
   opacity: 0;
-  transform: translateY(-6px) scale(0.94);
+  transform: translateY(-8px);
   transition:
     opacity 0.4s ease,
     transform 0.4s ease;
+}
+
+.intro-caption {
+  font-size: 15px;
+  letter-spacing: 0.44em;
+  /* Re-center: tracking pads the right edge of the last glyph. */
+  padding-left: 0.44em;
+  color: rgba(182, 166, 232, 0.75);
+  text-shadow: 0 0 14px rgba(150, 130, 220, 0.4);
+}
+
+.intro-start-button {
+  padding: 26px 92px;
+  border-radius: 999px;
+  border: 0;
+  background: linear-gradient(160deg, rgba(80, 52, 128, 0.92), rgba(12, 8, 22, 0.97));
+  color: var(--abyss-lavender-bright);
+  font-size: 25px;
+  letter-spacing: 0.34em;
+  padding-left: calc(92px + 0.34em);
+  cursor: pointer;
+  box-shadow:
+    inset 0 0 0 1px rgba(180, 220, 255, 0.32),
+    inset 0 0 34px rgba(120, 90, 200, 0.28),
+    0 22px 50px rgba(0, 0, 0, 0.6),
+    0 0 42px rgba(150, 205, 255, 0.2);
+  transition: box-shadow 0.3s ease;
+}
+
+.intro-overlay.is-button-visible .intro-start-button {
+  animation: intro-breathe 2.6s ease-in-out infinite;
+}
+
+.intro-start-button:hover {
+  box-shadow:
+    inset 0 0 0 1px rgba(220, 240, 255, 0.55),
+    inset 0 0 40px rgba(140, 110, 220, 0.4),
+    0 22px 50px rgba(0, 0, 0, 0.6),
+    0 0 64px rgba(170, 215, 255, 0.4);
+}
+
+/* Slower, deeper swell than the checkpoint proceed-pulse — a held breath
+   at the threshold rather than an urgent prompt. */
+@keyframes intro-breathe {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(180, 220, 255, 0.32),
+      inset 0 0 34px rgba(120, 90, 200, 0.28),
+      0 22px 50px rgba(0, 0, 0, 0.6),
+      0 0 42px rgba(150, 205, 255, 0.2);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px rgba(210, 235, 255, 0.5),
+      inset 0 0 44px rgba(150, 115, 230, 0.4),
+      0 22px 50px rgba(0, 0, 0, 0.6),
+      0 0 72px rgba(170, 215, 255, 0.42);
+  }
 }
 
 /* ---------- Relic reward overlay (every 3 waves cleared) ---------- */
@@ -1033,31 +1094,74 @@ body {
 /* Unmelting's 불빛/화폐 top-left panel, reinterpreted in the cool abyss
    palette — same sparkle-diamond glyph, cyan instead of candle-gold. */
 
+/* Unmelting score-panel-total anatomy: a muted letterspaced kicker row over
+   a big glowing tabular number, on a borderless plate whose only shaping is
+   a soft radial glow bleeding from the top — the number is the actor. */
 .coin-panel {
   position: absolute;
-  top: 24px;
+  top: 22px;
   left: 24px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  min-width: 118px;
+  padding: 12px 18px 13px;
   color: #7fe8ff;
-  background: linear-gradient(180deg, rgba(14, 18, 30, 0.5), rgba(5, 7, 15, 0.66));
+  background:
+    radial-gradient(circle at 50% 0%, rgba(127, 232, 255, 0.13), transparent 70%),
+    linear-gradient(180deg, rgba(14, 18, 30, 0.4), rgba(5, 7, 15, 0.55));
   border: 0;
-  border-radius: 999px;
-  padding: 9px 19px 9px 15px;
-  box-shadow:
-    0 10px 26px rgba(0, 0, 0, 0.35),
-    0 0 18px rgba(127, 232, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: none;
   backdrop-filter: blur(6px);
   overflow: visible;
-  transition: box-shadow 0.2s ease;
+}
+
+.coin-panel-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--abyss-lavender);
+  opacity: 0.85;
+}
+
+.coin-panel-kicker-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.coin-panel-kicker-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.coin-panel-value {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.coin-panel-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.coin-panel-icon svg {
+  width: 21px;
+  height: 21px;
 }
 
 .coin-panel-count {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--abyss-lavender-bright);
+  position: relative;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: #aef0ff;
+  text-shadow:
+    0 0 8px rgba(127, 232, 255, 0.55),
+    0 0 18px rgba(90, 190, 235, 0.3);
 }
 
 .coin-panel.is-gain {
@@ -1065,8 +1169,42 @@ body {
 }
 
 .coin-panel.is-gain .coin-panel-count {
-  color: #d9f4ff;
-  text-shadow: 0 0 10px rgba(127, 232, 255, 0.75);
+  color: #ffffff;
+  text-shadow:
+    0 0 12px rgba(180, 244, 255, 0.9),
+    0 0 26px rgba(127, 232, 255, 0.55);
+}
+
+/* Unmelting's coin "ding": a tiny sparkle row arcs off the number on gain. */
+.coin-panel.is-gain .coin-panel-count::after {
+  content: '✦ ✧ ✦';
+  position: absolute;
+  right: -4px;
+  top: -15px;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 4px;
+  color: rgba(217, 244, 255, 1);
+  text-shadow:
+    0 0 6px rgba(180, 244, 255, 0.95),
+    0 0 14px rgba(127, 232, 255, 0.7);
+  animation: coin-sparks 0.62s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes coin-sparks {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.7);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12px) scale(1.05);
+  }
 }
 
 @keyframes coin-panel-rise {
@@ -1075,9 +1213,6 @@ body {
   }
   35% {
     transform: translateY(-6px);
-    box-shadow:
-      0 10px 26px rgba(0, 0, 0, 0.35),
-      0 0 26px rgba(127, 232, 255, 0.5);
   }
   100% {
     transform: translateY(0);
