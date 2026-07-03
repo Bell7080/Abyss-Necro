@@ -38,4 +38,10 @@ export const Icons = {
       <circle cx="12" cy="12" r="4.4" fill="currentColor"/>
     </svg>`
   },
+  itemVial(): string {
+    return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 2h4M10 2v5.6L5.8 16a2.8 2.8 0 0 0 2.5 4h7.4a2.8 2.8 0 0 0 2.5-4L14 7.6V2" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="currentColor" fill-opacity="0.18"/>
+      <path d="M7.8 14.2h8.4" stroke="currentColor" stroke-width="1.3"/>
+    </svg>`
+  },
 }

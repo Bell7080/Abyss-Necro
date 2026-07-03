@@ -329,12 +329,20 @@ body {
   }
 }
 
-/* ---------- Relic inventory (bottom right) ---------- */
+/* ---------- Relic + item panels (bottom right, stacked) ---------- */
 
-.relic-panel {
+.side-panels {
   position: absolute;
   right: 22px;
   bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-end;
+}
+
+.relic-panel,
+.item-panel {
   padding: 12px;
   border-radius: 14px;
   background: var(--abyss-panel-strong);
@@ -345,7 +353,8 @@ body {
   backdrop-filter: blur(6px);
 }
 
-.relic-panel-title {
+.relic-panel-title,
+.item-panel-title {
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -354,13 +363,15 @@ body {
   margin-bottom: 8px;
 }
 
-.relic-grid {
+.relic-grid,
+.item-grid {
   display: grid;
   grid-template-columns: repeat(3, 44px);
   gap: 8px;
 }
 
-.relic-slot {
+.relic-slot,
+.item-slot {
   width: 44px;
   height: 44px;
   border-radius: 8px;
@@ -379,6 +390,15 @@ body {
   background: rgba(40, 26, 64, 0.75);
   box-shadow:
     0 0 14px rgba(180, 150, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.item-slot.is-filled {
+  color: #bdf3e0;
+  border-color: rgba(140, 220, 190, 0.5);
+  background: rgba(20, 56, 46, 0.75);
+  box-shadow:
+    0 0 14px rgba(120, 220, 180, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 

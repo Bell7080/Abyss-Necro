@@ -1,5 +1,6 @@
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
+import { ItemInventory } from '@ui/ItemInventory'
 import { RelicInventory } from '@ui/RelicInventory'
 import { RewardOverlay } from '@ui/RewardOverlay'
 import { SkillBar } from '@ui/SkillBar'
@@ -9,8 +10,10 @@ import { showDamageNumber } from '@ui/effects/FloatingDamage'
 import { AbilitySystem } from '@systems/AbilitySystem'
 import { DefenderSystem } from '@systems/DefenderSystem'
 import { HandSystem } from '@systems/HandSystem'
+import { ItemSystem } from '@systems/ItemSystem'
 import { RelicSystem } from '@systems/RelicSystem'
 import { WaveSystem, type EncounterResult } from '@systems/WaveSystem'
+import { drawRandomConsumable } from '@data/ConsumablePool'
 import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
 import type { Relic } from '@entities/Relic'
@@ -22,12 +25,14 @@ const RELIC_CHOICE_COUNT = 3
 export class Game {
   private readonly handSystem = new HandSystem()
   private readonly relicSystem = new RelicSystem()
+  private readonly itemSystem = new ItemSystem()
   private readonly defenderSystem = new DefenderSystem()
   private readonly waveSystem = new WaveSystem(this.defenderSystem)
   private readonly abilitySystem = new AbilitySystem()
   private readonly board: BoardRenderer
   private readonly hand: CardHand
   private readonly relics: RelicInventory
+  private readonly items: ItemInventory
   private readonly skillBar: SkillBar
   private readonly rewardOverlay: RewardOverlay
 
@@ -40,7 +45,12 @@ export class Game {
     boardMount.className = 'board-mount'
     shell.appendChild(boardMount)
 
-    this.relics = new RelicInventory(shell)
+    const sidePanels = document.createElement('div')
+    sidePanels.className = 'side-panels'
+    shell.appendChild(sidePanels)
+
+    this.relics = new RelicInventory(sidePanels)
+    this.items = new ItemInventory(sidePanels)
     this.hand = new CardHand(shell, (cardId) => {
       // Selecting a card for placement and aiming an attack are mutually
       // exclusive targeting modes.
@@ -69,6 +79,7 @@ export class Game {
       this.board.setPlacementTargeting(!!this.handSystem.getSelectedId())
     })
     this.relicSystem.onChange((relics) => this.relics.render(relics))
+    this.itemSystem.onChange((items) => this.items.render(items))
     this.abilitySystem.onChange(() => {
       this.skillBar.render()
       this.board.setTargeting(this.abilitySystem.isBasicArmed())
@@ -76,6 +87,7 @@ export class Game {
 
     this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
     this.relics.render(this.relicSystem.getRelics())
+    this.items.render(this.itemSystem.getItems())
     this.skillBar.render()
   }
 
@@ -154,6 +166,15 @@ export class Game {
             id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             label: '심연의 것',
           }),
+      })
+    }
+
+    if (result.dropItem && rect) {
+      const target = this.items.getDropPoint()
+      const origin = centerOf(rect)
+
+      BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
+        onArrive: () => this.itemSystem.addItem(drawRandomConsumable()),
       })
     }
 

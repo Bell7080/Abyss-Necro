@@ -7,6 +7,7 @@ const ENEMY_BASE_HP = 4
 const ENEMY_ATTACK_DAMAGE = 1
 const ALLY_COUNTER_DAMAGE = 2
 const CARD_DROP_CHANCE = 0.5
+const ITEM_DROP_CHANCE = 0.35
 const WAVES_PER_RELIC = 3
 const NEXT_WAVE_DELAY_MS = 600
 const MOVE_TICK_MS = 1100
@@ -15,6 +16,7 @@ export interface EncounterResult {
   /** Grid cell the enemy was standing in when the fight resolved. */
   cellIndex: number
   dropCard: boolean
+  dropItem: boolean
   relicAwarded: boolean
   /** True if the enemy walked into the boss room instead of being attacked. */
   viaBossRoom: boolean
@@ -159,6 +161,7 @@ export class WaveSystem {
   private resolveEncounter(cellIndex: number, viaBossRoom: boolean): void {
     this.cells[cellIndex] = null
     const dropCard = Math.random() < CARD_DROP_CHANCE
+    const dropItem = Math.random() < ITEM_DROP_CHANCE
     this.aliveInWave -= 1
     let relicAwarded = false
 
@@ -179,7 +182,7 @@ export class WaveSystem {
     }
 
     this.emitChange()
-    this.emitEncounter({ cellIndex, dropCard, relicAwarded, viaBossRoom })
+    this.emitEncounter({ cellIndex, dropCard, dropItem, relicAwarded, viaBossRoom })
   }
 
   private spawnWave(): void {
