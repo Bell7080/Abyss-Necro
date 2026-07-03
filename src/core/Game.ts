@@ -170,9 +170,17 @@ export class Game {
     CurseMortar.fire(origin.x, origin.y, target.x, target.y, {
       onImpact: () => {
         const result = this.waveSystem.applyDamage(cellIndex, BASIC_ATTACK_DAMAGE)
-        if (result) showDamageNumber(target.x, target.y, result.amount)
+        if (result) this.showHitNumber(result.cellIndex, result.amount, target)
       },
     })
+  }
+
+  /** Damage number over the cell the hit actually landed in — with the
+   * grace judgement that can be the enemy's new cell, not the clicked one. */
+  private showHitNumber(hitCellIndex: number, amount: number, fallback: { x: number; y: number }): void {
+    const rect = this.board.getCellRect(hitCellIndex)
+    const point = rect ? centerOf(rect) : fallback
+    showDamageNumber(point.x, point.y, amount)
   }
 
   private castUltimate(): void {
@@ -192,7 +200,7 @@ export class Game {
         delay: Math.random() * 140,
         onImpact: () => {
           const result = this.waveSystem.applyDamage(cellIndex, ULTIMATE_DAMAGE)
-          if (result) showDamageNumber(target.x, target.y, result.amount)
+          if (result) this.showHitNumber(result.cellIndex, result.amount, target)
         },
       })
     }

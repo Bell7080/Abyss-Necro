@@ -21,6 +21,10 @@ const MOVE_TICK_MS = 1300
 const WAVE_PUSH_INTERVAL_MS = 30 * 1000
 const WAVES_PER_CHECKPOINT = 5
 const CHECKPOINTS_PER_RELIC = 3
+// How long after leaving a cell an enemy still counts as hittable there —
+// covers the 0.85s slide-out plus the tail of a mortar already in flight,
+// so aiming at where the enemy visibly is doesn't whiff on the model.
+const HIT_GRACE_MS = 950
 
 export interface EncounterResult {
   /** Grid cell (or BOSS_CELL_INDEX) the enemy was standing in when it died. */
@@ -187,15 +191,41 @@ export class WaveSystem {
     this.spawnTimeoutIds = []
   }
 
-  /** Direct single-target/burst damage formula — not currently wired to any
-   * ability (basic/ultimate now summon roaming minions instead, see
-   * DefenderSystem.summon), kept here for reuse by a future ability/relic.
-   * Always hits the front of that cell's queue. Returns null on a whiff. */
+  /** Ability damage into a cell — hits the front of that cell's queue. On
+   * an empty cell, falls back to a generous "it was just there" judgement:
+   * an enemy that left this cell within HIT_GRACE_MS (i.e. its slide-out is
+   * still on screen while the mortar lands) is hit in its new cell instead
+   * of the shot whiffing. The returned cellIndex is where the hit actually
+   * landed, so impact fx can follow the enemy. */
   applyDamage(cellIndex: number, amount: number): DamageResult | null {
     const list = this.listFor(cellIndex)
     const enemy = list[0]
-    if (!enemy) return null
-    return this.damageEnemy(list, cellIndex, enemy, amount, cellIndex === BOSS_CELL_INDEX)
+    if (enemy) return this.damageEnemy(list, cellIndex, enemy, amount, cellIndex === BOSS_CELL_INDEX)
+    return this.applyGraceDamage(cellIndex, amount)
+  }
+
+  /** The clicked cell is empty — find the most recent enemy to have left it
+   * inside the grace window and hit that one where it now stands. */
+  private applyGraceDamage(clickedIndex: number, amount: number): DamageResult | null {
+    const now = Date.now()
+    let best: { enemy: EnemyToken; list: EnemyToken[]; cellIndex: number } | null = null
+
+    const consider = (enemy: EnemyToken, list: EnemyToken[], cellIndex: number): void => {
+      if (enemy.lastCellIndex !== clickedIndex) return
+      if (now - (enemy.lastMovedAt ?? 0) > HIT_GRACE_MS) return
+      if (!best || (enemy.lastMovedAt ?? 0) > (best.enemy.lastMovedAt ?? 0)) {
+        best = { enemy, list, cellIndex }
+      }
+    }
+
+    this.cells.forEach((list, index) => {
+      for (const enemy of list) consider(enemy, list, index)
+    })
+    for (const enemy of this.bossEnemies) consider(enemy, this.bossEnemies, BOSS_CELL_INDEX)
+
+    if (!best) return null
+    const hit: { enemy: EnemyToken; list: EnemyToken[]; cellIndex: number } = best
+    return this.damageEnemy(hit.list, hit.cellIndex, hit.enemy, amount, hit.cellIndex === BOSS_CELL_INDEX)
   }
 
   private listFor(cellIndex: number): EnemyToken[] {
@@ -327,6 +357,8 @@ export class WaveSystem {
 
     if (targetCol < 0) {
       list.splice(list.indexOf(enemy), 1)
+      enemy.lastCellIndex = index
+      enemy.lastMovedAt = Date.now()
       enemy.row = targetRow
       enemy.col = targetCol
       this.bossEnemies.push(enemy)
@@ -337,6 +369,8 @@ export class WaveSystem {
     // only starts once they actually share it (see resolveClashes()).
     const targetIndex = targetRow * COLS + targetCol
     list.splice(list.indexOf(enemy), 1)
+    enemy.lastCellIndex = index
+    enemy.lastMovedAt = Date.now()
     enemy.row = targetRow
     enemy.col = targetCol
     this.cells[targetIndex].push(enemy)

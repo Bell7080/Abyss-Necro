@@ -9,4 +9,9 @@ export interface EnemyToken {
   col: number
   hp: number
   maxHp: number
+  /** Cell it most recently left, and when — an attack landing on that cell
+   * shortly after the move still hits (generous "it was just there"
+   * judgement, see WaveSystem.applyDamage). */
+  lastCellIndex?: number
+  lastMovedAt?: number
 }
