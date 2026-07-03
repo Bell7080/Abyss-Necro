@@ -10,15 +10,18 @@ const ARRIVE_FX_MS = 340
 // right. The board tilts in 3D (see board.css --board-tilt); each cell's
 // icon sits in a `.board-figure` wrapper that counter-rotates so tokens
 // read as standing upright on a tilted floor. Layout + fx only — WaveSystem
-// owns enemy position/movement state.
+// owns enemy position/movement state, Game.ts decides what a cell click
+// means (only meaningful while an attack is armed).
 export class BoardRenderer {
   private cellEls: HTMLElement[] = []
   private playerCellEl!: HTMLElement
+  private gridEl!: HTMLElement
   private previousOccupied: boolean[] = new Array(CELL_COUNT).fill(false)
 
   constructor(
     private readonly root: HTMLElement,
-    private readonly waveSystem: WaveSystem
+    private readonly waveSystem: WaveSystem,
+    private readonly onCellClick: (cellIndex: number) => void
   ) {}
 
   render(): void {
@@ -36,18 +39,18 @@ export class BoardRenderer {
     arrow.innerHTML = Icons.flowArrow()
     layout.appendChild(arrow)
 
-    const grid = document.createElement('div')
-    grid.className = 'board-grid'
+    this.gridEl = document.createElement('div')
+    this.gridEl.className = 'board-grid'
     this.cellEls = []
     for (let i = 0; i < CELL_COUNT; i += 1) {
       const cell = document.createElement('button')
       cell.type = 'button'
       cell.className = 'board-cell'
-      cell.addEventListener('click', () => this.waveSystem.defeat(i))
-      grid.appendChild(cell)
+      cell.addEventListener('click', () => this.onCellClick(i))
+      this.gridEl.appendChild(cell)
       this.cellEls.push(cell)
     }
-    layout.appendChild(grid)
+    layout.appendChild(this.gridEl)
 
     this.root.appendChild(layout)
     this.previousOccupied = new Array(CELL_COUNT).fill(false)
@@ -71,8 +74,17 @@ export class BoardRenderer {
     })
   }
 
+  /** Toggles the "pick a target" affordance while basic attack is armed. */
+  setTargeting(active: boolean): void {
+    this.gridEl.classList.toggle('is-targeting', active)
+  }
+
   getCellRect(cellIndex: number): DOMRect | null {
     return this.cellEls[cellIndex]?.getBoundingClientRect() ?? null
+  }
+
+  getPlayerRect(): DOMRect | null {
+    return this.playerCellEl?.getBoundingClientRect() ?? null
   }
 
   playDefeatFx(cellIndex: number): void {

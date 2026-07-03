@@ -1,7 +1,7 @@
 // Flat inline-SVG icons, `currentColor` fill/stroke — no emoji, matches Unmelting's Icons.ts convention.
 export const Icons = {
   skullCrown(): string {
-    return `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
+    return `<svg viewBox="0 0 24 24" width="46" height="46" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M12 3c-4 0-7 2.8-7 6.4 0 2 .9 3.6 2.3 4.8l-.6 2.4c-.1.5.3 1 .8 1h2l.5 1.6c.1.4.5.7 1 .7s.9-.3 1-.7l.5-1.6h2c.5 0 .9-.5.8-1l-.6-2.4C18.1 13 19 11.4 19 9.4 19 5.8 16 3 12 3Z" fill="currentColor"/>
       <circle cx="9.3" cy="9.6" r="1.4" fill="#12101c"/>
       <circle cx="14.7" cy="9.6" r="1.4" fill="#12101c"/>
@@ -9,12 +9,12 @@ export const Icons = {
     </svg>`
   },
   flowArrow(): string {
-    return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    return `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M18 5 8 12l10 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`
   },
   enemyToken(): string {
-    return `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+    return `<svg viewBox="0 0 24 24" width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="12" cy="10" rx="7" ry="6.4" fill="currentColor"/>
       <path d="M6 15c0 2 .8 5 1 6.4M9.4 15.6c0 2 .4 4.6.6 5.6M14 15.6c0 2-.2 4.6-.4 5.6M18 15c0 2-.8 5-1 6.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
       <circle cx="9.4" cy="9.6" r="1.2" fill="#0a0716"/>
@@ -25,6 +25,17 @@ export const Icons = {
     return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M12 2 4 9l8 13 8-13-8-7Z" fill="currentColor"/>
       <path d="M4 9h16M8.5 9 12 2l3.5 7M9 9l3 12 3-12" stroke="#0a0716" stroke-width="0.8" stroke-linejoin="round" fill="none"/>
+    </svg>`
+  },
+  curseBolt(): string {
+    return `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2 9 11h3l-2 11 8-13h-4l3-9-5 2Z" fill="currentColor"/>
+    </svg>`
+  },
+  curseBurst(): string {
+    return `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 1v6M12 17v6M1 12h6M17 12h6M4.2 4.2l4.2 4.2M15.6 15.6l4.2 4.2M19.8 4.2l-4.2 4.2M8.4 15.6l-4.2 4.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+      <circle cx="12" cy="12" r="4.4" fill="currentColor"/>
     </svg>`
   },
 }

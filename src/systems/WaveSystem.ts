@@ -3,6 +3,7 @@ import type { EnemyToken } from '@entities/EnemyToken'
 const ROWS = 3
 const COLS = 3
 const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss room
+const ENEMY_BASE_HP = 4
 const CARD_DROP_CHANCE = 0.5
 const WAVES_PER_RELIC = 3
 const NEXT_WAVE_DELAY_MS = 600
@@ -13,16 +14,22 @@ export interface EncounterResult {
   cellIndex: number
   dropCard: boolean
   relicAwarded: boolean
-  /** True if the enemy walked into the boss room instead of being clicked. */
+  /** True if the enemy walked into the boss room instead of being attacked. */
   viaBossRoom: boolean
+}
+
+export interface DamageResult {
+  cellIndex: number
+  amount: number
+  defeated: boolean
 }
 
 // Enemies enter at the grid's far edge (opposite the boss room) and wander
 // toward it a step per tick; reaching the boss room resolves as a fight the
-// same way clicking an enemy does, so ignoring the board has a real cost
-// once damage/HP exists. Enemy tokens are placeholder art until the
-// 40-enemy roster and real combat stats land — the movement/encounter rule
-// itself is not a stub.
+// same way a killing blow does, so ignoring the board has a real cost once
+// player HP/loss exists. Enemy tokens and hp are placeholder values until
+// the 40-enemy roster and real combat stats land — the movement/encounter
+// rule itself is not a stub.
 export class WaveSystem {
   private cells: Array<EnemyToken | null> = new Array(ROWS * COLS).fill(null)
   private waveNumber = 1
@@ -52,10 +59,25 @@ export class WaveSystem {
     return this.waveNumber
   }
 
-  /** Player clicks a cell to fight whatever enemy is standing there. */
-  defeat(cellIndex: number): void {
-    if (!this.cells[cellIndex]) return
-    this.resolveEncounter(cellIndex, false)
+  getAliveCellIndices(): number[] {
+    return this.cells.map((enemy, index) => (enemy ? index : -1)).filter((index) => index >= 0)
+  }
+
+  /** Player abilities land here — basic attack targets one cell, the
+   * ultimate calls this once per alive cell. Returns null if the cell was
+   * empty (a whiffed shot) so the caller can skip the damage-number fx. */
+  applyDamage(cellIndex: number, amount: number): DamageResult | null {
+    const enemy = this.cells[cellIndex]
+    if (!enemy) return null
+
+    enemy.hp -= amount
+    if (enemy.hp <= 0) {
+      this.resolveEncounter(cellIndex, false)
+      return { cellIndex, amount, defeated: true }
+    }
+
+    this.emitChange()
+    return { cellIndex, amount, defeated: false }
   }
 
   private tick(): void {
@@ -126,6 +148,7 @@ export class WaveSystem {
         id: `enemy-${this.waveNumber}-${row}`,
         row,
         col: ENTRY_COL,
+        hp: ENEMY_BASE_HP,
       }
     }
     this.aliveInWave = ROWS
