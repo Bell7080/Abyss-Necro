@@ -2,6 +2,9 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-03 (35) — 상점을 보드 전반 넓은 투명 레이어로
+- 임시 창처럼 보이던 불투명 플레이트 박스를 제거하고 상점 패널을 보드 전반(폭 min(1180px,94vw))에 걸치는 보더리스·투명 레이어로 재구성. 오버레이 배경은 가장자리를 죽이는 은은한 비네틱 그라디언트(중앙 0.28~가장자리 0.62)로 바꿔 별자리 보드가 비쳐 보인다. 카드는 clamp(180~224px)로 키우고 간격을 clamp(30~74px)로 넓혔으며, 반투명 글라스(blur) 배경으로 심해가 은은히 비친다. 제목 확대·자간 확대, 등장 스케일은 0.9→1로 부드럽게.
+
 ## 2026-07-03 (34) — 패시브 실구현(블라스트) + 칸 3배치 합성(2성)
 - **크리처 패시브 실구현**: `CreatureDefinition.passiveId` 신설, 아군(사령) 형태에 작동. **감전 점막**(해파리) — 그 칸에 해파리 아군이 있으면 그 칸의 적이 받는 모든 피해 +1(중첩), `WaveSystem.damageEnemy`가 `DefenderHooks.getDamageAmp`로 가산하고 착탄마다 시안 스파크 블라스트. **폭신 도약**(바다토끼) — 처치될 때 인접 칸 아군 2 회복, 회복 칸마다 초록 힐 블룸. `PassiveEvent`(신규 공유 타입)를 `WaveSystem.onPassive`/`DefenderSystem.onPassive`로 emit → `Game.handlePassive`가 `BlastManager.passiveBurst(spark|heal)` 재생. `BubbleBurst.burstAt`에 `colors` 옵션 추가.
 - **칸 3배치 합성(2성)**: 한 칸에 같은 크리처 아군 3기가 모이면 그 칸 위에 금색 "합성" 버튼(`CellMergeButton`, 화면 좌표로 칸 위 배치)이 반짝인다. 클릭 시 3기 → 1기 2성 아군(`DefenderSystem.mergeCellTriple`: hp 6, 공격 3, `tier:2`)으로 융합 + 블라스트. `findCellTriple`(그리드+보스방), 2성 아군은 보드에서 금색 오라(`board-figure.is-tier2`), 인스펙터에서 "아군 디펜더 · 2성". 조준 중/합성 애니 중에는 버튼 숨김.
