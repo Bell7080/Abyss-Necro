@@ -1,5 +1,6 @@
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
+import { CoinPanel } from '@ui/CoinPanel'
 import { ItemInventory } from '@ui/ItemInventory'
 import { ProceedButton } from '@ui/ProceedButton'
 import { RelicInventory } from '@ui/RelicInventory'
@@ -7,9 +8,11 @@ import { RewardOverlay } from '@ui/RewardOverlay'
 import { SkillBar } from '@ui/SkillBar'
 import { WaveHud } from '@ui/WaveHud'
 import { BubbleBurst } from '@ui/effects/BubbleBurst'
+import { CoinDrop } from '@ui/effects/CoinDrop'
 import { CurseMortar } from '@ui/effects/CurseMortar'
 import { showDamageNumber } from '@ui/effects/FloatingDamage'
 import { AbilitySystem } from '@systems/AbilitySystem'
+import { CoinSystem } from '@systems/CoinSystem'
 import { DefenderSystem } from '@systems/DefenderSystem'
 import { HandSystem } from '@systems/HandSystem'
 import { ItemSystem } from '@systems/ItemSystem'
@@ -28,6 +31,7 @@ export class Game {
   private readonly handSystem = new HandSystem()
   private readonly relicSystem = new RelicSystem()
   private readonly itemSystem = new ItemSystem()
+  private readonly coinSystem = new CoinSystem()
   private readonly defenderSystem = new DefenderSystem()
   private readonly waveSystem = new WaveSystem(this.defenderSystem)
   private readonly abilitySystem = new AbilitySystem()
@@ -35,6 +39,7 @@ export class Game {
   private readonly hand: CardHand
   private readonly relics: RelicInventory
   private readonly items: ItemInventory
+  private readonly coins: CoinPanel
   private readonly skillBar: SkillBar
   private readonly rewardOverlay: RewardOverlay
   private readonly proceedButton: ProceedButton
@@ -53,6 +58,7 @@ export class Game {
     shell.appendChild(sidePanels)
 
     new WaveHud(shell, this.waveSystem)
+    this.coins = new CoinPanel(shell)
 
     this.relics = new RelicInventory(sidePanels)
     this.items = new ItemInventory(sidePanels)
@@ -81,11 +87,13 @@ export class Game {
     })
     this.relicSystem.onChange((relics) => this.relics.render(relics))
     this.itemSystem.onChange((items) => this.items.render(items))
+    this.coinSystem.onChange((coins) => this.coins.render(coins))
     this.abilitySystem.onChange(() => this.skillBar.render())
 
     this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
     this.relics.render(this.relicSystem.getRelics())
     this.items.render(this.itemSystem.getItems())
+    this.coins.render(this.coinSystem.getCoins())
     this.skillBar.render()
   }
 
@@ -177,6 +185,24 @@ export class Game {
 
       BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
         onArrive: () => this.itemSystem.addItem(drawRandomConsumable()),
+      })
+    }
+
+    // Every kill drops a coin: it lands on the ground in a short lobbed arc,
+    // then blasts from that exact spot into the coin panel as a bubble
+    // travel-in, same beat the counter bumps.
+    if (result.dropCoin && rect) {
+      const origin = centerOf(rect)
+      CoinDrop.fire(origin.x, origin.y, {
+        onLand: () => {
+          const target = this.coins.getDropPoint()
+          BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
+            onArrive: () => {
+              this.coinSystem.addCoins(1)
+              this.coins.pulse()
+            },
+          })
+        },
       })
     }
   }

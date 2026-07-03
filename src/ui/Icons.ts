@@ -38,6 +38,13 @@ export const Icons = {
       <circle cx="12" cy="12" r="4.4" fill="currentColor"/>
     </svg>`
   },
+  /** Four-point sparkle diamond — Unmelting's shared 불빛/화폐 glyph shape,
+   * reused here for the abyss coin currency (color comes from CSS). */
+  coinSparkle(): string {
+    return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2.8 14.1 9.9 21.2 12 14.1 14.1 12 21.2 9.9 14.1 2.8 12 9.9 9.9 12 2.8Z" fill="currentColor"/>
+    </svg>`
+  },
   itemVial(): string {
     return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M10 2h4M10 2v5.6L5.8 16a2.8 2.8 0 0 0 2.5 4h7.4a2.8 2.8 0 0 0 2.5-4L14 7.6V2" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="currentColor" fill-opacity="0.18"/>

@@ -25,6 +25,8 @@ export interface EncounterResult {
   cellIndex: number
   dropCard: boolean
   dropItem: boolean
+  /** Always true — every kill drops exactly one coin. */
+  dropCoin: boolean
   viaBossRoom: boolean
 }
 
@@ -170,7 +172,7 @@ export class WaveSystem {
       const dropCard = Math.random() < CARD_DROP_CHANCE
       const dropItem = Math.random() < ITEM_DROP_CHANCE
       this.emitChange()
-      this.emitEncounter({ cellIndex, dropCard, dropItem, viaBossRoom })
+      this.emitEncounter({ cellIndex, dropCard, dropItem, dropCoin: true, viaBossRoom })
       this.triggerInstantPushIfClear()
       return { cellIndex, amount, defeated: true }
     }

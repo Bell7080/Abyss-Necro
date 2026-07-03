@@ -774,6 +774,63 @@ body {
   backdrop-filter: blur(6px);
 }
 
+/* ---------- Coin panel (top-left) ---------- */
+/* Unmelting's 불빛/화폐 top-left panel, reinterpreted in the cool abyss
+   palette — same sparkle-diamond glyph, cyan instead of candle-gold. */
+
+.coin-panel {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #7fe8ff;
+  background: var(--abyss-panel-strong);
+  border: 1px solid rgba(140, 220, 255, 0.35);
+  border-radius: 999px;
+  padding: 8px 18px 8px 14px;
+  box-shadow:
+    0 12px 26px var(--abyss-shadow),
+    0 0 16px rgba(127, 232, 255, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(6px);
+  overflow: visible;
+  transition: box-shadow 0.2s ease;
+}
+
+.coin-panel-count {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--abyss-lavender-bright);
+}
+
+.coin-panel.is-gain {
+  animation: coin-panel-rise 0.62s cubic-bezier(0.16, 0.9, 0.22, 1);
+}
+
+.coin-panel.is-gain .coin-panel-count {
+  color: #d9f4ff;
+  text-shadow: 0 0 10px rgba(127, 232, 255, 0.75);
+}
+
+@keyframes coin-panel-rise {
+  0% {
+    transform: translateY(0);
+  }
+  35% {
+    transform: translateY(-6px);
+    box-shadow:
+      0 12px 26px var(--abyss-shadow),
+      0 0 26px rgba(127, 232, 255, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
 /* ---------- Proceed button (checkpoint lull, below the board) ---------- */
 
 .proceed-button {
