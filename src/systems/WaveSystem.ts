@@ -13,7 +13,7 @@ const ENEMY_ATTACK_DAMAGE = 1
 const ALLY_COUNTER_DAMAGE = 2
 const CARD_DROP_CHANCE = 0.5
 const ITEM_DROP_CHANCE = 0.35
-const MOVE_TICK_MS = 1100
+const MOVE_TICK_MS = 1300
 // A new wave forces its way in every 30 seconds regardless of clear state —
 // this is the actual pacing mechanism, not just a display countdown. If the
 // board clears before the timer runs out, the next wave pushes immediately
@@ -293,11 +293,14 @@ export class WaveSystem {
     let targetRow = enemy.row
     let targetCol = enemy.col
 
-    if (roll < 0.6) {
+    // Advance chance deliberately under half — with the slower tick this
+    // gives the player ~10s before a fresh spawn reaches the room, room to
+    // actually aim/deploy instead of being rushed.
+    if (roll < 0.4) {
       targetCol = enemy.col - 1 // advance toward the boss room
-    } else if (roll < 0.8 && enemy.row > 0) {
+    } else if (roll < 0.6 && enemy.row > 0) {
       targetRow = enemy.row - 1 // wander up
-    } else if (roll < 0.95 && enemy.row < ROWS - 1) {
+    } else if (roll < 0.8 && enemy.row < ROWS - 1) {
       targetRow = enemy.row + 1 // wander down
     } else {
       return // idle this tick
