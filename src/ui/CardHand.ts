@@ -68,7 +68,14 @@ export class CardHand {
           : card.kind === 'epic'
             ? Icons.coinSparkle()
             : Icons.enemyToken()
-      el.innerHTML = `<div class="hand-card-art">${artHtml}</div><div class="hand-card-label">${card.label}</div>`
+      // Tier stars above the name — creature cards only (base = 1성, merged
+      // climbs 2성/3성). Items/epics carry no rank.
+      const tier = creature ? card.tier ?? 1 : 0
+      const starsHtml =
+        tier > 0
+          ? `<div class="hand-card-stars" aria-label="${tier}성">${'★'.repeat(tier)}</div>`
+          : ''
+      el.innerHTML = `<div class="hand-card-art">${artHtml}</div>${starsHtml}<div class="hand-card-label">${card.label}</div>`
       el.addEventListener('click', () => this.onCardClick(card.id))
       this.container.appendChild(el)
     })

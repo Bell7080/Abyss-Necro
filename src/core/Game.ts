@@ -242,6 +242,7 @@ export class Game {
       return {
         imageUrl: creature?.allyArt,
         title: ally.label,
+        stars: ally.tier ?? 1,
         tag: ally.tier === 2 ? '아군 디펜더 · 2성' : '아군 디펜더',
         stats: [
           { label: '공격', value: `${this.defenderSystem.getAttack(cellIndex) ?? 0}` },

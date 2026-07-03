@@ -12,6 +12,8 @@ export interface InspectorData {
   imageUrl?: string
   title: string
   tag: string
+  /** Tier rank, drawn as ★ stars under the title (creature cards/allies). */
+  stars?: number
   /** Attack / hp chips, shown for board units. */
   stats?: InspectorStat[]
   desc?: string
@@ -29,6 +31,7 @@ export class CardInspector {
   private readonly panel: HTMLElement
   private readonly artEl: HTMLElement
   private readonly titleEl: HTMLElement
+  private readonly starsEl: HTMLElement
   private readonly tagsEl: HTMLElement
   private readonly statsEl: HTMLElement
   private readonly descEl: HTMLElement
@@ -46,6 +49,7 @@ export class CardInspector {
       </div>
       <div class="card-inspector-body">
         <div class="card-inspector-title"></div>
+        <div class="card-inspector-stars"></div>
         <div class="card-inspector-divider" aria-hidden="true"></div>
         <div class="card-inspector-tags"></div>
         <div class="card-inspector-stats"></div>
@@ -56,6 +60,7 @@ export class CardInspector {
 
     this.artEl = this.panel.querySelector('.card-inspector-art') as HTMLElement
     this.titleEl = this.panel.querySelector('.card-inspector-title') as HTMLElement
+    this.starsEl = this.panel.querySelector('.card-inspector-stars') as HTMLElement
     this.tagsEl = this.panel.querySelector('.card-inspector-tags') as HTMLElement
     this.statsEl = this.panel.querySelector('.card-inspector-stats') as HTMLElement
     this.descEl = this.panel.querySelector('.card-inspector-desc') as HTMLElement
@@ -68,6 +73,8 @@ export class CardInspector {
   render(data: InspectorData): void {
     this.artEl.style.backgroundImage = data.imageUrl ? `url('${data.imageUrl}')` : ''
     this.titleEl.textContent = data.title
+    this.starsEl.textContent = data.stars ? '★'.repeat(data.stars) : ''
+    this.starsEl.style.display = data.stars ? 'block' : 'none'
     this.tagsEl.textContent = data.tag
 
     this.statsEl.innerHTML = (data.stats ?? [])
@@ -103,6 +110,7 @@ export class CardInspector {
       this.render({
         imageUrl: creature?.allyArt,
         title: card.label,
+        stars: card.tier ?? 1,
         tag: card.tier === 2 ? '진화체 · 강화된 사령' : '사령 카드',
         desc:
           card.tier === 2
