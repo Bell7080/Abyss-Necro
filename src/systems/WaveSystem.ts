@@ -1,26 +1,47 @@
 import type { EnemyToken } from '@entities/EnemyToken'
 
-const CELL_COUNT = 9
+const ROWS = 3
+const COLS = 3
+const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss room
 const CARD_DROP_CHANCE = 0.5
 const WAVES_PER_RELIC = 3
-const NEXT_WAVE_DELAY_MS = 500
+const NEXT_WAVE_DELAY_MS = 600
+const MOVE_TICK_MS = 1100
 
-// First real implementation of the core defense rule (kill -> 50% card drop,
-// clear board -> next wave, every 3 clears -> relic). Enemy tokens are
-// placeholder art until the 40-enemy roster/combat stats land — the rule
+export interface EncounterResult {
+  /** Grid cell the enemy was standing in when the fight resolved. */
+  cellIndex: number
+  dropCard: boolean
+  relicAwarded: boolean
+  /** True if the enemy walked into the boss room instead of being clicked. */
+  viaBossRoom: boolean
+}
+
+// Enemies enter at the grid's far edge (opposite the boss room) and wander
+// toward it a step per tick; reaching the boss room resolves as a fight the
+// same way clicking an enemy does, so ignoring the board has a real cost
+// once damage/HP exists. Enemy tokens are placeholder art until the
+// 40-enemy roster and real combat stats land — the movement/encounter rule
 // itself is not a stub.
 export class WaveSystem {
-  private cells: Array<EnemyToken | null> = []
+  private cells: Array<EnemyToken | null> = new Array(ROWS * COLS).fill(null)
   private waveNumber = 1
   private wavesSinceRelic = 0
-  private readonly listeners: Array<() => void> = []
+  private aliveInWave = 0
+  private readonly changeListeners: Array<() => void> = []
+  private readonly encounterListeners: Array<(result: EncounterResult) => void> = []
 
   constructor() {
     this.spawnWave()
+    window.setInterval(() => this.tick(), MOVE_TICK_MS)
   }
 
   onChange(fn: () => void): void {
-    this.listeners.push(fn)
+    this.changeListeners.push(fn)
+  }
+
+  onEncounter(fn: (result: EncounterResult) => void): void {
+    this.encounterListeners.push(fn)
   }
 
   getCells(): readonly (EnemyToken | null)[] {
@@ -31,16 +52,60 @@ export class WaveSystem {
     return this.waveNumber
   }
 
-  defeat(cellIndex: number): { dropCard: boolean; relicAwarded: boolean } {
-    const enemy = this.cells[cellIndex]
-    if (!enemy) return { dropCard: false, relicAwarded: false }
+  /** Player clicks a cell to fight whatever enemy is standing there. */
+  defeat(cellIndex: number): void {
+    if (!this.cells[cellIndex]) return
+    this.resolveEncounter(cellIndex, false)
+  }
 
+  private tick(): void {
+    // Snapshot occupied indices first so an enemy that moves this tick isn't
+    // immediately moved again while iterating.
+    const occupied = this.cells
+      .map((enemy, index) => (enemy ? index : -1))
+      .filter((index) => index >= 0)
+
+    for (const index of occupied) {
+      const enemy = this.cells[index]
+      if (enemy) this.stepEnemy(index, enemy)
+    }
+    this.emitChange()
+  }
+
+  private stepEnemy(index: number, enemy: EnemyToken): void {
+    const roll = Math.random()
+    let targetRow = enemy.row
+    let targetCol = enemy.col
+
+    if (roll < 0.6) {
+      targetCol = enemy.col - 1 // advance toward the boss room
+    } else if (roll < 0.8 && enemy.row > 0) {
+      targetRow = enemy.row - 1 // wander up
+    } else if (roll < 0.95 && enemy.row < ROWS - 1) {
+      targetRow = enemy.row + 1 // wander down
+    } else {
+      return // idle this tick
+    }
+
+    if (targetCol < 0) {
+      this.resolveEncounter(index, true)
+      return
+    }
+
+    const targetIndex = targetRow * COLS + targetCol
+    if (this.cells[targetIndex]) return // another enemy already occupies it
+
+    this.cells[index] = null
+    this.cells[targetIndex] = { ...enemy, row: targetRow, col: targetCol }
+  }
+
+  private resolveEncounter(cellIndex: number, viaBossRoom: boolean): void {
     this.cells[cellIndex] = null
     const dropCard = Math.random() < CARD_DROP_CHANCE
-    const cleared = this.cells.every((cell) => cell === null)
+    this.aliveInWave -= 1
     let relicAwarded = false
 
-    if (cleared) {
+    if (this.aliveInWave <= 0) {
       this.waveNumber += 1
       this.wavesSinceRelic += 1
       if (this.wavesSinceRelic >= WAVES_PER_RELIC) {
@@ -50,18 +115,28 @@ export class WaveSystem {
       window.setTimeout(() => this.spawnWave(), NEXT_WAVE_DELAY_MS)
     }
 
-    this.emit()
-    return { dropCard, relicAwarded }
+    this.emitChange()
+    this.emitEncounter({ cellIndex, dropCard, relicAwarded, viaBossRoom })
   }
 
   private spawnWave(): void {
-    this.cells = Array.from({ length: CELL_COUNT }, (_, i) => ({
-      id: `enemy-${this.waveNumber}-${i}`,
-    }))
-    this.emit()
+    this.cells = new Array(ROWS * COLS).fill(null)
+    for (let row = 0; row < ROWS; row += 1) {
+      this.cells[row * COLS + ENTRY_COL] = {
+        id: `enemy-${this.waveNumber}-${row}`,
+        row,
+        col: ENTRY_COL,
+      }
+    }
+    this.aliveInWave = ROWS
+    this.emitChange()
   }
 
-  private emit(): void {
-    for (const fn of this.listeners) fn()
+  private emitChange(): void {
+    for (const fn of this.changeListeners) fn()
+  }
+
+  private emitEncounter(result: EncounterResult): void {
+    for (const fn of this.encounterListeners) fn(result)
   }
 }

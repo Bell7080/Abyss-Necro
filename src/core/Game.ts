@@ -4,7 +4,7 @@ import { RelicInventory } from '@ui/RelicInventory'
 import { BubbleBurst } from '@ui/effects/BubbleBurst'
 import { HandSystem } from '@systems/HandSystem'
 import { RelicSystem } from '@systems/RelicSystem'
-import { WaveSystem } from '@systems/WaveSystem'
+import { WaveSystem, type EncounterResult } from '@systems/WaveSystem'
 
 export class Game {
   private readonly handSystem = new HandSystem()
@@ -25,11 +25,10 @@ export class Game {
 
     this.relics = new RelicInventory(shell)
     this.hand = new CardHand(shell)
-    this.board = new BoardRenderer(boardMount, this.waveSystem, (cellIndex, originRect) =>
-      this.handleDefeat(cellIndex, originRect)
-    )
+    this.board = new BoardRenderer(boardMount, this.waveSystem)
 
     this.waveSystem.onChange(() => this.board.syncCells())
+    this.waveSystem.onEncounter((result) => this.handleEncounter(result))
     this.handSystem.onChange((cards) => this.hand.render(cards))
     this.relicSystem.onChange((relics) => this.relics.render(relics))
 
@@ -41,14 +40,16 @@ export class Game {
     this.board.render()
   }
 
-  private handleDefeat(cellIndex: number, originRect: DOMRect): void {
-    const result = this.waveSystem.defeat(cellIndex)
+  private handleEncounter(result: EncounterResult): void {
+    const rect = this.board.getCellRect(result.cellIndex)
+    this.board.playDefeatFx(result.cellIndex)
+    if (result.viaBossRoom) this.board.pulseBossRoom()
 
-    if (result.dropCard) {
+    if (result.dropCard && rect) {
       const nextCount = this.handSystem.getCards().length + 1
       const target = this.hand.getNextSlotPoint(nextCount)
-      const originX = originRect.left + originRect.width / 2
-      const originY = originRect.top + originRect.height / 2
+      const originX = rect.left + rect.width / 2
+      const originY = rect.top + rect.height / 2
 
       BubbleBurst.travelTo(originX, originY, target.x, target.y, {
         onArrive: () =>

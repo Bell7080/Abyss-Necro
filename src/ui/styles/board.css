@@ -39,14 +39,34 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -56%);
+  perspective: 560px;
+  perspective-origin: 50% -14%;
+}
+
+/* Soft contact shadow grounds the tilted plane against the dark backdrop. */
+.board-mount::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -54px;
+  transform: translateX(-50%);
+  width: 78%;
+  height: 70px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), transparent 72%);
+  filter: blur(3px);
+  z-index: -1;
 }
 
 .board-layout {
+  --board-tilt: 66deg;
   display: grid;
   grid-template-columns: 96px 40px auto;
   grid-template-rows: repeat(3, 84px);
   align-items: center;
   gap: 14px;
+  transform-style: preserve-3d;
+  transform-origin: 50% 100%;
+  transform: rotateX(var(--board-tilt));
 }
 
 .board-player-cell {
@@ -62,11 +82,31 @@ body {
     0 18px 30px var(--abyss-shadow),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   color: var(--abyss-lavender-bright);
+  transform-style: preserve-3d;
+}
+
+.board-player-cell.is-engaged {
+  animation: boss-engage-pulse 0.52s ease-out;
+}
+
+@keyframes boss-engage-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 26px rgba(150, 205, 255, 0.22),
+      0 18px 30px var(--abyss-shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  30% {
+    box-shadow:
+      0 0 42px rgba(255, 120, 140, 0.55),
+      0 18px 30px var(--abyss-shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 150, 165, 0.6);
+  }
 }
 
 .board-player-label {
@@ -103,6 +143,7 @@ body {
   grid-template-columns: repeat(3, 84px);
   grid-template-rows: repeat(3, 84px);
   gap: 10px;
+  transform-style: preserve-3d;
 }
 
 .board-cell {
@@ -118,10 +159,10 @@ body {
   justify-content: center;
   color: rgba(140, 210, 255, 0.65);
   cursor: default;
+  transform-style: preserve-3d;
   transition:
     border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
+    box-shadow 0.18s ease;
 }
 
 .board-cell.has-enemy {
@@ -132,25 +173,57 @@ body {
     inset 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
-.board-cell.has-enemy:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 0 22px rgba(140, 210, 255, 0.32),
-    inset 0 2px 10px rgba(0, 0, 0, 0.5);
+.board-cell.has-enemy:hover .board-figure {
+  transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(10px) translateY(-3px);
 }
 
 .board-cell.is-defeated {
-  animation: cell-defeat 0.28s ease-out;
+  animation: cell-defeat-pulse 0.42s ease-out;
 }
 
-@keyframes cell-defeat {
+@keyframes cell-defeat-pulse {
   0% {
-    transform: scale(1);
-    opacity: 1;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+    border-color: var(--abyss-border);
+  }
+  35% {
+    box-shadow:
+      0 0 26px rgba(180, 225, 255, 0.55),
+      inset 0 2px 10px rgba(0, 0, 0, 0.5);
+    border-color: rgba(200, 230, 255, 0.7);
   }
   100% {
-    transform: scale(0.6);
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+    border-color: var(--abyss-border);
+  }
+}
+
+/* Icons/labels standing on a tile counter-rotate the board's tilt so they
+   read as upright standees rather than lying flat with the floor. */
+.board-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transform-style: preserve-3d;
+  transform-origin: 50% 100%;
+  transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(10px);
+  transition: transform 0.18s ease;
+}
+
+.board-figure.is-arrived {
+  animation: figure-pop 0.32s ease-out;
+}
+
+@keyframes figure-pop {
+  0% {
+    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(10px) scale(0.4);
     opacity: 0;
+  }
+  100% {
+    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(10px) scale(1);
+    opacity: 1;
   }
 }
 

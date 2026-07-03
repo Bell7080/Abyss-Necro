@@ -2,16 +2,23 @@ import type { WaveSystem } from '@systems/WaveSystem'
 import { Icons } from '@ui/Icons'
 
 const CELL_COUNT = 9
+const DEFEAT_FX_MS = 420
+const ENGAGE_FX_MS = 520
+const ARRIVE_FX_MS = 340
 
 // Center board: left player/boss cell, flow arrow, 3x3 enemy grid on the
-// right. Layout only — WaveSystem owns which cells hold an enemy.
+// right. The board tilts in 3D (see board.css --board-tilt); each cell's
+// icon sits in a `.board-figure` wrapper that counter-rotates so tokens
+// read as standing upright on a tilted floor. Layout + fx only — WaveSystem
+// owns enemy position/movement state.
 export class BoardRenderer {
   private cellEls: HTMLElement[] = []
+  private playerCellEl!: HTMLElement
+  private previousOccupied: boolean[] = new Array(CELL_COUNT).fill(false)
 
   constructor(
     private readonly root: HTMLElement,
-    private readonly waveSystem: WaveSystem,
-    private readonly onDefeat: (cellIndex: number, originRect: DOMRect) => void
+    private readonly waveSystem: WaveSystem
   ) {}
 
   render(): void {
@@ -19,10 +26,10 @@ export class BoardRenderer {
     const layout = document.createElement('div')
     layout.className = 'board-layout'
 
-    const playerCell = document.createElement('div')
-    playerCell.className = 'board-player-cell'
-    playerCell.innerHTML = `${Icons.skullCrown()}<span class="board-player-label">네크로맨서</span>`
-    layout.appendChild(playerCell)
+    this.playerCellEl = document.createElement('div')
+    this.playerCellEl.className = 'board-player-cell'
+    this.playerCellEl.innerHTML = `<div class="board-figure">${Icons.skullCrown()}<span class="board-player-label">네크로맨서</span></div>`
+    layout.appendChild(this.playerCellEl)
 
     const arrow = document.createElement('div')
     arrow.className = 'board-flow-arrow'
@@ -36,13 +43,14 @@ export class BoardRenderer {
       const cell = document.createElement('button')
       cell.type = 'button'
       cell.className = 'board-cell'
-      cell.addEventListener('click', () => this.handleCellClick(i))
+      cell.addEventListener('click', () => this.waveSystem.defeat(i))
       grid.appendChild(cell)
       this.cellEls.push(cell)
     }
     layout.appendChild(grid)
 
     this.root.appendChild(layout)
+    this.previousOccupied = new Array(CELL_COUNT).fill(false)
     this.syncCells()
   }
 
@@ -51,17 +59,31 @@ export class BoardRenderer {
     cells.forEach((enemy, i) => {
       const el = this.cellEls[i]
       if (!el) return
-      el.classList.toggle('has-enemy', !!enemy)
-      el.classList.remove('is-defeated')
-      el.innerHTML = enemy ? Icons.enemyToken() : ''
+      const occupied = !!enemy
+      el.classList.toggle('has-enemy', occupied)
+      el.innerHTML = occupied ? `<div class="board-figure is-arrived">${Icons.enemyToken()}</div>` : ''
+      if (occupied && !this.previousOccupied[i]) {
+        window.setTimeout(() => {
+          el.querySelector('.board-figure')?.classList.remove('is-arrived')
+        }, ARRIVE_FX_MS)
+      }
+      this.previousOccupied[i] = occupied
     })
   }
 
-  private handleCellClick(i: number): void {
-    const enemy = this.waveSystem.getCells()[i]
-    if (!enemy) return
-    const rect = this.cellEls[i].getBoundingClientRect()
-    this.cellEls[i].classList.add('is-defeated')
-    this.onDefeat(i, rect)
+  getCellRect(cellIndex: number): DOMRect | null {
+    return this.cellEls[cellIndex]?.getBoundingClientRect() ?? null
+  }
+
+  playDefeatFx(cellIndex: number): void {
+    const el = this.cellEls[cellIndex]
+    if (!el) return
+    el.classList.add('is-defeated')
+    window.setTimeout(() => el.classList.remove('is-defeated'), DEFEAT_FX_MS)
+  }
+
+  pulseBossRoom(): void {
+    this.playerCellEl.classList.add('is-engaged')
+    window.setTimeout(() => this.playerCellEl.classList.remove('is-engaged'), ENGAGE_FX_MS)
   }
 }
