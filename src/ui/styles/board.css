@@ -520,9 +520,13 @@ body {
   justify-content: center;
   gap: 8px;
   transform-style: preserve-3d;
-  transform-origin: 50% 100%;
+  /* Pivot at the center so a placed card sits centered in its cell rather
+     than growing up from the bottom edge. The trailing scaleY restores the
+     height the lean's foreshortening compresses, so the standee reads tall
+     instead of squished. */
+  transform-origin: 50% 50%;
   transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 - var(--figure-lean)))
-    translateZ(58px) translateX(var(--board-figure-shift-x));
+    translateZ(58px) translateX(var(--board-figure-shift-x)) scaleY(1.16);
   transition: transform 0.18s ease;
 }
 
@@ -557,12 +561,12 @@ body {
 @keyframes figure-pop {
   0% {
     transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 - var(--figure-lean)))
-      translateZ(58px) translateX(var(--board-figure-shift-x)) scale(0.4);
+      translateZ(58px) translateX(var(--board-figure-shift-x)) scaleY(1.16) scale(0.4);
     opacity: 0;
   }
   100% {
     transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 - var(--figure-lean)))
-      translateZ(58px) translateX(var(--board-figure-shift-x)) scale(1);
+      translateZ(58px) translateX(var(--board-figure-shift-x)) scaleY(1.16) scale(1);
     opacity: 1;
   }
 }
