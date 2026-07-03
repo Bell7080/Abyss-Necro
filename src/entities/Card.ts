@@ -1,6 +1,8 @@
-// A necromancy card sitting in the player's hand. Real art/id-to-enemy
-// mapping lands with the 40-card data table; label is a placeholder string.
+// A necromancy card sitting in the player's hand — the captured essence of
+// whichever creature dropped it. creatureId looks up its art/label in
+// CreatureDefinitions; label is kept as a display fallback.
 export interface HandCard {
   id: string
   label: string
+  creatureId: string
 }

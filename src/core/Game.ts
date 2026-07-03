@@ -20,6 +20,7 @@ import { ItemSystem } from '@systems/ItemSystem'
 import { RelicSystem } from '@systems/RelicSystem'
 import { WaveSystem, type CheckpointInfo, type ClashInfo, type EncounterResult } from '@systems/WaveSystem'
 import { drawRandomConsumable } from '@data/ConsumablePool'
+import { getCreature } from '@data/CreatureDefinitions'
 import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
 import type { Relic } from '@entities/Relic'
@@ -130,7 +131,7 @@ export class Game {
   }
 
   private tryPlaceCard(cellIndex: number, card: HandCard): void {
-    if (!this.defenderSystem.place(cellIndex, card.label)) return
+    if (!this.defenderSystem.place(cellIndex, card.label, card.creatureId)) return
     this.handSystem.removeCard(card.id)
   }
 
@@ -181,12 +182,14 @@ export class Game {
       const nextCount = this.handSystem.getCards().length + 1
       const target = this.hand.getNextSlotPoint(nextCount)
       const origin = centerOf(rect)
+      const creature = getCreature(result.creatureId)
 
       BubbleBurst.travelTo(origin.x, origin.y, target.x, target.y, {
         onArrive: () =>
           this.handSystem.addCard({
             id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            label: '심연의 것',
+            label: creature?.label ?? '심연의 것',
+            creatureId: result.creatureId,
           }),
       })
     }

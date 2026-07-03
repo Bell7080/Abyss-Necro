@@ -36,6 +36,7 @@
   "build": {
     "appId": "com.bell7080.abyssnecro",
     "productName": "AbyssNecro",
+    "icon": "build/icon.png",
     "directories": {
       "output": "release"
     },

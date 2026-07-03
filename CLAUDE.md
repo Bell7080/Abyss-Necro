@@ -42,8 +42,9 @@ npm run dist              # electron-builder로 exe 패키징
 - `src/entities` — 적/카드/디펜더/투사체 데이터 모델.
 - `src/ui` — 보드 렌더러/HUD/도감(표시·애니메이션 전담, 상태 변경 금지).
 - `src/data` — 40종 적/40종 카드/20종 진화체/5종 보스 등 밸런스·명단 테이블.
-- `src/assets` — sprites(webp)/audio(mp3)/fonts(woff2). `sprites/`는 `enemies/`(적)·`allies/`(사령된 아군)·`backgrounds/`(배경) 하위 폴더로 미리 분리해뒀다(현재 `.gitkeep`만 존재, 원화 투입 대기 중).
-- `build/` — electron-builder 리소스(아이콘 등). 아이콘 확정 전까지 비워둠.
+- `src/assets` — sprites(webp)/audio(mp3)/fonts(woff2). `sprites/`는 `enemies/`(적)·`allies/`(사령된 아군)·`backgrounds/`(배경) 하위 폴더로 분리돼 있고, 해파리·바다토끼 2종(`en_001`/`en_002`, `al_001`/`al_002`)과 배경(`bg_001`), 플레이어(`player_001`) 원화가 들어와 있다.
+- `src/public` — Vite가 그대로 복사하는 정적 파일(`favicon.png`).
+- `build/` — electron-builder 리소스. `icon.png`(1024×1024)가 들어와 있고 `package.json`의 `build.icon`이 이를 가리킨다.
 
 ## 구현 우선 사실(2026-07-03 기준)
 - 메인 화면 골격 구현됨: 3D로 기울인 중앙 보드판(좌측 본진 1칸 + 3×3 적 그리드, `--board-tilt` CSS 변수), 하단 손패 부채꼴, 우측 하단 유물 인벤토리, 좌측 하단 스킬 오르브 2개(기본 공격/스킬).
@@ -52,7 +53,7 @@ npm run dist              # electron-builder로 exe 패키징
 - `AbilitySystem`: 코스트 풀(최대10, 1.2초당 +1). 기본 공격(코스트2, 단일 칸 클릭 즉시 발동)과 스킬(코스트10, 생존 적 전체)은 `CurseMortar`로 본진 카드에서 곡선 발사되어 착탄 시에만 실제 피해가 들어간다(`WaveSystem.applyDamage`, 착탄 지점에 `FloatingDamage`). 임시 소환수 실험(`DefenderSystem.summon`/`stepSummons`/`getAttack`, `AllyToken.attack`/`movesLeft`)은 플레이 결과 롤백되어 현재 어느 능력에도 연결돼 있지 않지만, 추후 재사용을 위해 코드는 보존돼 있다.
 - `DefenderSystem`: 손패 카드를 선택해 칸(적이 있어도 무관, 칸당 최대 3기)에 배치하면 아군 디펜더(hp3)가 된다. 전투는 적과 아군이 실제로 같은 칸에 있을 때만 시작되어 매 틱 서로 피해를 교환한다.
 - `CoinSystem`/`CoinPanel`(좌상단): 적 처치 시 100% 확정으로 코인 1개가 드롭된다. `CoinDrop` 이펙트가 처치 지점 위에서 곡사포 형태로 짧게 낙하해 착지한 뒤, 그 자리에서 `BubbleBurst.travelTo`로 좌상단 코인 패널까지 날아가 카운트가 오르며 패널이 살짝 떠올랐다 가라앉는다. 아이콘은 Unmelting 불빛/화폐 공용 다이아 글리프를 심연 청록(#7fe8ff)으로 재해석. 코인 사용처(소강 정비 단계)는 아직 미구현 — 누적만 된다.
-- 모든 보드 개체(적/아군/플레이어)는 `EntityCard`로 렌더링 — 풀 일러스트 카드 프레임 + 하단 심해 색 체력바(숫자 없음). 실제 원화는 아직 없어 flat 아이콘을 워터마크 실루엣으로 사용 중이며, 적→아군은 같은 실루엣을 냉기→온기로 recolor(사령 전/후 색 규칙의 실제 적용 1호).
+- 모든 보드 개체(적/아군/플레이어)는 `EntityCard`로 렌더링 — 풀 일러스트 카드 프레임 + 하단 심해 색 체력바(숫자 없음). `CreatureDefinitions.ts`에 등록된 크리처(현재 해파리/바다토끼 2종 + 플레이어)는 실제 원화를 `object-fit: cover`로 표시하고, 나머지 적 종류는 아직 flat 아이콘 워터마크 실루엣을 사용한다(둘이 혼재 가능). `EnemyToken`/`AllyToken`/`HandCard`가 `creatureId`를 스폰→처치→카드→배치 전 구간에 들고 다녀 같은 크리처의 before(적)/after(사령된 아군) 원화가 일관되게 이어진다.
 - GitHub Actions(`/.github/workflows/deploy.yml`)로 `main` 푸시마다 Vite 빌드를 GitHub Pages에 자동 배포한다(Electron 바이너리 다운로드는 CI에서 스킵).
 - 카드 3합성 진화, 보스 사령, 도감 비포/애프터, 40종 적·40종 카드·20종 진화체·5종 보스 데이터 테이블은 아직 미구현 — `Abyss_Necro_Game_Concept.md`의 코어 루프 정의를 기준으로 다음 세션에서 구현한다.
 

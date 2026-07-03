@@ -20,9 +20,12 @@ body {
   margin: 0;
   font-family: system-ui, sans-serif;
   color: var(--abyss-lavender-bright);
+  /* Real illustrated seabed backdrop; a soft bottom vignette on top keeps
+     the HUD/panels legible without hiding the art. */
   background:
-    radial-gradient(circle at 50% 15%, var(--abyss-bg-glow) 0%, transparent 55%),
-    radial-gradient(circle at 50% 100%, var(--abyss-bg-mid) 0%, var(--abyss-bg-deep) 70%);
+    radial-gradient(circle at 50% 100%, rgba(7, 5, 15, 0) 0%, rgba(7, 5, 15, 0.6) 100%),
+    url('../../assets/sprites/backgrounds/bg_001.webp') center/cover no-repeat;
+  background-color: var(--abyss-bg-deep);
   overflow: hidden;
 }
 
@@ -375,6 +378,45 @@ body {
   color: var(--abyss-lavender);
 }
 
+/* Real captured-creature art fills the whole card; the label rides a bottom
+   scrim instead of sitting stacked under a small centered icon. */
+.hand-card.has-image {
+  overflow: hidden;
+  display: block;
+  padding: 0;
+}
+
+.hand-card.has-image .hand-card-art {
+  position: absolute;
+  inset: 0;
+}
+
+.hand-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+}
+
+.hand-card.has-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(10, 8, 16, 0) 58%, rgba(8, 6, 14, 0.88) 100%);
+  pointer-events: none;
+}
+
+.hand-card.has-image .hand-card-label {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 5px;
+  z-index: 1;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
 @keyframes hand-card-pop {
   0% {
     transform: translate(-50%, 0) translate(var(--hand-x, 0px), var(--hand-y, 0px))
@@ -585,6 +627,21 @@ body {
 .entity-card-art svg {
   width: 62%;
   height: 62%;
+}
+
+/* Real illustration takes the full card frame — no colored watermark
+   backdrop needed once actual art exists for a creature. */
+.entity-card.has-image .entity-card-art {
+  background: none;
+}
+
+.entity-card-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 22%;
 }
 
 .entity-card--enemy .entity-card-art {

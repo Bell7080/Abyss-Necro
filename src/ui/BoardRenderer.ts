@@ -1,6 +1,8 @@
 import type { WaveSystem } from '@systems/WaveSystem'
 import type { DefenderSystem } from '@systems/DefenderSystem'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
+import { getCreature } from '@data/CreatureDefinitions'
+import playerArt from '@/assets/sprites/player_001.webp'
 import { Icons } from '@ui/Icons'
 import { entityCardHtml } from '@ui/EntityCard'
 
@@ -33,6 +35,7 @@ interface Occupant {
   hp: number
   maxHp: number
   label?: string
+  creatureId?: string
 }
 
 // Center board: left player/boss cell, flow arrow, 3x3 enemy grid on the
@@ -83,7 +86,7 @@ export class BoardRenderer {
     playerFigure.className = 'board-figure board-figure--boss-player'
     playerFigure.innerHTML = entityCardHtml({
       variant: 'player',
-      art: Icons.skullCrown(),
+      imageUrl: playerArt,
       name: '네크로맨서',
     })
     this.playerCellEl.appendChild(playerFigure)
@@ -192,9 +195,12 @@ export class BoardRenderer {
     // layer an extra offset on top without fighting the slide transition.
     el.style.setProperty('--token-x', `${spawnFromX ?? x}px`)
     el.style.setProperty('--token-y', `${y}px`)
+    const creature = occupant.creatureId ? getCreature(occupant.creatureId) : undefined
+    const imageUrl = creature ? (variant === 'ally' ? creature.allyArt : creature.enemyArt) : undefined
     el.innerHTML = `<div class="board-figure is-arrived">${entityCardHtml({
       variant,
       art: Icons.enemyToken(),
+      imageUrl,
       name: occupant.label,
       hpRatio: occupant.hp / occupant.maxHp,
     })}</div>`

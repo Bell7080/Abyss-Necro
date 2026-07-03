@@ -1,7 +1,5 @@
 # build/
 
-electron-builder 리소스 폴더. 아이콘이 확정되면 다음을 추가하고 `package.json`의 `build.win`에 `"icon": "build/icon.ico"`를 되살린다.
+electron-builder 리소스 폴더.
 
-- `icon.ico` — Windows 앱 아이콘 (1024×1024 PNG 원본에서 변환)
-
-아이콘이 없는 채로 `npm run dist`를 실행하면 electron-builder 기본 아이콘이 사용된다.
+- `icon.png` — 1024×1024 앱 아이콘 원본. `package.json`의 `build.icon`이 이 경로를 가리키며, electron-builder가 Windows 타깃(nsis/portable) 빌드 시 필요한 `.ico`를 자동 생성한다.

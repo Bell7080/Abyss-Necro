@@ -2,6 +2,14 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-03 (20) — 첫 실제 원화 적용(해파리/바다토끼/플레이어/배경/아이콘)
+- 신규 `CreatureDefinitions.ts`: 40종 로스터의 첫 2종(해파리 `en_001`/`al_001`, 바다토끼 `en_002`/`al_002`)을 before(적)/after(사령된 아군) 원화 쌍으로 등록. `EnemyToken`/`AllyToken`/`HandCard`가 모두 `creatureId`를 들고 다니며 스폰→처치→카드 드롭→배치 전 구간에서 같은 크리처 정체성이 유지된다(`WaveSystem`이 스폰 시 무작위 배정, 처치 시 `EncounterResult.creatureId`로 전달, `Game`이 카드 생성/배치에 그대로 사용).
+- `EntityCard`/`BoardRenderer`/`CardHand`: `imageUrl`이 있으면 기존 flat SVG 워터마크 대신 실제 원화를 풀 프레임 `object-fit: cover`로 렌더링하도록 확장(`has-image` 변형 클래스로 배경 그라디언트/워터마크를 끔). 아직 원화가 없는 나머지 적 종류는 기존 placeholder 아이콘을 그대로 사용해 혼재 가능.
+- 플레이어 카드는 `player_001.webp`로 교체(`Icons.skullCrown()` 워터마크는 더 이상 쓰이지 않아 제거).
+- 배경(`bg_001.webp`)을 `body` 배경으로 적용, 하단 비네틱만 얇게 얹어 HUD 가독성 유지.
+- 아이콘(`icon_001.png`, 1024×1024)은 `src/assets/sprites`가 아니라 실제 쓰이는 자리로 이동: `build/icon.png`(electron-builder `package.json`의 `build.icon`, Windows .ico 자동 생성용)와 `src/public/favicon.png`(브라우저 탭 favicon, `index.html`에 `<link rel="icon">` 추가) 두 곳에 복사.
+- Playwright로 확인: 웨이브 스폰 시 해파리/바다토끼 카드가 무작위로 섞여 등장, 처치 후 손패 카드에 같은 크리처의 적(before) 원화가 표시, 배치 시 보드에 사령된(after) 원화로 교체되는 전체 흐름.
+
 ## 2026-07-03 (19) — 인트로 비네틱 부팅 화면 + 시작하기 버튼 + 에셋 폴더 스캐폴딩
 - 신규 `IntroOverlay`: 게임 진입 시 화면 전체를 덮는 어두운 비네틱(`radial-gradient` 다크 스크림)이 표시되고 2.4초에 걸쳐 서서히 밝아지며 그 아래 이미 렌더된(비어있는) 보드가 드러난다. 밝아진 직후 중앙에 "시작하기" 버튼이 페이드인되며 `.proceed-button`과 같은 발광 펄스 애니메이션을 공유한다.
 - `WaveSystem`/`AbilitySystem`의 초기화 로직(웨이브 스폰·이동 틱·푸시 타이머·코스트 회복 타이머)을 생성자에서 분리해 각각 `start()` 메서드로 옮기고, `Game.startRun()`이 "시작하기" 클릭 시에만 이 둘을 호출하게 했다 — 그 전까지는 보드가 비어 있고 웨이브 HUD도 "웨이브 1 - 00:30"에서 멈춰 카운트다운이 돌지 않는다.

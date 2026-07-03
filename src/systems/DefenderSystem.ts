@@ -39,11 +39,12 @@ export class DefenderSystem {
     return this.listFor(cellIndex).length < MAX_ALLIES_PER_CELL
   }
 
-  place(cellIndex: number, label: string): boolean {
+  place(cellIndex: number, label: string, creatureId: string): boolean {
     if (!this.canPlace(cellIndex)) return false
     this.listFor(cellIndex).push({
       id: `ally-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       label,
+      creatureId,
       hp: ALLY_BASE_HP,
       maxHp: ALLY_BASE_HP,
     })

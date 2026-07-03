@@ -1,3 +1,4 @@
+import { getCreature } from '@data/CreatureDefinitions'
 import type { HandCard } from '@entities/Card'
 import { Icons } from '@ui/Icons'
 
@@ -35,7 +36,8 @@ export class CardHand {
     cards.forEach((card, i) => {
       const el = document.createElement('button')
       el.type = 'button'
-      el.className = 'hand-card'
+      const creature = getCreature(card.creatureId)
+      el.className = creature ? 'hand-card has-image' : 'hand-card'
       if (i === total - 1) el.classList.add('is-new')
       if (card.id === selectedId) el.classList.add('is-selected')
       const { x, y, rot } = fanTransform(i, total)
@@ -43,7 +45,8 @@ export class CardHand {
       el.style.setProperty('--hand-y', `${y}px`)
       el.style.setProperty('--hand-rot', `${rot}deg`)
       el.style.setProperty('--hand-i', `${i}`)
-      el.innerHTML = `<div class="hand-card-art">${Icons.enemyToken()}</div><div class="hand-card-label">${card.label}</div>`
+      const artHtml = creature ? `<img class="hand-card-image" src="${creature.enemyArt}" alt="" />` : Icons.enemyToken()
+      el.innerHTML = `<div class="hand-card-art">${artHtml}</div><div class="hand-card-label">${card.label}</div>`
       el.addEventListener('click', () => this.onCardClick(card.id))
       this.container.appendChild(el)
     })

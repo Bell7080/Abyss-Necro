@@ -1,5 +1,6 @@
 import type { EnemyToken } from '@entities/EnemyToken'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
+import { randomCreature } from '@data/CreatureDefinitions'
 
 const ROWS = 3
 const COLS = 3
@@ -23,6 +24,8 @@ const CHECKPOINTS_PER_RELIC = 3
 export interface EncounterResult {
   /** Grid cell (or BOSS_CELL_INDEX) the enemy was standing in when it died. */
   cellIndex: number
+  /** Which creature died — the dropped card (if any) carries this. */
+  creatureId: string
   dropCard: boolean
   dropItem: boolean
   /** Always true — every kill drops exactly one coin. */
@@ -183,7 +186,7 @@ export class WaveSystem {
       const dropCard = Math.random() < CARD_DROP_CHANCE
       const dropItem = Math.random() < ITEM_DROP_CHANCE
       this.emitChange()
-      this.emitEncounter({ cellIndex, dropCard, dropItem, dropCoin: true, viaBossRoom })
+      this.emitEncounter({ cellIndex, creatureId: enemy.creatureId, dropCard, dropItem, dropCoin: true, viaBossRoom })
       this.triggerInstantPushIfClear()
       return { cellIndex, amount, defeated: true }
     }
@@ -321,6 +324,7 @@ export class WaveSystem {
     for (let row = 0; row < ROWS; row += 1) {
       this.cells[row * COLS + ENTRY_COL].push({
         id: `enemy-${this.waveNumber}-${row}`,
+        creatureId: randomCreature().id,
         row,
         col: ENTRY_COL,
         hp: ENEMY_BASE_HP,
@@ -337,6 +341,7 @@ export class WaveSystem {
     for (let row = 0; row < ROWS; row += 1) {
       this.cells[row * COLS + ENTRY_COL].push({
         id: `enemy-${this.waveNumber}-${row}`,
+        creatureId: randomCreature().id,
         row,
         col: ENTRY_COL,
         hp: ENEMY_BASE_HP,
