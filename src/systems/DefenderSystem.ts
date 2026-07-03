@@ -1,5 +1,7 @@
 import type { AllyToken } from '@entities/AllyToken'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
+import type { PassiveEvent } from '@systems/PassiveEvent'
+import { getCreature } from '@data/CreatureDefinitions'
 
 const ROWS = 3
 const COLS = 3
@@ -9,6 +11,11 @@ const ALLY_BASE_HP = 3
 // Fallback attack for allies that don't carry their own value (placed hand
 // cards) — summons always set an explicit attack instead.
 const DEFAULT_ALLY_ATTACK = 2
+// Sea-rabbit death-heal amount to adjacent allies.
+const RABBIT_HEAL = 2
+// A merged 2-star ally: doubled life, +1 attack over the base card.
+const MERGED_ALLY_HP = ALLY_BASE_HP * 2
+const MERGED_ALLY_ATTACK = DEFAULT_ALLY_ATTACK + 1
 
 // Owns placed defenders — up to 3 per grid cell, plus a boss-room slot
 // (also capped at 3) so the player can stack allies right next to
@@ -24,9 +31,14 @@ export class DefenderSystem {
   // Epic 증가별 stacks — permanent, applies to every current & future ally.
   private attackBonus = 0
   private readonly listeners: Array<() => void> = []
+  private readonly passiveListeners: Array<(e: PassiveEvent) => void> = []
 
   onChange(fn: () => void): void {
     this.listeners.push(fn)
+  }
+
+  onPassive(fn: (e: PassiveEvent) => void): void {
+    this.passiveListeners.push(fn)
   }
 
   getCells(): readonly AllyToken[][] {
@@ -87,17 +99,94 @@ export class DefenderSystem {
     return true
   }
 
+  /** Damage boost enemies take in this cell — sum of jelly-amp (감전 점막)
+   * auras from allies standing here. Read by WaveSystem in damageEnemy. */
+  getDamageAmp(cellIndex: number): number {
+    let amp = 0
+    for (const ally of this.listFor(cellIndex)) {
+      if (ally.creatureId && getCreature(ally.creatureId)?.passiveId === 'jelly-amp') amp += 1
+    }
+    return amp
+  }
+
   /** An enemy bumping into this cell calls this. Returns true if the front
-   * defender died (freeing a slot). */
+   * defender died (freeing a slot). A dying sea-rabbit heals neighbors. */
   damage(cellIndex: number, amount: number): boolean {
     const list = this.listFor(cellIndex)
     const ally = list[0]
     if (!ally) return false
     ally.hp -= amount
     const died = ally.hp <= 0
-    if (died) list.shift()
+    if (died) {
+      list.shift()
+      if (ally.creatureId && getCreature(ally.creatureId)?.passiveId === 'rabbit-heal') {
+        this.triggerRabbitHeal(cellIndex)
+      }
+    }
     this.emit()
     return died
+  }
+
+  /** 폭신 도약: heal every ally in cells adjacent to where the sea-rabbit
+   * fell, emitting a passive event per healed cell for the blast. */
+  private triggerRabbitHeal(cellIndex: number): void {
+    for (const idx of this.adjacentCells(cellIndex)) {
+      const list = this.listFor(idx)
+      if (list.length === 0) continue
+      for (const ally of list) ally.hp = Math.min(ally.maxHp, ally.hp + RABBIT_HEAL)
+      this.emitPassive({ passiveId: 'rabbit-heal', cellIndex: idx })
+    }
+  }
+
+  /** Orthogonal grid neighbors; the boss room heals its own remaining allies. */
+  private adjacentCells(cellIndex: number): number[] {
+    if (cellIndex === BOSS_CELL_INDEX) return [BOSS_CELL_INDEX]
+    const row = Math.floor(cellIndex / COLS)
+    const col = cellIndex % COLS
+    const out: number[] = []
+    if (row > 0) out.push((row - 1) * COLS + col)
+    if (row < ROWS - 1) out.push((row + 1) * COLS + col)
+    if (col > 0) out.push(row * COLS + (col - 1))
+    if (col < COLS - 1) out.push(row * COLS + (col + 1))
+    return out
+  }
+
+  /** First cell (grid or boss room) holding three identical base allies —
+   * the trio the cell-merge button offers to fuse. */
+  findCellTriple(): number | null {
+    for (let i = 0; i < CELL_COUNT; i += 1) {
+      if (this.isSameTriple(this.cells[i])) return i
+    }
+    if (this.isSameTriple(this.bossAllies)) return BOSS_CELL_INDEX
+    return null
+  }
+
+  private isSameTriple(list: AllyToken[]): boolean {
+    if (list.length !== 3) return false
+    const id = list[0].creatureId
+    if (!id) return false
+    return list.every((a) => a.creatureId === id && a.tier === undefined)
+  }
+
+  /** Fuses a same-creature trio in one cell into a single 2-star ally
+   * (doubled hp, +1 attack). Returns false if the cell no longer qualifies. */
+  mergeCellTriple(cellIndex: number): boolean {
+    const list = this.listFor(cellIndex)
+    if (!this.isSameTriple(list)) return false
+    const base = list[0]
+    const merged: AllyToken = {
+      id: `ally-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      label: base.label,
+      creatureId: base.creatureId,
+      hp: MERGED_ALLY_HP,
+      maxHp: MERGED_ALLY_HP,
+      attack: MERGED_ALLY_ATTACK,
+      tier: 2,
+    }
+    list.length = 0
+    list.push(merged)
+    this.emit()
+    return true
   }
 
   /** Ability-triggered roaming minion — appears beside the boss room (grid
@@ -167,5 +256,9 @@ export class DefenderSystem {
 
   private emit(): void {
     for (const fn of this.listeners) fn()
+  }
+
+  private emitPassive(e: PassiveEvent): void {
+    for (const fn of this.passiveListeners) fn(e)
   }
 }

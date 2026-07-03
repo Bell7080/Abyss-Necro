@@ -45,6 +45,27 @@ export class BlastManager {
     const center = centerOf(cellRect)
     BubbleBurst.burstAt(center.x, center.y, { count: 6, size: [6, 12] })
   }
+
+  /** Passive fx at a cell: a bright electric spark (jelly-amp) or a soft
+   * green heal bloom (rabbit-heal), themed by flat-color palette. */
+  passiveBurst(cellRect: DOMRect, kind: 'spark' | 'heal'): void {
+    const center = centerOf(cellRect)
+    if (kind === 'spark') {
+      BubbleBurst.burstAt(center.x, center.y, {
+        count: 7,
+        size: [5, 10],
+        spread: 34,
+        colors: ['#7fe8ff', '#bff4ff', '#ffffff', '#4aa8e0'],
+      })
+    } else {
+      BubbleBurst.burstAt(center.x, center.y, {
+        count: 8,
+        size: [6, 13],
+        spread: 30,
+        colors: ['#3fae74', '#67c498', '#bff5d8', '#e8fff2'],
+      })
+    }
+  }
 }
 
 function centerOf(rect: DOMRect): Point {

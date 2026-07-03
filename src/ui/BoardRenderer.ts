@@ -40,6 +40,7 @@ interface Occupant {
   maxHp: number
   label?: string
   creatureId?: string
+  tier?: number
 }
 
 // Center board: left player/boss cell, flow arrow, 3x3 enemy grid on the
@@ -235,7 +236,8 @@ export class BoardRenderer {
     el.dataset.hp = `${occupant.hp}`
     const creature = occupant.creatureId ? getCreature(occupant.creatureId) : undefined
     const imageUrl = creature ? (variant === 'ally' ? creature.allyArt : creature.enemyArt) : undefined
-    el.innerHTML = `<div class="board-figure is-arrived">${entityCardHtml({
+    const tierClass = occupant.tier === 2 ? ' is-tier2' : ''
+    el.innerHTML = `<div class="board-figure is-arrived${tierClass}">${entityCardHtml({
       variant,
       art: Icons.enemyToken(),
       imageUrl,

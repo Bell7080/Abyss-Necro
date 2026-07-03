@@ -2,6 +2,11 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-03 (34) — 패시브 실구현(블라스트) + 칸 3배치 합성(2성)
+- **크리처 패시브 실구현**: `CreatureDefinition.passiveId` 신설, 아군(사령) 형태에 작동. **감전 점막**(해파리) — 그 칸에 해파리 아군이 있으면 그 칸의 적이 받는 모든 피해 +1(중첩), `WaveSystem.damageEnemy`가 `DefenderHooks.getDamageAmp`로 가산하고 착탄마다 시안 스파크 블라스트. **폭신 도약**(바다토끼) — 처치될 때 인접 칸 아군 2 회복, 회복 칸마다 초록 힐 블룸. `PassiveEvent`(신규 공유 타입)를 `WaveSystem.onPassive`/`DefenderSystem.onPassive`로 emit → `Game.handlePassive`가 `BlastManager.passiveBurst(spark|heal)` 재생. `BubbleBurst.burstAt`에 `colors` 옵션 추가.
+- **칸 3배치 합성(2성)**: 한 칸에 같은 크리처 아군 3기가 모이면 그 칸 위에 금색 "합성" 버튼(`CellMergeButton`, 화면 좌표로 칸 위 배치)이 반짝인다. 클릭 시 3기 → 1기 2성 아군(`DefenderSystem.mergeCellTriple`: hp 6, 공격 3, `tier:2`)으로 융합 + 블라스트. `findCellTriple`(그리드+보스방), 2성 아군은 보드에서 금색 오라(`board-figure.is-tier2`), 인스펙터에서 "아군 디펜더 · 2성". 조준 중/합성 애니 중에는 버튼 숨김.
+- Playwright 검증: 같은 크리처 3장 보스방 배치 → 합성 버튼 등장 → 클릭 → 2성 1기(공격3/체력6/6, 3→1기) 확인.
+
 ## 2026-07-03 (33) — 보드 hover 인스펙션(유닛 스탯/패시브·칸 버프)
 - **hover 인스펙션**: 손패 카드를 들지 않은 상태에서 보드 칸/유닛에 커서를 올리면 우측 정보창에 정보가 뜬다 — 우선순위 앞 적 > 앞 아군 > (보스방)플레이어 > 칸 버프. 유닛은 공격/체력 칩 + 고유 패시브, 함정별이 깔린 칸은 "함정별 ×N · 진입 시 N 피해" 버프 라인이 붙는다. 빈 칸(버프 없음)은 표시 안 함. 조준 중(카드 선택)에는 선택 카드 정보가 우선하므로 hover 무시. 인접 칸 이동 시 깜빡임 방지용 60ms hide 디바운스.
 - **인스펙터 확장**: `CardInspector.render(InspectorData)` 제네릭 추가(스탯 칩/패시브/버프 행) — 기존 손패 `show(card)`도 이를 통해 렌더. `CreatureDefinition.passive` 필드 신설(해파리/바다토끼에 flavor 패시브 — **표시 전용, 메커니즘 미구현**). `WaveSystem.getFrontEnemy/getEnemyAttack`, `DefenderSystem.getFrontAlly` 조회 API 추가.

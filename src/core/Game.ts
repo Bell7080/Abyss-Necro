@@ -2,6 +2,7 @@ import { AbyssAmbience } from '@ui/AbyssAmbience'
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
 import { CardInspector, type InspectorData } from '@ui/CardInspector'
+import { CellMergeButton } from '@ui/CellMergeButton'
 import { CoinPanel } from '@ui/CoinPanel'
 import { DefeatOverlay } from '@ui/DefeatOverlay'
 import { IntroOverlay } from '@ui/IntroOverlay'
@@ -27,6 +28,7 @@ import {
   type EncounterResult,
   type PlayerHitInfo,
 } from '@systems/WaveSystem'
+import type { PassiveEvent } from '@systems/PassiveEvent'
 import { TickManager } from '@core/TickManager'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import playerArtUrl from '@/assets/sprites/player_001.webp'
@@ -67,6 +69,7 @@ export class Game {
   private ultimateDamageBonus = 0
   private readonly inspector: CardInspector
   private readonly mergeButton: MergeButton
+  private readonly cellMergeButton: CellMergeButton
   private readonly shellEl: HTMLElement
   private mergeInProgress = false
   private aiming = false
@@ -105,6 +108,7 @@ export class Game {
       this.handSystem.toggleSelect(cardId)
     })
     this.mergeButton = new MergeButton(shell, () => this.performMerge())
+    this.cellMergeButton = new CellMergeButton(shell, () => this.performCellMerge())
     this.board = new BoardRenderer(
       boardMount,
       this.waveSystem,
@@ -131,11 +135,16 @@ export class Game {
     this.waveSystem.onCheckpoint((info) => this.handleCheckpoint(info))
     this.waveSystem.onClash((info) => this.handleClash(info))
     this.waveSystem.onPlayerHit((info) => this.handlePlayerHit(info))
+    this.waveSystem.onPassive((e) => this.handlePassive(e))
+    this.defenderSystem.onPassive((e) => this.handlePassive(e))
     this.playerSystem.onChange(() =>
       this.board.setPlayerHp(this.playerSystem.getHp(), this.playerSystem.getMaxHp())
     )
     this.playerSystem.onDefeat(() => this.handleDefeat())
-    this.defenderSystem.onChange(() => this.board.syncCells())
+    this.defenderSystem.onChange(() => {
+      this.board.syncCells()
+      this.refreshCellMerge()
+    })
     this.handSystem.onChange(() => this.handleHandChange())
     this.relicSystem.onChange((relics) => this.relics.render(relics))
     this.coinSystem.onChange((coins) => this.coins.render(coins))
@@ -169,6 +178,7 @@ export class Game {
     const scale = active ? AIM_TIME_SCALE : 1
     this.tickManager.setRate(scale)
     this.waveSystem.setTimeScale(scale)
+    this.refreshCellMerge()
   }
 
   boot(): void {
@@ -224,7 +234,7 @@ export class Game {
       return {
         imageUrl: creature?.allyArt,
         title: ally.label,
-        tag: '아군 디펜더',
+        tag: ally.tier === 2 ? '아군 디펜더 · 2성' : '아군 디펜더',
         stats: [
           { label: '공격', value: `${this.defenderSystem.getAttack(cellIndex) ?? 0}` },
           { label: '체력', value: `${ally.hp}/${ally.maxHp}` },
@@ -484,6 +494,46 @@ export class Game {
 
     this.board.playClashFx(info.cellIndex)
     this.blast.clashBurst(rect)
+  }
+
+  /** A creature passive fired on a cell — play its themed blast there.
+   * jelly-amp: an electric spark; rabbit-heal: a green heal bloom. */
+  private handlePassive(e: PassiveEvent): void {
+    const rect = this.board.getCellRect(e.cellIndex)
+    if (!rect) return
+    this.blast.passiveBurst(rect, e.passiveId === 'jelly-amp' ? 'spark' : 'heal')
+  }
+
+  /** Shows the cell-merge button over the first cell holding a same-creature
+   * trio (hidden while aiming or mid-hand-merge). Re-run on every defender
+   * change and aim toggle. */
+  private refreshCellMerge(): void {
+    if (this.aiming) {
+      this.cellMergeButton.hide()
+      return
+    }
+    const cellIndex = this.defenderSystem.findCellTriple()
+    if (cellIndex === null) {
+      this.cellMergeButton.hide()
+      return
+    }
+    const rect = this.board.getCellRect(cellIndex)
+    if (!rect) {
+      this.cellMergeButton.hide()
+      return
+    }
+    this.cellMergeButton.showAt(rect.left + rect.width / 2, rect.top + 6)
+  }
+
+  /** Fuses the on-board trio into a 2-star ally with a blast at that cell. */
+  private performCellMerge(): void {
+    const cellIndex = this.defenderSystem.findCellTriple()
+    if (cellIndex === null) return
+    const rect = this.board.getCellRect(cellIndex)
+    if (this.defenderSystem.mergeCellTriple(cellIndex) && rect) {
+      this.blast.clashBurst(rect)
+    }
+    this.refreshCellMerge()
   }
 
   /** An enemy in the player room found no defender and struck the

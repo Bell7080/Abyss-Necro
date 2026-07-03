@@ -13,4 +13,6 @@ export interface AllyToken {
   creatureId?: string
   attack?: number
   movesLeft?: number
+  /** 2 = a 2-star ally made by merging three of the same in one cell. */
+  tier?: number
 }

@@ -33,6 +33,8 @@ export interface BubbleBurstOptions {
   size?: [number, number]
   /** Max scatter distance in px (default 26) — small, a "shallow" pop. */
   spread?: number
+  /** Override palette (e.g. passive-specific colors); defaults to abyss cyan. */
+  colors?: string[]
 }
 
 const OVERLAY_ID = 'bubble-burst-overlay'
@@ -139,7 +141,8 @@ function spawnImpactBubble(
   y: number,
   duration: number,
   sizeRange: [number, number],
-  spread: number
+  spread: number,
+  colors: string[]
 ): void {
   const piece = document.createElement('div')
   piece.className = 'bubble-burst-piece'
@@ -155,7 +158,7 @@ function spawnImpactBubble(
   piece.style.height = `${size}px`
   piece.style.left = `${x - size / 2}px`
   piece.style.top = `${y - size / 2}px`
-  piece.style.background = pickShade()
+  piece.style.background = colors[Math.floor(Math.random() * colors.length)]
   overlay.appendChild(piece)
 
   const anim = piece.animate(
@@ -180,9 +183,10 @@ export const BubbleBurst = {
     const duration = opts.duration ?? 340
     const sizeRange = opts.size ?? [5, 11]
     const spread = opts.spread ?? 26
+    const colors = opts.colors ?? PALETTE
 
     for (let i = 0; i < count; i += 1) {
-      spawnImpactBubble(overlay, x, y, duration, sizeRange, spread)
+      spawnImpactBubble(overlay, x, y, duration, sizeRange, spread, colors)
     }
   },
 

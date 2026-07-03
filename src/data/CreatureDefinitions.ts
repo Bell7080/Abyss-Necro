@@ -7,14 +7,19 @@ import seaRabbitAllyArt from '@/assets/sprites/allies/al_002.webp'
 // (enemy) / after (necromanced ally) illustration pair the whole card
 // loop revolves around — everything else (spawns, card drops, placed
 // defenders) just carries this id around and looks the art back up here.
-// `passive` is the creature's signature ability shown in the inspector; the
-// passive *mechanic* isn't wired yet (display-only flavor for now).
+// `passive` is the creature's signature ability shown in the inspector;
+// `passiveId` is the machine key the systems act on (jelly-amp aura, rabbit
+// death-heal). Passives apply to the necromanced ally form the player
+// deploys.
+export type PassiveId = 'jelly-amp' | 'rabbit-heal'
+
 export interface CreatureDefinition {
   id: string
   label: string
   enemyArt: string
   allyArt: string
   passive: string
+  passiveId: PassiveId
 }
 
 export const CREATURES: CreatureDefinition[] = [
@@ -23,14 +28,16 @@ export const CREATURES: CreatureDefinition[] = [
     label: '해파리',
     enemyArt: jellyfishEnemyArt,
     allyArt: jellyfishAllyArt,
-    passive: '감전 점막 — 이 칸에 머무는 적이 받는 피해가 소폭 증가한다.',
+    passive: '감전 점막 — 이 칸에 있는 적이 받는 피해가 1 증가한다.',
+    passiveId: 'jelly-amp',
   },
   {
     id: 'sea-rabbit',
     label: '바다토끼',
     enemyArt: seaRabbitEnemyArt,
     allyArt: seaRabbitAllyArt,
-    passive: '폭신 도약 — 처치될 때 인접한 아군의 체력을 조금 회복시킨다.',
+    passive: '폭신 도약 — 처치될 때 인접한 아군의 체력을 2 회복시킨다.',
+    passiveId: 'rabbit-heal',
   },
 ]
 

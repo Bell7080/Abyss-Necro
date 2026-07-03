@@ -1,6 +1,7 @@
 import type { TickManager } from '@core/TickManager'
 import type { EnemyToken } from '@entities/EnemyToken'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
+import type { PassiveEvent } from '@systems/PassiveEvent'
 import { randomCreature } from '@data/CreatureDefinitions'
 
 const ROWS = 3
@@ -71,6 +72,7 @@ export interface PlayerHitInfo {
 export interface DefenderHooks {
   getHp(cellIndex: number): number | null
   getAttack(cellIndex: number): number | null
+  getDamageAmp(cellIndex: number): number
   damage(cellIndex: number, amount: number): boolean
   stepSummons(): void
 }
@@ -113,6 +115,7 @@ export class WaveSystem {
   private readonly checkpointListeners: Array<(info: CheckpointInfo) => void> = []
   private readonly clashListeners: Array<(info: ClashInfo) => void> = []
   private readonly playerHitListeners: Array<(info: PlayerHitInfo) => void> = []
+  private readonly passiveListeners: Array<(e: PassiveEvent) => void> = []
 
   constructor(private readonly defenders?: DefenderHooks) {}
 
@@ -162,6 +165,10 @@ export class WaveSystem {
 
   onPlayerHit(fn: (info: PlayerHitInfo) => void): void {
     this.playerHitListeners.push(fn)
+  }
+
+  onPassive(fn: (e: PassiveEvent) => void): void {
+    this.passiveListeners.push(fn)
   }
 
   getCells(): readonly EnemyToken[][] {
@@ -308,7 +315,13 @@ export class WaveSystem {
     amount: number,
     viaBossRoom: boolean
   ): DamageResult {
-    enemy.hp -= amount
+    // 감전 점막: a jelly-amp ally in this cell adds to every hit landed here,
+    // and sparks a passive blast so the boost reads on screen.
+    const amp = this.defenders?.getDamageAmp(cellIndex) ?? 0
+    const total = amount + amp
+    if (amp > 0) this.emitPassive({ passiveId: 'jelly-amp', cellIndex })
+
+    enemy.hp -= total
     if (enemy.hp <= 0) {
       const i = list.indexOf(enemy)
       if (i >= 0) list.splice(i, 1)
@@ -322,11 +335,11 @@ export class WaveSystem {
       this.emitChange()
       this.emitEncounter({ cellIndex, creatureId: enemy.creatureId, drop, dropCoin: true, viaBossRoom })
       this.triggerInstantPushIfClear()
-      return { cellIndex, amount, defeated: true }
+      return { cellIndex, amount: total, defeated: true }
     }
 
     this.emitChange()
-    return { cellIndex, amount, defeated: false }
+    return { cellIndex, amount: total, defeated: false }
   }
 
   /** Starts a fresh full-interval countdown (new wave / resume). */
@@ -578,5 +591,9 @@ export class WaveSystem {
 
   private emitPlayerHit(info: PlayerHitInfo): void {
     for (const fn of this.playerHitListeners) fn(info)
+  }
+
+  private emitPassive(e: PassiveEvent): void {
+    for (const fn of this.passiveListeners) fn(e)
   }
 }

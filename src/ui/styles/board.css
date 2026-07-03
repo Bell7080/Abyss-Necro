@@ -1321,6 +1321,72 @@ body {
   transform: translateY(-3px) scale(1.06);
 }
 
+/* Cell merge button — floats above a cell holding three identical allies. */
+.cell-merge-button {
+  position: absolute;
+  z-index: 78;
+  transform: translate(-50%, -100%) scale(0.85);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 15px;
+  border: 0;
+  border-radius: 999px;
+  background: radial-gradient(circle at 40% 30%, rgba(255, 214, 130, 0.95), rgba(150, 92, 30, 0.9) 60%, rgba(40, 22, 8, 0.92));
+  color: #fff6e0;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 235, 190, 0.55),
+    0 10px 22px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 200, 110, 0.4);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s cubic-bezier(0.2, 1.1, 0.3, 1);
+}
+
+.cell-merge-button.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -100%) scale(1);
+  animation: cell-merge-twinkle 1.3s ease-in-out infinite;
+}
+
+.cell-merge-button:hover {
+  transform: translate(-50%, -100%) scale(1.07);
+}
+
+.cell-merge-star {
+  color: #fff2c8;
+  text-shadow: 0 0 8px rgba(255, 220, 150, 0.9);
+}
+
+@keyframes cell-merge-twinkle {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 235, 190, 0.55),
+      0 10px 22px rgba(0, 0, 0, 0.5),
+      0 0 18px rgba(255, 200, 110, 0.35);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 245, 215, 0.85),
+      0 10px 22px rgba(0, 0, 0, 0.5),
+      0 0 34px rgba(255, 210, 130, 0.7);
+  }
+}
+
+/* 2-star ally: a warm gold aura marks the merged, empowered defender. */
+.board-figure.is-tier2 .entity-card {
+  --card-ring: rgba(255, 224, 150, 0.6);
+  --card-glow: rgba(255, 200, 110, 0.4);
+}
+
 .merge-button svg {
   width: 22px;
   height: 22px;
