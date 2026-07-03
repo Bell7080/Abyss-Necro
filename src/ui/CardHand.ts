@@ -15,29 +15,36 @@ function fanTransform(index: number, total: number): { x: number; y: number; rot
 
 // Bottom-center fan of cards — reuses Unmelting's relic-fan CSS-variable
 // trick (--hand-x/--hand-y/--hand-rot per card) rather than per-card inline
-// transforms, so hover/hand-count changes stay pure CSS.
+// transforms, so hover/hand-count changes stay pure CSS. Clicking a card
+// selects it for placement; Game.ts decides what happens next.
 export class CardHand {
   private readonly container: HTMLElement
 
-  constructor(root: HTMLElement) {
+  constructor(
+    root: HTMLElement,
+    private readonly onCardClick: (cardId: string) => void
+  ) {
     this.container = document.createElement('div')
     this.container.className = 'hand-layer'
     root.appendChild(this.container)
   }
 
-  render(cards: readonly HandCard[]): void {
+  render(cards: readonly HandCard[], selectedId: string | null): void {
     this.container.innerHTML = ''
     const total = cards.length
     cards.forEach((card, i) => {
-      const el = document.createElement('div')
+      const el = document.createElement('button')
+      el.type = 'button'
       el.className = 'hand-card'
       if (i === total - 1) el.classList.add('is-new')
+      if (card.id === selectedId) el.classList.add('is-selected')
       const { x, y, rot } = fanTransform(i, total)
       el.style.setProperty('--hand-x', `${x}px`)
       el.style.setProperty('--hand-y', `${y}px`)
       el.style.setProperty('--hand-rot', `${rot}deg`)
       el.style.setProperty('--hand-i', `${i}`)
       el.innerHTML = `<div class="hand-card-art">${Icons.enemyToken()}</div><div class="hand-card-label">${card.label}</div>`
+      el.addEventListener('click', () => this.onCardClick(card.id))
       this.container.appendChild(el)
     })
   }

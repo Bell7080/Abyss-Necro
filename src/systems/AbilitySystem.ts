@@ -45,6 +45,14 @@ export class AbilitySystem {
     this.emit()
   }
 
+  /** Cancels targeting without spending cost — used when selecting a hand
+   * card for placement instead. */
+  disarmBasic(): void {
+    if (!this.basicArmed) return
+    this.basicArmed = false
+    this.emit()
+  }
+
   /** Spends the cost and disarms atomically once a target cell is chosen. */
   tryCastBasic(): boolean {
     if (!this.canCastBasic()) return false

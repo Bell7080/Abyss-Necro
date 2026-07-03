@@ -6,9 +6,11 @@ import { BubbleBurst } from '@ui/effects/BubbleBurst'
 import { CurseMortar } from '@ui/effects/CurseMortar'
 import { showDamageNumber } from '@ui/effects/FloatingDamage'
 import { AbilitySystem } from '@systems/AbilitySystem'
+import { DefenderSystem } from '@systems/DefenderSystem'
 import { HandSystem } from '@systems/HandSystem'
 import { RelicSystem } from '@systems/RelicSystem'
 import { WaveSystem, type EncounterResult } from '@systems/WaveSystem'
+import type { HandCard } from '@entities/Card'
 
 const BASIC_ATTACK_DAMAGE = 2
 const ULTIMATE_DAMAGE = 4
@@ -16,7 +18,8 @@ const ULTIMATE_DAMAGE = 4
 export class Game {
   private readonly handSystem = new HandSystem()
   private readonly relicSystem = new RelicSystem()
-  private readonly waveSystem = new WaveSystem()
+  private readonly defenderSystem = new DefenderSystem()
+  private readonly waveSystem = new WaveSystem(this.defenderSystem)
   private readonly abilitySystem = new AbilitySystem()
   private readonly board: BoardRenderer
   private readonly hand: CardHand
@@ -33,25 +36,37 @@ export class Game {
     shell.appendChild(boardMount)
 
     this.relics = new RelicInventory(shell)
-    this.hand = new CardHand(shell)
-    this.board = new BoardRenderer(boardMount, this.waveSystem, (cellIndex) =>
+    this.hand = new CardHand(shell, (cardId) => {
+      // Selecting a card for placement and aiming an attack are mutually
+      // exclusive targeting modes.
+      this.abilitySystem.disarmBasic()
+      this.handSystem.toggleSelect(cardId)
+    })
+    this.board = new BoardRenderer(boardMount, this.waveSystem, this.defenderSystem, (cellIndex) =>
       this.handleCellClick(cellIndex)
     )
     this.skillBar = new SkillBar(shell, this.abilitySystem, {
-      onBasicClick: () => this.abilitySystem.toggleArmBasic(),
+      onBasicClick: () => {
+        this.handSystem.clearSelection()
+        this.abilitySystem.toggleArmBasic()
+      },
       onUltimateClick: () => this.castUltimate(),
     })
 
     this.waveSystem.onChange(() => this.board.syncCells())
     this.waveSystem.onEncounter((result) => this.handleEncounter(result))
-    this.handSystem.onChange((cards) => this.hand.render(cards))
+    this.defenderSystem.onChange(() => this.board.syncCells())
+    this.handSystem.onChange(() => {
+      this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
+      this.board.setPlacementTargeting(!!this.handSystem.getSelectedId())
+    })
     this.relicSystem.onChange((relics) => this.relics.render(relics))
     this.abilitySystem.onChange(() => {
       this.skillBar.render()
       this.board.setTargeting(this.abilitySystem.isBasicArmed())
     })
 
-    this.hand.render(this.handSystem.getCards())
+    this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
     this.relics.render(this.relicSystem.getRelics())
     this.skillBar.render()
   }
@@ -61,9 +76,21 @@ export class Game {
   }
 
   private handleCellClick(cellIndex: number): void {
+    const selectedCard = this.handSystem.getSelectedCard()
+    if (selectedCard) {
+      this.tryPlaceCard(cellIndex, selectedCard)
+      return
+    }
+
     if (!this.abilitySystem.isBasicArmed()) return
     if (!this.abilitySystem.tryCastBasic()) return
     this.castBasicAttack(cellIndex)
+  }
+
+  private tryPlaceCard(cellIndex: number, card: HandCard): void {
+    if (this.waveSystem.getCells()[cellIndex]) return // can't deploy on top of an enemy
+    if (!this.defenderSystem.place(cellIndex, card.label)) return
+    this.handSystem.removeCard(card.id)
   }
 
   private castBasicAttack(cellIndex: number): void {

@@ -1,4 +1,5 @@
 import type { WaveSystem } from '@systems/WaveSystem'
+import type { DefenderSystem } from '@systems/DefenderSystem'
 import { Icons } from '@ui/Icons'
 import { entityCardHtml } from '@ui/EntityCard'
 
@@ -10,9 +11,9 @@ const ARRIVE_FX_MS = 340
 // Center board: left player/boss cell, flow arrow, 3x3 enemy grid on the
 // right. The board tilts in 3D (see board.css --board-tilt); each cell's
 // icon sits in a `.board-figure` wrapper that counter-rotates so tokens
-// read as standing upright on a tilted floor. Layout + fx only — WaveSystem
-// owns enemy position/movement state, Game.ts decides what a cell click
-// means (only meaningful while an attack is armed).
+// read as standing upright on a tilted floor. Layout + fx only —
+// WaveSystem/DefenderSystem own enemy/ally state, Game.ts decides what a
+// cell click means (attack target vs. defender placement).
 export class BoardRenderer {
   private cellEls: HTMLElement[] = []
   private playerCellEl!: HTMLElement
@@ -22,6 +23,7 @@ export class BoardRenderer {
   constructor(
     private readonly root: HTMLElement,
     private readonly waveSystem: WaveSystem,
+    private readonly defenderSystem: DefenderSystem,
     private readonly onCellClick: (cellIndex: number) => void
   ) {}
 
@@ -63,19 +65,35 @@ export class BoardRenderer {
   }
 
   syncCells(): void {
-    const cells = this.waveSystem.getCells()
-    cells.forEach((enemy, i) => {
+    const enemyCells = this.waveSystem.getCells()
+    const allyCells = this.defenderSystem.getCells()
+
+    enemyCells.forEach((enemy, i) => {
       const el = this.cellEls[i]
       if (!el) return
-      const occupied = !!enemy
-      el.classList.toggle('has-enemy', occupied)
-      el.innerHTML = enemy
-        ? `<div class="board-figure is-arrived">${entityCardHtml({
-            variant: 'enemy',
-            art: Icons.enemyToken(),
-            hpRatio: enemy.hp / enemy.maxHp,
-          })}</div>`
-        : ''
+      const ally = allyCells[i]
+      const occupied = !!enemy || !!ally
+
+      el.classList.toggle('has-enemy', !!enemy)
+      el.classList.toggle('has-ally', !!ally)
+
+      if (enemy) {
+        el.innerHTML = `<div class="board-figure is-arrived">${entityCardHtml({
+          variant: 'enemy',
+          art: Icons.enemyToken(),
+          hpRatio: enemy.hp / enemy.maxHp,
+        })}</div>`
+      } else if (ally) {
+        el.innerHTML = `<div class="board-figure is-arrived">${entityCardHtml({
+          variant: 'ally',
+          art: Icons.enemyToken(),
+          name: ally.label,
+          hpRatio: ally.hp / ally.maxHp,
+        })}</div>`
+      } else {
+        el.innerHTML = ''
+      }
+
       if (occupied && !this.previousOccupied[i]) {
         window.setTimeout(() => {
           el.querySelector('.board-figure')?.classList.remove('is-arrived')
@@ -88,6 +106,11 @@ export class BoardRenderer {
   /** Toggles the "pick a target" affordance while basic attack is armed. */
   setTargeting(active: boolean): void {
     this.gridEl.classList.toggle('is-targeting', active)
+  }
+
+  /** Toggles the "pick a cell to deploy" affordance while a hand card is selected. */
+  setPlacementTargeting(active: boolean): void {
+    this.gridEl.classList.toggle('is-placement-targeting', active)
   }
 
   getCellRect(cellIndex: number): DOMRect | null {

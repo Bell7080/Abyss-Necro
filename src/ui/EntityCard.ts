@@ -1,5 +1,5 @@
 export interface EntityCardOptions {
-  variant: 'enemy' | 'player'
+  variant: 'enemy' | 'player' | 'ally'
   /** Inline SVG string — a flat icon standing in as a silhouette watermark
    * until the 40-enemy/player roster has real illustrations. */
   art: string
@@ -9,8 +9,8 @@ export interface EntityCardOptions {
 }
 
 // Full-illustration-style card shared by board entities (enemy tokens, the
-// player/boss cell, and eventually deployed ally defenders). The bottom bar
-// is deliberately numberless — a flowing deep-sea gradient reads as "health"
+// player/boss cell, and deployed ally defenders). The bottom bar is
+// deliberately numberless — a flowing deep-sea gradient reads as "health"
 // without text, per design direction.
 export function entityCardHtml(opts: EntityCardOptions): string {
   const hpPercent = Math.round((opts.hpRatio ?? 1) * 100)

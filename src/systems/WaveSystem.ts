@@ -4,6 +4,8 @@ const ROWS = 3
 const COLS = 3
 const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss room
 const ENEMY_BASE_HP = 4
+const ENEMY_ATTACK_DAMAGE = 1
+const ALLY_COUNTER_DAMAGE = 2
 const CARD_DROP_CHANCE = 0.5
 const WAVES_PER_RELIC = 3
 const NEXT_WAVE_DELAY_MS = 600
@@ -24,12 +26,20 @@ export interface DamageResult {
   defeated: boolean
 }
 
+// Lets WaveSystem clash with placed defenders without holding a reference to
+// DefenderSystem itself — Game.ts wires the two together.
+export interface DefenderHooks {
+  getHp(cellIndex: number): number | null
+  damage(cellIndex: number, amount: number): boolean
+}
+
 // Enemies enter at the grid's far edge (opposite the boss room) and wander
 // toward it a step per tick; reaching the boss room resolves as a fight the
 // same way a killing blow does, so ignoring the board has a real cost once
-// player HP/loss exists. Enemy tokens and hp are placeholder values until
-// the 40-enemy roster and real combat stats land — the movement/encounter
-// rule itself is not a stub.
+// player HP/loss exists. A defender-occupied cell blocks the step and both
+// sides trade damage instead. Enemy tokens and hp are placeholder values
+// until the 40-enemy roster and real combat stats land — the movement/
+// encounter/clash rules themselves are not stubs.
 export class WaveSystem {
   private cells: Array<EnemyToken | null> = new Array(ROWS * COLS).fill(null)
   private waveNumber = 1
@@ -38,7 +48,7 @@ export class WaveSystem {
   private readonly changeListeners: Array<() => void> = []
   private readonly encounterListeners: Array<(result: EncounterResult) => void> = []
 
-  constructor() {
+  constructor(private readonly defenders?: DefenderHooks) {
     this.spawnWave()
     window.setInterval(() => this.tick(), MOVE_TICK_MS)
   }
@@ -116,6 +126,15 @@ export class WaveSystem {
 
     const targetIndex = targetRow * COLS + targetCol
     if (this.cells[targetIndex]) return // another enemy already occupies it
+
+    const defenderHp = this.defenders?.getHp(targetIndex)
+    if (defenderHp !== null && defenderHp !== undefined) {
+      // Blocked by a defender — both sides trade damage this tick instead
+      // of the enemy advancing.
+      this.defenders?.damage(targetIndex, ENEMY_ATTACK_DAMAGE)
+      this.applyDamage(index, ALLY_COUNTER_DAMAGE)
+      return
+    }
 
     this.cells[index] = null
     this.cells[targetIndex] = { ...enemy, row: targetRow, col: targetCol }
