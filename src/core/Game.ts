@@ -1,3 +1,4 @@
+import { AbyssAmbience } from '@ui/AbyssAmbience'
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
 import { CoinPanel } from '@ui/CoinPanel'
@@ -79,6 +80,7 @@ export class Game {
       onChoose: (relic, cardEl) => this.resolveRelicChoice(relic, cardEl),
     })
     this.proceedButton = new ProceedButton(shell, () => this.waveSystem.resumeFromCheckpoint())
+    new AbyssAmbience(shell)
     new IntroOverlay(shell, () => this.startRun())
 
     this.waveSystem.onChange(() => this.board.syncCells())

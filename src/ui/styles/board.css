@@ -35,6 +35,91 @@ body {
   height: 100vh;
 }
 
+/* ---------- Ambience (vignette + water shimmer) ---------- */
+/* Sits above the playfield but below every overlay/effect layer — the
+   vignette pools darkness toward the screen edges so HUD panels melt into
+   it (they deliberately have no borders of their own), and two oversized
+   caustic sheets drift on transform only, so the water reads as gently
+   rippling without costing main-thread repaints. */
+
+.abyss-ambience {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.abyss-ambience-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 120% 100% at 50% 42%,
+    rgba(3, 2, 9, 0) 44%,
+    rgba(3, 2, 9, 0.28) 74%,
+    rgba(2, 1, 6, 0.55) 100%
+  );
+}
+
+/* Tileable soft light blobs; the layer is oversized so the slow drift never
+   exposes an edge. `screen` blend over the dark scene reads as light through
+   water rather than a gray film. */
+.abyss-caustic {
+  position: absolute;
+  left: -20%;
+  top: -20%;
+  width: 140%;
+  height: 140%;
+  mix-blend-mode: screen;
+  background-image:
+    radial-gradient(closest-side, rgba(125, 205, 250, 0.05), transparent),
+    radial-gradient(closest-side, rgba(150, 225, 255, 0.04), transparent);
+  background-size:
+    560px 440px,
+    340px 280px;
+  background-position:
+    0 0,
+    170px 120px;
+}
+
+.abyss-caustic--a {
+  animation: caustic-drift-a 44s ease-in-out infinite alternate;
+}
+
+.abyss-caustic--b {
+  background-size:
+    720px 560px,
+    460px 380px;
+  background-position:
+    240px 60px,
+    60px 300px;
+  animation: caustic-drift-b 67s ease-in-out infinite alternate;
+}
+
+@keyframes caustic-drift-a {
+  from {
+    transform: translate3d(-2.5%, -1.5%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2.5%, 2%, 0) scale(1.06);
+  }
+}
+
+@keyframes caustic-drift-b {
+  from {
+    transform: translate3d(2%, -2%, 0) scale(1.05);
+  }
+  to {
+    transform: translate3d(-2.5%, 1.5%, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .abyss-caustic {
+    animation: none;
+  }
+}
+
 /* ---------- Board (center) ---------- */
 
 .board-mount {
@@ -80,35 +165,42 @@ body {
   height: 320px;
   padding: 0;
   border-radius: 40px;
-  background: linear-gradient(160deg, rgba(70, 46, 112, 0.55), rgba(18, 13, 32, 0.88));
-  border: 1px solid var(--abyss-border-strong);
+  background: linear-gradient(160deg, rgba(70, 46, 112, 0.45), rgba(14, 10, 26, 0.8));
+  border: 0;
   box-shadow:
-    0 0 34px rgba(150, 205, 255, 0.22),
-    0 22px 36px var(--abyss-shadow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    inset 0 0 0 1px rgba(180, 220, 255, 0.16),
+    0 0 34px rgba(150, 205, 255, 0.18),
+    0 22px 36px var(--abyss-shadow);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--abyss-lavender-bright);
   cursor: pointer;
   transform-style: preserve-3d;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
+  transition: box-shadow 0.18s ease;
 }
 
 /* Basic attack has no arming step — every cell (including the boss room)
    is always a live attack target, so the hover cue is unconditional. */
 .board-player-cell:hover {
-  border-color: rgba(235, 190, 255, 0.85);
+  box-shadow:
+    inset 0 0 0 1px rgba(235, 190, 255, 0.45),
+    0 0 34px rgba(180, 205, 255, 0.26),
+    0 22px 36px var(--abyss-shadow);
 }
 
 .board-player-cell.is-placement-targetable {
-  border-color: rgba(255, 190, 130, 0.55);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 190, 130, 0.4),
+    0 0 34px rgba(255, 180, 120, 0.16),
+    0 22px 36px var(--abyss-shadow);
 }
 
 .board-player-cell.is-placement-targetable:hover {
-  border-color: rgba(255, 210, 160, 0.9);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 210, 160, 0.6),
+    0 0 34px rgba(255, 190, 130, 0.28),
+    0 22px 36px var(--abyss-shadow);
 }
 
 .board-player-cell.is-engaged {
@@ -123,16 +215,15 @@ body {
   0%,
   100% {
     box-shadow:
+      inset 0 0 0 1px rgba(180, 220, 255, 0.16),
       0 0 26px rgba(150, 205, 255, 0.22),
-      0 18px 30px var(--abyss-shadow),
-      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      0 18px 30px var(--abyss-shadow);
   }
   30% {
     box-shadow:
+      inset 0 0 0 1px rgba(255, 150, 165, 0.5),
       0 0 42px rgba(255, 120, 140, 0.55),
-      0 18px 30px var(--abyss-shadow),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 150, 165, 0.6);
+      0 18px 30px var(--abyss-shadow);
   }
 }
 
@@ -205,58 +296,63 @@ body {
   }
 }
 
+/* Cells are borderless pools of slightly deeper darkness on the seabed —
+   an inset whisper-ring stands in for the old hard 1px border, and every
+   state (occupied/hover/targeting) speaks through glow, not border color. */
 .board-cell {
   width: 280px;
   height: 280px;
   padding: 0;
   border-radius: 32px;
-  background: rgba(20, 15, 34, 0.6);
-  border: 1px solid var(--abyss-border);
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(180deg, rgba(14, 11, 26, 0.42), rgba(7, 5, 16, 0.62));
+  border: 0;
+  box-shadow:
+    inset 0 0 0 1px rgba(150, 205, 255, 0.09),
+    inset 0 2px 14px rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   color: rgba(140, 210, 255, 0.65);
   cursor: pointer;
   transform-style: preserve-3d;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
+  transition: box-shadow 0.18s ease;
 }
 
 .board-cell.has-enemy {
-  border-color: rgba(150, 205, 255, 0.4);
   box-shadow:
-    0 0 16px rgba(140, 210, 255, 0.18),
-    inset 0 2px 10px rgba(0, 0, 0, 0.5);
+    inset 0 0 0 1px rgba(150, 205, 255, 0.14),
+    inset 0 2px 14px rgba(0, 0, 0, 0.45),
+    0 0 20px rgba(140, 210, 255, 0.14);
 }
 
 .board-cell.has-ally {
-  border-color: rgba(255, 180, 120, 0.4);
   box-shadow:
-    0 0 16px rgba(255, 170, 110, 0.18),
-    inset 0 2px 10px rgba(0, 0, 0, 0.5);
+    inset 0 0 0 1px rgba(255, 190, 130, 0.14),
+    inset 0 2px 14px rgba(0, 0, 0, 0.45),
+    0 0 20px rgba(255, 170, 110, 0.14);
 }
 
 /* Basic attack has no arming step — every cell is always a live attack
    target, so the hover cue is unconditional. */
 .board-cell:hover {
-  border-color: rgba(235, 190, 255, 0.85);
   box-shadow:
-    0 0 22px rgba(220, 150, 255, 0.4),
-    inset 0 2px 10px rgba(0, 0, 0, 0.5);
+    inset 0 0 0 1px rgba(235, 190, 255, 0.4),
+    inset 0 2px 14px rgba(0, 0, 0, 0.45),
+    0 0 26px rgba(220, 150, 255, 0.3);
 }
 
 .board-grid.is-placement-targeting .board-cell {
   cursor: pointer;
-  border-color: rgba(255, 190, 130, 0.55);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 190, 130, 0.32),
+    inset 0 2px 14px rgba(0, 0, 0, 0.45);
 }
 
 .board-grid.is-placement-targeting .board-cell:hover {
-  border-color: rgba(255, 210, 160, 0.9);
   box-shadow:
-    0 0 22px rgba(255, 180, 120, 0.4),
-    inset 0 2px 10px rgba(0, 0, 0, 0.5);
+    inset 0 0 0 1px rgba(255, 210, 160, 0.55),
+    inset 0 2px 14px rgba(0, 0, 0, 0.45),
+    0 0 26px rgba(255, 180, 120, 0.3);
 }
 
 .board-cell.is-defeated {
@@ -265,18 +361,20 @@ body {
 
 @keyframes cell-defeat-pulse {
   0% {
-    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
-    border-color: var(--abyss-border);
+    box-shadow:
+      inset 0 0 0 1px rgba(150, 205, 255, 0.09),
+      inset 0 2px 14px rgba(0, 0, 0, 0.45);
   }
   35% {
     box-shadow:
-      0 0 26px rgba(180, 225, 255, 0.55),
-      inset 0 2px 10px rgba(0, 0, 0, 0.5);
-    border-color: rgba(200, 230, 255, 0.7);
+      inset 0 0 0 1px rgba(200, 230, 255, 0.4),
+      inset 0 2px 14px rgba(0, 0, 0, 0.45),
+      0 0 30px rgba(180, 225, 255, 0.45);
   }
   100% {
-    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
-    border-color: var(--abyss-border);
+    box-shadow:
+      inset 0 0 0 1px rgba(150, 205, 255, 0.09),
+      inset 0 2px 14px rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -339,11 +437,12 @@ body {
     rotate(var(--hand-rot, 0deg));
   transform-origin: bottom center;
   background: linear-gradient(165deg, rgba(46, 32, 78, 0.92), rgba(16, 12, 26, 0.94));
-  border: 1px solid var(--abyss-border-strong);
+  border: 0;
   border-radius: 10px;
   box-shadow:
+    inset 0 0 0 1px rgba(180, 220, 255, 0.2),
     0 10px 22px var(--abyss-shadow),
-    0 0 16px rgba(150, 205, 255, 0.14);
+    0 0 16px rgba(150, 205, 255, 0.12);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -356,8 +455,7 @@ body {
   z-index: calc(10 + var(--hand-i, 0));
   transition:
     transform 0.16s ease,
-    box-shadow 0.16s ease,
-    border-color 0.16s ease;
+    box-shadow 0.16s ease;
 }
 
 .hand-card.is-new {
@@ -367,8 +465,8 @@ body {
 .hand-card.is-selected {
   transform: translate(-50%, 0)
     translate(var(--hand-x, 0px), calc(var(--hand-y, 0px) - 16px)) rotate(var(--hand-rot, 0deg));
-  border-color: rgba(225, 190, 255, 0.9);
   box-shadow:
+    inset 0 0 0 1px rgba(225, 190, 255, 0.7),
     0 16px 28px var(--abyss-shadow),
     0 0 22px rgba(225, 170, 255, 0.55);
 }
@@ -402,7 +500,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 9px;
+  border-radius: 10px;
   background: linear-gradient(180deg, rgba(10, 8, 16, 0) 58%, rgba(8, 6, 14, 0.88) 100%);
   pointer-events: none;
 }
@@ -446,15 +544,15 @@ body {
   align-items: flex-end;
 }
 
+/* Unmelting's score-panel recipe: the slots are the actors, so the back
+   plate is a borderless whisper of dark wash that melts into the vignette. */
 .relic-panel,
 .item-panel {
   padding: 12px;
-  border-radius: 14px;
-  background: var(--abyss-panel-strong);
-  border: 1px solid var(--abyss-border);
-  box-shadow:
-    0 18px 40px var(--abyss-shadow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(16, 12, 28, 0.34), rgba(6, 4, 14, 0.52));
+  border: 0;
+  box-shadow: none;
   backdrop-filter: blur(6px);
 }
 
@@ -480,31 +578,31 @@ body {
   width: 44px;
   height: 44px;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(150, 205, 255, 0.14);
+  background: rgba(0, 0, 0, 0.4);
+  border: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(160, 200, 255, 0.25);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+  color: rgba(160, 200, 255, 0.22);
+  box-shadow:
+    inset 0 0 0 1px rgba(150, 205, 255, 0.08),
+    inset 0 2px 6px rgba(0, 0, 0, 0.55);
 }
 
 .relic-slot.is-filled {
   color: var(--abyss-lavender-bright);
-  border-color: rgba(200, 180, 255, 0.5);
-  background: rgba(40, 26, 64, 0.75);
+  background: rgba(40, 26, 64, 0.7);
   box-shadow:
-    0 0 14px rgba(180, 150, 255, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    inset 0 0 0 1px rgba(200, 180, 255, 0.38),
+    0 0 14px rgba(180, 150, 255, 0.32);
 }
 
 .item-slot.is-filled {
   color: #bdf3e0;
-  border-color: rgba(140, 220, 190, 0.5);
-  background: rgba(20, 56, 46, 0.75);
+  background: rgba(20, 56, 46, 0.7);
   box-shadow:
-    0 0 14px rgba(120, 220, 180, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    inset 0 0 0 1px rgba(140, 220, 190, 0.38),
+    0 0 14px rgba(120, 220, 180, 0.3);
 }
 
 /* ---------- Skill bar (bottom left) ---------- */
@@ -518,18 +616,27 @@ body {
   gap: 16px;
 }
 
+/* Borderless deep-glass orbs: a soft top-light in the sphere gradient plus
+   an inset whisper-ring do the shaping; the glow answer on hover replaces
+   the old border-brightening cue. */
 .skill-orb {
   position: relative;
   width: 64px;
   height: 64px;
   padding: 0;
   border-radius: 50%;
-  border: 1px solid var(--abyss-border-strong);
-  background: radial-gradient(circle at 34% 30%, rgba(90, 50, 130, 0.9), rgba(14, 10, 24, 0.95) 72%);
+  border: 0;
+  background: radial-gradient(
+    circle at 34% 28%,
+    rgba(122, 74, 170, 0.85),
+    rgba(38, 24, 66, 0.92) 46%,
+    rgba(10, 7, 20, 0.96) 76%
+  );
   box-shadow:
+    inset 0 0 0 1px rgba(180, 220, 255, 0.18),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
     0 12px 26px var(--abyss-shadow),
-    0 0 18px rgba(150, 205, 255, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 0 18px rgba(150, 205, 255, 0.14);
   color: var(--abyss-lavender-bright);
   display: flex;
   align-items: center;
@@ -537,22 +644,40 @@ body {
   cursor: pointer;
   transition:
     transform 0.16s ease,
-    box-shadow 0.16s ease,
-    border-color 0.16s ease;
+    box-shadow 0.16s ease;
 }
 
 .skill-orb--ultimate {
   width: 76px;
   height: 76px;
-  background: radial-gradient(circle at 34% 30%, rgba(150, 32, 96, 0.9), rgba(18, 8, 20, 0.95) 72%);
+  background: radial-gradient(
+    circle at 34% 28%,
+    rgba(196, 62, 132, 0.85),
+    rgba(74, 20, 52, 0.92) 46%,
+    rgba(14, 6, 18, 0.96) 76%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 170, 210, 0.2),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
+    0 12px 26px var(--abyss-shadow),
+    0 0 18px rgba(255, 130, 190, 0.16);
 }
 
 .skill-orb:hover:not(.is-disabled) {
   transform: translateY(-3px);
   box-shadow:
+    inset 0 0 0 1px rgba(200, 230, 255, 0.32),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
     0 16px 30px var(--abyss-shadow),
-    0 0 26px rgba(150, 205, 255, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 0 28px rgba(150, 205, 255, 0.32);
+}
+
+.skill-orb--ultimate:hover:not(.is-disabled) {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 190, 220, 0.36),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
+    0 16px 30px var(--abyss-shadow),
+    0 0 30px rgba(255, 130, 190, 0.38);
 }
 
 .skill-orb.is-disabled {
@@ -561,15 +686,21 @@ body {
   filter: grayscale(0.5);
 }
 
+/* Faint drop-shadow lifts the glyph off the sphere so it reads at a glance. */
+.skill-orb svg {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
 .skill-orb-cost {
   position: absolute;
   bottom: -8px;
   right: -4px;
   font-size: 10px;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 999px;
-  background: rgba(10, 8, 18, 0.9);
-  border: 1px solid var(--abyss-border);
+  background: rgba(8, 6, 16, 0.92);
+  border: 0;
+  box-shadow: inset 0 0 0 1px rgba(150, 205, 255, 0.16);
   color: var(--abyss-lavender);
 }
 
@@ -589,18 +720,20 @@ body {
    silhouette standing in until the 40-enemy/player roster ships. */
 
 .entity-card {
+  --card-ring: rgba(200, 220, 255, 0.18);
+  --card-glow: rgba(140, 210, 255, 0.16);
   position: relative;
   aspect-ratio: 3 / 4;
   border-radius: 26px;
   overflow: hidden;
   isolation: isolate;
   background: #0c0918;
-  border: 1px solid var(--abyss-border-strong);
+  border: 0;
   box-shadow:
-    inset 0 1px 0 rgba(200, 220, 255, 0.16),
+    inset 0 0 0 1px var(--card-ring),
     inset 0 -10px 22px rgba(0, 0, 0, 0.55),
     0 10px 20px rgba(0, 0, 0, 0.5),
-    0 0 18px rgba(140, 210, 255, 0.18);
+    0 0 18px var(--card-glow);
 }
 
 .entity-card--enemy {
@@ -652,7 +785,8 @@ body {
 /* Same silhouette as the enemy card, recolored cool-to-warm — the visual
    shorthand for "this one has been necromanced" (see CONCEPT_ART.md). */
 .entity-card--ally {
-  border-color: rgba(255, 190, 140, 0.45);
+  --card-ring: rgba(255, 190, 140, 0.3);
+  --card-glow: rgba(255, 170, 110, 0.14);
 }
 
 .entity-card--ally .entity-card-art {
@@ -698,9 +832,11 @@ body {
   height: 14px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(140, 210, 255, 0.22);
+  border: 0;
   overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  box-shadow:
+    inset 0 0 0 1px rgba(140, 210, 255, 0.16),
+    inset 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 /* Deep-sea water fill: no numeric label, just a calm, static blue gradient. */
@@ -820,8 +956,9 @@ body {
   padding: 0;
   border-radius: 16px;
   background: linear-gradient(160deg, rgba(70, 46, 112, 0.6), rgba(14, 10, 24, 0.94));
-  border: 1px solid var(--abyss-border-strong);
+  border: 0;
   box-shadow:
+    inset 0 0 0 1px rgba(180, 220, 255, 0.24),
     0 18px 34px rgba(0, 0, 0, 0.6),
     0 0 22px rgba(150, 205, 255, 0.18);
   display: flex;
@@ -836,8 +973,7 @@ body {
   transition:
     transform 0.32s ease,
     opacity 0.32s ease,
-    box-shadow 0.16s ease,
-    border-color 0.16s ease;
+    box-shadow 0.16s ease;
 }
 
 .reward-overlay.is-visible .reward-card {
@@ -856,9 +992,9 @@ body {
 .reward-card:hover {
   transform: translateY(-6px) scale(1.04);
   box-shadow:
+    inset 0 0 0 1px rgba(210, 180, 255, 0.6),
     0 22px 40px rgba(0, 0, 0, 0.65),
     0 0 30px rgba(190, 150, 255, 0.4);
-  border-color: rgba(210, 180, 255, 0.7);
 }
 
 .reward-card-art {
@@ -885,13 +1021,11 @@ body {
   font-size: 13px;
   letter-spacing: 0.08em;
   color: var(--abyss-lavender-bright);
-  background: var(--abyss-panel-strong);
-  border: 1px solid var(--abyss-border);
+  background: linear-gradient(180deg, rgba(16, 12, 28, 0.5), rgba(6, 4, 14, 0.66));
+  border: 0;
   border-radius: 999px;
-  padding: 8px 22px;
-  box-shadow:
-    0 12px 26px var(--abyss-shadow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  padding: 9px 24px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(6px);
 }
 
@@ -907,14 +1041,13 @@ body {
   align-items: center;
   gap: 8px;
   color: #7fe8ff;
-  background: var(--abyss-panel-strong);
-  border: 1px solid rgba(140, 220, 255, 0.35);
+  background: linear-gradient(180deg, rgba(14, 18, 30, 0.5), rgba(5, 7, 15, 0.66));
+  border: 0;
   border-radius: 999px;
-  padding: 8px 18px 8px 14px;
+  padding: 9px 19px 9px 15px;
   box-shadow:
-    0 12px 26px var(--abyss-shadow),
-    0 0 16px rgba(127, 232, 255, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 10px 26px rgba(0, 0, 0, 0.35),
+    0 0 18px rgba(127, 232, 255, 0.12);
   backdrop-filter: blur(6px);
   overflow: visible;
   transition: box-shadow 0.2s ease;
@@ -943,9 +1076,8 @@ body {
   35% {
     transform: translateY(-6px);
     box-shadow:
-      0 12px 26px var(--abyss-shadow),
-      0 0 26px rgba(127, 232, 255, 0.55),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      0 10px 26px rgba(0, 0, 0, 0.35),
+      0 0 26px rgba(127, 232, 255, 0.5);
   }
   100% {
     transform: translateY(0);
