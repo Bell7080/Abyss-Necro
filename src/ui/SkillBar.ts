@@ -1,4 +1,5 @@
 import type { AbilitySystem } from '@systems/AbilitySystem'
+import { BASIC_ATTACK_COST, ULTIMATE_COST } from '@systems/AbilitySystem'
 import { Icons } from '@ui/Icons'
 
 export interface SkillBarHandlers {
@@ -7,8 +8,8 @@ export interface SkillBarHandlers {
 
 // Bottom-left pair of round skill orbs. The basic orb is a cost readout
 // only — basic attack fires directly from a board cell click, never from
-// this button. Only the ultimate orb is clickable, since it hits every
-// alive cell at once and has no single target to click instead.
+// this button. Only the ultimate orb is clickable, since summoning has no
+// board cell to aim at — it always appears beside the boss room.
 export class SkillBar {
   private readonly basicBtn: HTMLButtonElement
   private readonly ultimateBtn: HTMLButtonElement
@@ -25,12 +26,12 @@ export class SkillBar {
     this.basicBtn = document.createElement('button')
     this.basicBtn.type = 'button'
     this.basicBtn.className = 'skill-orb skill-orb--basic'
-    this.basicBtn.innerHTML = `${Icons.curseBolt()}<span class="skill-orb-cost">1</span>`
+    this.basicBtn.innerHTML = `${Icons.curseBolt()}<span class="skill-orb-cost">${BASIC_ATTACK_COST}</span>`
 
     this.ultimateBtn = document.createElement('button')
     this.ultimateBtn.type = 'button'
     this.ultimateBtn.className = 'skill-orb skill-orb--ultimate'
-    this.ultimateBtn.innerHTML = `${Icons.curseBurst()}<span class="skill-orb-cost">10</span>`
+    this.ultimateBtn.innerHTML = `${Icons.curseBurst()}<span class="skill-orb-cost">${ULTIMATE_COST}</span>`
     this.ultimateBtn.addEventListener('click', handlers.onUltimateClick)
 
     this.readout = document.createElement('div')

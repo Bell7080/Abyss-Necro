@@ -6,6 +6,8 @@ const COLS = 3
 const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss room
 const ENEMY_BASE_HP = 4
 const ENEMY_ATTACK_DAMAGE = 1
+// Fallback only, used if DefenderHooks isn't wired — DefenderSystem's own
+// getAttack() (placed card default or summon's own value) wins normally.
 const ALLY_COUNTER_DAMAGE = 2
 const CARD_DROP_CHANCE = 0.5
 const ITEM_DROP_CHANCE = 0.35
@@ -41,12 +43,14 @@ export interface ClashInfo {
   cellIndex: number
 }
 
-// Lets WaveSystem clash with placed defenders without holding a reference to
-// DefenderSystem itself — Game.ts wires the two together. cellIndex may be
-// BOSS_CELL_INDEX.
+// Lets WaveSystem clash with placed defenders (and move ability-summoned
+// minions) without holding a reference to DefenderSystem itself — Game.ts
+// wires the two together. cellIndex may be BOSS_CELL_INDEX.
 export interface DefenderHooks {
   getHp(cellIndex: number): number | null
+  getAttack(cellIndex: number): number | null
   damage(cellIndex: number, amount: number): boolean
+  stepSummons(): void
 }
 
 // Enemies enter at the grid's far edge (opposite the boss room) and wander
@@ -137,9 +141,10 @@ export class WaveSystem {
     this.schedulePush()
   }
 
-  /** Player abilities land here — basic attack targets one cell (or the
-   * boss room), the ultimate calls this once per alive slot. Always hits
-   * the front of that slot's queue. Returns null on a whiffed shot. */
+  /** Direct single-target/burst damage formula — not currently wired to any
+   * ability (basic/ultimate now summon roaming minions instead, see
+   * DefenderSystem.summon), kept here for reuse by a future ability/relic.
+   * Always hits the front of that cell's queue. Returns null on a whiff. */
   applyDamage(cellIndex: number, amount: number): DamageResult | null {
     const list = this.listFor(cellIndex)
     const enemy = list[0]
@@ -226,10 +231,15 @@ export class WaveSystem {
     })
 
     for (const [index, enemy] of toStep) this.stepEnemy(index, enemy)
+    // Roaming summons move in lockstep with enemies so a summon walking
+    // into an enemy's cell this tick is resolved by this same tick's
+    // clash check below, not a tick late.
+    this.defenders?.stepSummons()
     // Sync this tick's movement to the board before resolving clashes — a
-    // clash's onClash listener reads token positions, and an enemy that
-    // just walked into a defended cell needs its new position on screen
-    // first or the lunge animation plays from its stale, pre-move spot.
+    // clash's onClash listener reads token positions, and an enemy (or
+    // summon) that just walked into a shared cell needs its new position
+    // on screen first or the lunge animation plays from its stale,
+    // pre-move spot.
     this.emitChange()
     this.resolveClashes()
   }
@@ -284,8 +294,11 @@ export class WaveSystem {
     const defenderHp = this.defenders?.getHp(cellIndex)
     if (defenderHp === null || defenderHp === undefined) return
 
+    // Placed defenders and summons alike report their own attack — a weak
+    // summon should hit lighter than a placed card, a strong one harder.
+    const allyAttack = this.defenders?.getAttack(cellIndex) ?? ALLY_COUNTER_DAMAGE
     this.defenders?.damage(cellIndex, ENEMY_ATTACK_DAMAGE)
-    this.damageEnemy(enemyList, cellIndex, enemy, ALLY_COUNTER_DAMAGE, cellIndex === BOSS_CELL_INDEX)
+    this.damageEnemy(enemyList, cellIndex, enemy, allyAttack, cellIndex === BOSS_CELL_INDEX)
     this.emitClash({ cellIndex })
   }
 

@@ -1,12 +1,13 @@
 const MAX_COST = 10
 const REGEN_TICK_MS = 1200
-export const BASIC_ATTACK_COST = 1
+export const BASIC_ATTACK_COST = 2
 export const ULTIMATE_COST = 10
 
 // Owns the player's cost pool. Basic attack fires unconditionally on cell
 // click (no arming step) as long as it's affordable; the ultimate only
-// fires from its own skill-orb click. Damage numbers and combat resolution
-// live in WaveSystem — this system only decides whether a cast is affordable.
+// fires from its own skill-orb click. Both summon a roaming minion
+// (DefenderSystem.summon) rather than dealing instant damage — this system
+// only decides whether a cast is affordable.
 export class AbilitySystem {
   private cost = MAX_COST
   private readonly listeners: Array<() => void> = []
