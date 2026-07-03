@@ -7,6 +7,8 @@ import { RewardOverlay } from '@ui/RewardOverlay'
 import { SkillBar } from '@ui/SkillBar'
 import { WaveHud } from '@ui/WaveHud'
 import { BubbleBurst } from '@ui/effects/BubbleBurst'
+import { CurseMortar } from '@ui/effects/CurseMortar'
+import { showDamageNumber } from '@ui/effects/FloatingDamage'
 import { AbilitySystem } from '@systems/AbilitySystem'
 import { DefenderSystem } from '@systems/DefenderSystem'
 import { HandSystem } from '@systems/HandSystem'
@@ -18,18 +20,8 @@ import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
 import type { Relic } from '@entities/Relic'
 
-// Basic attack/ultimate both summon a temporary roaming minion beside the
-// boss room instead of dealing instant damage — it fights whatever it
-// bumps into via the normal defender/enemy clash rules, then disappears
-// once its move budget runs out (see DefenderSystem.summon/stepSummons).
-const BASIC_SUMMON_LABEL = '멸치 소환수'
-const BASIC_SUMMON_HP = 2
-const BASIC_SUMMON_ATTACK = 1
-const BASIC_SUMMON_MOVES = 12
-const ULTIMATE_SUMMON_LABEL = '정예 소환수'
-const ULTIMATE_SUMMON_HP = 8
-const ULTIMATE_SUMMON_ATTACK = 4
-const ULTIMATE_SUMMON_MOVES = 30
+const BASIC_ATTACK_DAMAGE = 2
+const ULTIMATE_DAMAGE = 4
 const RELIC_CHOICE_COUNT = 3
 
 export class Game {
@@ -108,14 +100,13 @@ export class Game {
       return
     }
 
-    // Basic attack fires unconditionally on click — no arming step, and it
-    // doesn't target the clicked cell (it summons beside the boss room
-    // instead). Only the ultimate needs its own skill-orb click (see
-    // onUltimateClick). Neither fires during a checkpoint lull — leftover
-    // enemies just stand there unharmed until the player proceeds.
+    // Basic attack fires unconditionally on click — no arming step. Only
+    // the ultimate needs its own skill-orb click (see onUltimateClick).
+    // Neither fires during a checkpoint lull — leftover enemies just stand
+    // there unharmed until the player proceeds.
     if (this.waveSystem.isPaused()) return
     if (!this.abilitySystem.tryCastBasic()) return
-    this.defenderSystem.summon(BASIC_SUMMON_LABEL, BASIC_SUMMON_HP, BASIC_SUMMON_ATTACK, BASIC_SUMMON_MOVES)
+    this.castBasicAttack(cellIndex)
   }
 
   private tryPlaceCard(cellIndex: number, card: HandCard): void {
@@ -123,10 +114,42 @@ export class Game {
     this.handSystem.removeCard(card.id)
   }
 
+  private castBasicAttack(cellIndex: number): void {
+    const originRect = this.board.getPlayerRect()
+    const targetRect = this.board.getCellRect(cellIndex)
+    if (!originRect || !targetRect) return
+
+    const origin = centerOf(originRect)
+    const target = centerOf(targetRect)
+
+    CurseMortar.fire(origin.x, origin.y, target.x, target.y, {
+      onImpact: () => {
+        const result = this.waveSystem.applyDamage(cellIndex, BASIC_ATTACK_DAMAGE)
+        if (result) showDamageNumber(target.x, target.y, result.amount)
+      },
+    })
+  }
+
   private castUltimate(): void {
     if (this.waveSystem.isPaused()) return
     if (!this.abilitySystem.tryCastUltimate()) return
-    this.defenderSystem.summon(ULTIMATE_SUMMON_LABEL, ULTIMATE_SUMMON_HP, ULTIMATE_SUMMON_ATTACK, ULTIMATE_SUMMON_MOVES)
+    const originRect = this.board.getPlayerRect()
+    if (!originRect) return
+    const origin = centerOf(originRect)
+
+    for (const cellIndex of this.waveSystem.getAliveCellIndices()) {
+      const targetRect = this.board.getCellRect(cellIndex)
+      if (!targetRect) continue
+      const target = centerOf(targetRect)
+
+      CurseMortar.fire(origin.x, origin.y, target.x, target.y, {
+        delay: Math.random() * 140,
+        onImpact: () => {
+          const result = this.waveSystem.applyDamage(cellIndex, ULTIMATE_DAMAGE)
+          if (result) showDamageNumber(target.x, target.y, result.amount)
+        },
+      })
+    }
   }
 
   private handleEncounter(result: EncounterResult): void {

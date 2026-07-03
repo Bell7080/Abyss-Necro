@@ -5,7 +5,7 @@ const ROWS = 3
 const COLS = 3
 const CELL_COUNT = ROWS * COLS
 const MAX_ALLIES_PER_CELL = 3
-const ALLY_BASE_HP = 6
+const ALLY_BASE_HP = 3
 // Fallback attack for allies that don't carry their own value (placed hand
 // cards) — summons always set an explicit attack instead.
 const DEFAULT_ALLY_ATTACK = 2
