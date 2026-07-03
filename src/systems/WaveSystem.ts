@@ -149,6 +149,7 @@ export class WaveSystem {
         row,
         col: ENTRY_COL,
         hp: ENEMY_BASE_HP,
+        maxHp: ENEMY_BASE_HP,
       }
     }
     this.aliveInWave = ROWS

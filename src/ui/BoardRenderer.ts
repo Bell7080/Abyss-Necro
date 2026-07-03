@@ -1,5 +1,6 @@
 import type { WaveSystem } from '@systems/WaveSystem'
 import { Icons } from '@ui/Icons'
+import { entityCardHtml } from '@ui/EntityCard'
 
 const CELL_COUNT = 9
 const DEFEAT_FX_MS = 420
@@ -31,7 +32,11 @@ export class BoardRenderer {
 
     this.playerCellEl = document.createElement('div')
     this.playerCellEl.className = 'board-player-cell'
-    this.playerCellEl.innerHTML = `<div class="board-figure">${Icons.skullCrown()}<span class="board-player-label">네크로맨서</span></div>`
+    this.playerCellEl.innerHTML = `<div class="board-figure">${entityCardHtml({
+      variant: 'player',
+      art: Icons.skullCrown(),
+      name: '네크로맨서',
+    })}</div>`
     layout.appendChild(this.playerCellEl)
 
     const arrow = document.createElement('div')
@@ -64,7 +69,13 @@ export class BoardRenderer {
       if (!el) return
       const occupied = !!enemy
       el.classList.toggle('has-enemy', occupied)
-      el.innerHTML = occupied ? `<div class="board-figure is-arrived">${Icons.enemyToken()}</div>` : ''
+      el.innerHTML = enemy
+        ? `<div class="board-figure is-arrived">${entityCardHtml({
+            variant: 'enemy',
+            art: Icons.enemyToken(),
+            hpRatio: enemy.hp / enemy.maxHp,
+          })}</div>`
+        : ''
       if (occupied && !this.previousOccupied[i]) {
         window.setTimeout(() => {
           el.querySelector('.board-figure')?.classList.remove('is-arrived')
