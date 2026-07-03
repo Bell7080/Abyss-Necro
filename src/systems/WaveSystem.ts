@@ -1,4 +1,5 @@
 import type { EnemyToken } from '@entities/EnemyToken'
+import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 
 const ROWS = 3
 const COLS = 3
@@ -10,18 +11,17 @@ const CARD_DROP_CHANCE = 0.5
 const ITEM_DROP_CHANCE = 0.35
 const MOVE_TICK_MS = 1100
 // A new wave forces its way in every 3 minutes regardless of whether the
-// board is cleared — this is the actual pacing mechanism now, not just a
+// board is cleared — this is the actual pacing mechanism, not just a
 // display countdown.
 const WAVE_PUSH_INTERVAL_MS = 3 * 60 * 1000
 const WAVES_PER_CHECKPOINT = 5
 const CHECKPOINTS_PER_RELIC = 3
 
 export interface EncounterResult {
-  /** Grid cell the enemy was standing in when the fight resolved. */
+  /** Grid cell (or BOSS_CELL_INDEX) the enemy was standing in when it died. */
   cellIndex: number
   dropCard: boolean
   dropItem: boolean
-  /** True if the enemy walked into the boss room instead of being attacked. */
   viaBossRoom: boolean
 }
 
@@ -37,25 +37,28 @@ export interface CheckpointInfo {
 }
 
 // Lets WaveSystem clash with placed defenders without holding a reference to
-// DefenderSystem itself — Game.ts wires the two together.
+// DefenderSystem itself — Game.ts wires the two together. cellIndex may be
+// BOSS_CELL_INDEX.
 export interface DefenderHooks {
   getHp(cellIndex: number): number | null
   damage(cellIndex: number, amount: number): boolean
 }
 
 // Enemies enter at the grid's far edge (opposite the boss room) and wander
-// toward it a step per tick; reaching the boss room resolves as a fight the
-// same way a killing blow does. A defender-occupied cell blocks the step
-// and both sides trade damage instead. A new wave of 3 forces its way in
-// every WAVE_PUSH_INTERVAL_MS regardless of whether the board is cleared —
-// surviving stragglers just mean fewer entry slots are free for the push.
-// Every 5 pushes is a checkpoint: the push timer/movement pause for a lull,
-// and every 3rd checkpoint offers a relic instead of just resuming. Enemy
-// tokens and hp are placeholder values until the 40-enemy roster and real
-// combat stats land — the movement/encounter/checkpoint rules themselves
-// are not stubs.
+// toward it a step per tick. Any number of enemies can share a cell — there
+// is no per-cell cap, so ignoring the board lets them pile up. A
+// defender-occupied cell blocks the step and both sides trade damage
+// instead of the enemy advancing. Enemies that walk off the grid's near
+// edge don't auto-resolve anymore — they cross into the boss room and
+// stand there as a real, attackable threat next to the player. A new wave
+// of 3 forces its way in every WAVE_PUSH_INTERVAL_MS; every 5 pushes is a
+// checkpoint (movement/the push timer pause for a lull), and every 3rd
+// checkpoint offers a relic instead of just resuming. Enemy tokens and hp
+// are placeholder values until the 40-enemy roster and real combat stats
+// land — the movement/encounter/checkpoint rules themselves are not stubs.
 export class WaveSystem {
-  private cells: Array<EnemyToken | null> = new Array(ROWS * COLS).fill(null)
+  private cells: EnemyToken[][] = Array.from({ length: ROWS * COLS }, () => [])
+  private bossEnemies: EnemyToken[] = []
   private waveNumber = 1
   private wavesSinceCheckpoint = 0
   private checkpointCount = 0
@@ -83,8 +86,12 @@ export class WaveSystem {
     this.checkpointListeners.push(fn)
   }
 
-  getCells(): readonly (EnemyToken | null)[] {
+  getCells(): readonly EnemyToken[][] {
     return this.cells
+  }
+
+  getBossEnemies(): readonly EnemyToken[] {
+    return this.bossEnemies
   }
 
   getWaveNumber(): number {
@@ -101,7 +108,12 @@ export class WaveSystem {
   }
 
   getAliveCellIndices(): number[] {
-    return this.cells.map((enemy, index) => (enemy ? index : -1)).filter((index) => index >= 0)
+    const indices: number[] = []
+    this.cells.forEach((list, index) => {
+      if (list.length > 0) indices.push(index)
+    })
+    if (this.bossEnemies.length > 0) indices.push(BOSS_CELL_INDEX)
+    return indices
   }
 
   /** Called once the player acknowledges a checkpoint (proceed button, or
@@ -112,16 +124,35 @@ export class WaveSystem {
     this.schedulePush()
   }
 
-  /** Player abilities land here — basic attack targets one cell, the
-   * ultimate calls this once per alive cell. Returns null if the cell was
-   * empty (a whiffed shot) so the caller can skip the damage-number fx. */
+  /** Player abilities land here — basic attack targets one cell (or the
+   * boss room), the ultimate calls this once per alive slot. Always hits
+   * the front of that slot's queue. Returns null on a whiffed shot. */
   applyDamage(cellIndex: number, amount: number): DamageResult | null {
-    const enemy = this.cells[cellIndex]
+    const list = this.listFor(cellIndex)
+    const enemy = list[0]
     if (!enemy) return null
+    return this.damageEnemy(list, cellIndex, enemy, amount, cellIndex === BOSS_CELL_INDEX)
+  }
 
+  private listFor(cellIndex: number): EnemyToken[] {
+    return cellIndex === BOSS_CELL_INDEX ? this.bossEnemies : this.cells[cellIndex]
+  }
+
+  private damageEnemy(
+    list: EnemyToken[],
+    cellIndex: number,
+    enemy: EnemyToken,
+    amount: number,
+    viaBossRoom: boolean
+  ): DamageResult {
     enemy.hp -= amount
     if (enemy.hp <= 0) {
-      this.resolveEncounter(cellIndex, false)
+      const i = list.indexOf(enemy)
+      if (i >= 0) list.splice(i, 1)
+      const dropCard = Math.random() < CARD_DROP_CHANCE
+      const dropItem = Math.random() < ITEM_DROP_CHANCE
+      this.emitChange()
+      this.emitEncounter({ cellIndex, dropCard, dropItem, viaBossRoom })
       return { cellIndex, amount, defeated: true }
     }
 
@@ -154,20 +185,19 @@ export class WaveSystem {
 
   private tick(): void {
     if (this.paused) return
-    // Snapshot occupied indices first so an enemy that moves this tick isn't
-    // immediately moved again while iterating.
-    const occupied = this.cells
-      .map((enemy, index) => (enemy ? index : -1))
-      .filter((index) => index >= 0)
+    // Snapshot [cellIndex, enemy] pairs up front so an enemy that moves
+    // this tick isn't stepped a second time.
+    const toStep: Array<[number, EnemyToken]> = []
+    this.cells.forEach((list, index) => {
+      for (const enemy of list) toStep.push([index, enemy])
+    })
 
-    for (const index of occupied) {
-      const enemy = this.cells[index]
-      if (enemy) this.stepEnemy(index, enemy)
-    }
+    for (const [index, enemy] of toStep) this.stepEnemy(index, enemy)
     this.emitChange()
   }
 
   private stepEnemy(index: number, enemy: EnemyToken): void {
+    const list = this.cells[index]
     const roll = Math.random()
     let targetRow = enemy.row
     let targetCol = enemy.col
@@ -183,64 +213,57 @@ export class WaveSystem {
     }
 
     if (targetCol < 0) {
-      this.resolveEncounter(index, true)
+      list.splice(list.indexOf(enemy), 1)
+      enemy.row = targetRow
+      enemy.col = targetCol
+      this.bossEnemies.push(enemy)
+      this.emitChange()
       return
     }
 
     const targetIndex = targetRow * COLS + targetCol
-    if (this.cells[targetIndex]) return // another enemy already occupies it
-
     const defenderHp = this.defenders?.getHp(targetIndex)
     if (defenderHp !== null && defenderHp !== undefined) {
       // Blocked by a defender — both sides trade damage this tick instead
       // of the enemy advancing.
       this.defenders?.damage(targetIndex, ENEMY_ATTACK_DAMAGE)
-      this.applyDamage(index, ALLY_COUNTER_DAMAGE)
+      this.damageEnemy(list, index, enemy, ALLY_COUNTER_DAMAGE, false)
       return
     }
 
-    this.cells[index] = null
-    this.cells[targetIndex] = { ...enemy, row: targetRow, col: targetCol }
-  }
-
-  private resolveEncounter(cellIndex: number, viaBossRoom: boolean): void {
-    this.cells[cellIndex] = null
-    const dropCard = Math.random() < CARD_DROP_CHANCE
-    const dropItem = Math.random() < ITEM_DROP_CHANCE
-
-    this.emitChange()
-    this.emitEncounter({ cellIndex, dropCard, dropItem, viaBossRoom })
+    list.splice(list.indexOf(enemy), 1)
+    enemy.row = targetRow
+    enemy.col = targetCol
+    this.cells[targetIndex].push(enemy)
   }
 
   /** Initial board fill only — later waves arrive via pushReinforcements(). */
   private spawnWave(): void {
-    this.cells = new Array(ROWS * COLS).fill(null)
+    this.cells = Array.from({ length: ROWS * COLS }, () => [])
     for (let row = 0; row < ROWS; row += 1) {
-      this.cells[row * COLS + ENTRY_COL] = {
+      this.cells[row * COLS + ENTRY_COL].push({
         id: `enemy-${this.waveNumber}-${row}`,
         row,
         col: ENTRY_COL,
         hp: ENEMY_BASE_HP,
         maxHp: ENEMY_BASE_HP,
-      }
+      })
     }
     this.emitChange()
   }
 
-  /** A forced wave push — tops up the entry column, skipping any cell a
-   * straggler is still standing in rather than overwriting it. */
+  /** A forced wave push — always adds 3 fresh enemies to the entry column,
+   * stacking on top of any stragglers already there. */
   private pushReinforcements(): void {
     this.waveNumber += 1
     for (let row = 0; row < ROWS; row += 1) {
-      const idx = row * COLS + ENTRY_COL
-      if (this.cells[idx]) continue
-      this.cells[idx] = {
+      this.cells[row * COLS + ENTRY_COL].push({
         id: `enemy-${this.waveNumber}-${row}`,
         row,
         col: ENTRY_COL,
         hp: ENEMY_BASE_HP,
         maxHp: ENEMY_BASE_HP,
-      }
+      })
     }
     this.emitChange()
   }

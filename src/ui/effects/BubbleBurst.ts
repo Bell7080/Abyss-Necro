@@ -1,11 +1,14 @@
 /**
- * BubbleBurst — travel-style visual effect for "kill drops a card into hand".
+ * BubbleBurst — travel-style visual effect for "kill drops a card/item/relic".
  *
- * Unlike Unmelting's SquareBurst (squares scatter outward from one origin),
- * these are translucent circular bubbles that swarm from an origin point to
- * a target point (the hand's next fan slot), arcing upward like they're
- * floating through water. Call `onArrive` to time the actual state change
- * (HandSystem.addCard) to when the bubbles visually land.
+ * Restyled to match Unmelting's SquareBurst philosophy: flat solid-color
+ * pieces from a small palette (no gradients, no glow), so a cluster of
+ * overlapping circles reads as a clean layered silhouette rather than a
+ * painterly glassy sphere. Unlike SquareBurst (scatters outward from one
+ * origin), these travel from an origin point to a target point (the hand's
+ * next fan slot, a panel, etc.), arcing upward like they're floating
+ * through water. Call `onArrive` to time the actual state change to when
+ * the bubbles visually land.
  */
 
 export interface BubbleTravelOptions {
@@ -13,7 +16,7 @@ export interface BubbleTravelOptions {
   count?: number
   /** Travel duration in ms (default 620). */
   duration?: number
-  /** Min/max bubble diameter in px (default [10, 20]). */
+  /** Min/max bubble diameter in px (default [9, 18]). */
   size?: [number, number]
   /** Fired once, timed to when the swarm reaches the target. */
   onArrive?: () => void
@@ -21,6 +24,10 @@ export interface BubbleTravelOptions {
 
 const OVERLAY_ID = 'bubble-burst-overlay'
 const STYLE_ID = 'bubble-burst-styles'
+
+// Dark-to-light cyan, same cool "abyss" family as the rest of the UI —
+// a flat 4-shade set rather than a single gradient sphere.
+const PALETTE = ['#0d3a52', '#1f6f8f', '#5fc2dd', '#d9f4ff']
 
 function getOverlay(): HTMLElement {
   let el = document.getElementById(OVERLAY_ID)
@@ -47,9 +54,6 @@ function ensureStyles(): void {
 .bubble-burst-piece {
   position: absolute;
   border-radius: 50%;
-  background: radial-gradient(circle at 32% 30%, rgba(255,255,255,0.85), rgba(170,210,255,0.35) 55%, rgba(120,160,255,0.05) 78%);
-  border: 1px solid rgba(210,230,255,0.45);
-  box-shadow: 0 0 10px rgba(150,205,255,0.4);
   will-change: transform, opacity;
   pointer-events: none;
 }
@@ -59,6 +63,10 @@ function ensureStyles(): void {
 
 function rand(min: number, max: number): number {
   return min + Math.random() * (max - min)
+}
+
+function pickShade(): string {
+  return PALETTE[Math.floor(Math.random() * PALETTE.length)]
 }
 
 function spawnBubble(
@@ -85,6 +93,7 @@ function spawnBubble(
   piece.style.height = `${size}px`
   piece.style.left = `${startX - size / 2}px`
   piece.style.top = `${startY - size / 2}px`
+  piece.style.background = pickShade()
   overlay.appendChild(piece)
 
   const anim = piece.animate(
@@ -92,7 +101,7 @@ function spawnBubble(
       { transform: 'translate(0px, 0px) scale(0.4)', opacity: 0 },
       {
         transform: `translate(${midX - startX}px, ${midY - startY}px) scale(1)`,
-        opacity: 0.9,
+        opacity: 0.95,
         offset: 0.5,
       },
       {
@@ -119,7 +128,7 @@ export const BubbleBurst = {
     const overlay = getOverlay()
     const count = opts.count ?? 10
     const duration = opts.duration ?? 620
-    const sizeRange = opts.size ?? [10, 20]
+    const sizeRange = opts.size ?? [9, 18]
 
     for (let i = 0; i < count; i += 1) {
       spawnBubble(overlay, originX, originY, targetX, targetY, duration, sizeRange, rand(0, 90))

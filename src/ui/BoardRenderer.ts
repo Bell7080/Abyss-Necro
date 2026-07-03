@@ -1,5 +1,6 @@
 import type { WaveSystem } from '@systems/WaveSystem'
 import type { DefenderSystem } from '@systems/DefenderSystem'
+import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import { Icons } from '@ui/Icons'
 import { entityCardHtml } from '@ui/EntityCard'
 
@@ -10,6 +11,15 @@ const GRID_COLS = 3
 // movement between cells can transition smoothly.
 const CELL_SIZE = 140
 const CELL_GAP = 16
+// Allies sit slightly left of a cell's center, enemies slightly right, so
+// a shared cell reads as a face-off instead of a pile. Multiple occupants
+// on the same side stack with a small vertical offset.
+const GRID_ROLE_OFFSET_X = 34
+const STACK_GAP_Y = 20
+// In the boss/player cell: player leftmost, allies in the middle, enemies
+// rightmost — the same "standing off against each other" composition.
+const BOSS_ALLY_OFFSET_X = 0
+const BOSS_ENEMY_OFFSET_X = 44
 
 const DEFEAT_FX_MS = 420
 const ENGAGE_FX_MS = 520
@@ -27,18 +37,22 @@ interface Occupant {
 // icon sits in a `.board-figure` wrapper that counter-rotates so tokens
 // read as standing upright on a tilted floor.
 //
-// Enemy/ally tokens are NOT reparented between `.board-cell` elements —
-// each keeps one persistent `.board-token` div (keyed by entity id)
-// absolutely positioned inside `.board-grid`, so moving to a new cell is a
-// `transform` change that CSS transitions into a walk/slide instead of a
-// teleport. `.board-cell` itself stays a static floor-tile socket used for
-// click targets and occupancy glow.
+// Enemy/ally tokens are NOT reparented between cells — each keeps one
+// persistent `.board-token` div (keyed by entity id) absolutely positioned
+// inside its cell's container (the grid, or the player cell for boss-room
+// occupants), so moving is a `transform` change that CSS transitions into
+// a walk/slide instead of a teleport. `.board-cell` itself stays a static
+// floor-tile socket used for click targets and occupancy glow. The player
+// cell can also host boss-room allies/enemies — reaching the player is no
+// longer an instant resolution, it's a real fight happening in that cell.
 export class BoardRenderer {
   private cellEls: HTMLElement[] = []
   private playerCellEl!: HTMLElement
   private gridEl!: HTMLElement
   private readonly enemyTokens = new Map<string, HTMLElement>()
   private readonly allyTokens = new Map<string, HTMLElement>()
+  private readonly bossEnemyTokens = new Map<string, HTMLElement>()
+  private readonly bossAllyTokens = new Map<string, HTMLElement>()
 
   constructor(
     private readonly root: HTMLElement,
@@ -51,16 +65,25 @@ export class BoardRenderer {
     this.root.innerHTML = ''
     this.enemyTokens.clear()
     this.allyTokens.clear()
+    this.bossEnemyTokens.clear()
+    this.bossAllyTokens.clear()
+
     const layout = document.createElement('div')
     layout.className = 'board-layout'
 
-    this.playerCellEl = document.createElement('div')
+    const playerButton = document.createElement('button')
+    playerButton.type = 'button'
+    this.playerCellEl = playerButton
     this.playerCellEl.className = 'board-player-cell'
-    this.playerCellEl.innerHTML = `<div class="board-figure">${entityCardHtml({
+    this.playerCellEl.addEventListener('click', () => this.onCellClick(BOSS_CELL_INDEX))
+    const playerFigure = document.createElement('div')
+    playerFigure.className = 'board-figure board-figure--boss-player'
+    playerFigure.innerHTML = entityCardHtml({
       variant: 'player',
       art: Icons.skullCrown(),
       name: '네크로맨서',
-    })}</div>`
+    })
+    this.playerCellEl.appendChild(playerFigure)
     layout.appendChild(this.playerCellEl)
 
     const arrow = document.createElement('div')
@@ -89,53 +112,89 @@ export class BoardRenderer {
     const enemyCells = this.waveSystem.getCells()
     const allyCells = this.defenderSystem.getCells()
 
-    enemyCells.forEach((enemy, i) => this.cellEls[i]?.classList.toggle('has-enemy', !!enemy))
-    allyCells.forEach((ally, i) => this.cellEls[i]?.classList.toggle('has-ally', !!ally))
+    enemyCells.forEach((list, i) => this.cellEls[i]?.classList.toggle('has-enemy', list.length > 0))
+    allyCells.forEach((list, i) => this.cellEls[i]?.classList.toggle('has-ally', list.length > 0))
 
-    this.syncTokens(this.enemyTokens, enemyCells, 'enemy')
-    this.syncTokens(this.allyTokens, allyCells, 'ally')
+    this.syncGridRole(this.enemyTokens, enemyCells, 'enemy')
+    this.syncGridRole(this.allyTokens, allyCells, 'ally')
+    this.syncBossRole(this.bossEnemyTokens, this.waveSystem.getBossEnemies(), 'enemy')
+    this.syncBossRole(this.bossAllyTokens, this.defenderSystem.getBossAllies(), 'ally')
   }
 
-  private syncTokens(
+  private syncGridRole(
     tokens: Map<string, HTMLElement>,
-    occupants: readonly (Occupant | null)[],
-    variant: 'enemy' | 'ally'
+    cellLists: readonly (readonly Occupant[])[],
+    role: 'enemy' | 'ally'
   ): void {
     const seen = new Set<string>()
+    const roleOffsetX = role === 'ally' ? -GRID_ROLE_OFFSET_X : GRID_ROLE_OFFSET_X
 
-    occupants.forEach((occupant, index) => {
-      if (!occupant) return
-      seen.add(occupant.id)
+    cellLists.forEach((list, cellIndex) => {
+      const row = Math.floor(cellIndex / GRID_COLS)
+      const col = cellIndex % GRID_COLS
+      const baseX = col * (CELL_SIZE + CELL_GAP) + roleOffsetX
+      const baseY = row * (CELL_SIZE + CELL_GAP)
 
-      const row = Math.floor(index / GRID_COLS)
-      const col = index % GRID_COLS
-      const x = col * (CELL_SIZE + CELL_GAP)
-      const y = row * (CELL_SIZE + CELL_GAP)
-
-      const existing = tokens.get(occupant.id)
-      if (existing) {
-        existing.style.transform = `translate(${x}px, ${y}px)`
-        const fill = existing.querySelector<HTMLElement>('.entity-card-hp-fill')
-        if (fill) fill.style.width = `${Math.round((occupant.hp / occupant.maxHp) * 100)}%`
-        return
-      }
-
-      const el = document.createElement('div')
-      el.className = 'board-token'
-      el.style.transform = `translate(${x}px, ${y}px)`
-      el.innerHTML = `<div class="board-figure is-arrived">${entityCardHtml({
-        variant,
-        art: Icons.enemyToken(),
-        name: occupant.label,
-        hpRatio: occupant.hp / occupant.maxHp,
-      })}</div>`
-      this.gridEl.appendChild(el)
-      tokens.set(occupant.id, el)
-      window.setTimeout(() => {
-        el.querySelector('.board-figure')?.classList.remove('is-arrived')
-      }, ARRIVE_FX_MS)
+      list.forEach((occupant, i) => {
+        seen.add(occupant.id)
+        const y = baseY + (i - (list.length - 1) / 2) * STACK_GAP_Y
+        this.upsertToken(tokens, this.gridEl, occupant, role, baseX, y)
+      })
     })
 
+    this.pruneTokens(tokens, seen)
+  }
+
+  private syncBossRole(
+    tokens: Map<string, HTMLElement>,
+    list: readonly Occupant[],
+    role: 'enemy' | 'ally'
+  ): void {
+    const seen = new Set<string>()
+    const x = role === 'ally' ? BOSS_ALLY_OFFSET_X : BOSS_ENEMY_OFFSET_X
+
+    list.forEach((occupant, i) => {
+      seen.add(occupant.id)
+      const y = (i - (list.length - 1) / 2) * STACK_GAP_Y
+      this.upsertToken(tokens, this.playerCellEl, occupant, role, x, y)
+    })
+
+    this.pruneTokens(tokens, seen)
+  }
+
+  private upsertToken(
+    tokens: Map<string, HTMLElement>,
+    container: HTMLElement,
+    occupant: Occupant,
+    variant: 'enemy' | 'ally',
+    x: number,
+    y: number
+  ): void {
+    const existing = tokens.get(occupant.id)
+    if (existing) {
+      existing.style.transform = `translate(${x}px, ${y}px)`
+      const fill = existing.querySelector<HTMLElement>('.entity-card-hp-fill')
+      if (fill) fill.style.width = `${Math.round((occupant.hp / occupant.maxHp) * 100)}%`
+      return
+    }
+
+    const el = document.createElement('div')
+    el.className = 'board-token'
+    el.style.transform = `translate(${x}px, ${y}px)`
+    el.innerHTML = `<div class="board-figure is-arrived">${entityCardHtml({
+      variant,
+      art: Icons.enemyToken(),
+      name: occupant.label,
+      hpRatio: occupant.hp / occupant.maxHp,
+    })}</div>`
+    container.appendChild(el)
+    tokens.set(occupant.id, el)
+    window.setTimeout(() => {
+      el.querySelector('.board-figure')?.classList.remove('is-arrived')
+    }, ARRIVE_FX_MS)
+  }
+
+  private pruneTokens(tokens: Map<string, HTMLElement>, seen: Set<string>): void {
     for (const [id, el] of tokens) {
       if (!seen.has(id)) {
         el.remove()
@@ -147,14 +206,17 @@ export class BoardRenderer {
   /** Toggles the "pick a target" affordance while basic attack is armed. */
   setTargeting(active: boolean): void {
     this.gridEl.classList.toggle('is-targeting', active)
+    this.playerCellEl.classList.toggle('is-targetable', active)
   }
 
   /** Toggles the "pick a cell to deploy" affordance while a hand card is selected. */
   setPlacementTargeting(active: boolean): void {
     this.gridEl.classList.toggle('is-placement-targeting', active)
+    this.playerCellEl.classList.toggle('is-placement-targetable', active)
   }
 
   getCellRect(cellIndex: number): DOMRect | null {
+    if (cellIndex === BOSS_CELL_INDEX) return this.getPlayerRect()
     return this.cellEls[cellIndex]?.getBoundingClientRect() ?? null
   }
 
@@ -163,7 +225,7 @@ export class BoardRenderer {
   }
 
   playDefeatFx(cellIndex: number): void {
-    const el = this.cellEls[cellIndex]
+    const el = cellIndex === BOSS_CELL_INDEX ? this.playerCellEl : this.cellEls[cellIndex]
     if (!el) return
     el.classList.add('is-defeated')
     window.setTimeout(() => el.classList.remove('is-defeated'), DEFEAT_FX_MS)

@@ -70,10 +70,12 @@ body {
 }
 
 .board-player-cell {
+  position: relative;
   grid-column: 1;
   grid-row: 2;
   width: 160px;
   height: 160px;
+  padding: 0;
   border-radius: 22px;
   background: linear-gradient(160deg, rgba(70, 46, 112, 0.55), rgba(18, 13, 32, 0.88));
   border: 1px solid var(--abyss-border-strong);
@@ -85,11 +87,40 @@ body {
   align-items: center;
   justify-content: center;
   color: var(--abyss-lavender-bright);
+  cursor: default;
   transform-style: preserve-3d;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.board-player-cell.is-targetable,
+.board-player-cell.is-placement-targetable {
+  cursor: pointer;
+}
+
+.board-player-cell.is-targetable {
+  border-color: rgba(225, 160, 255, 0.5);
+}
+
+.board-player-cell.is-targetable:hover {
+  border-color: rgba(235, 190, 255, 0.85);
+}
+
+.board-player-cell.is-placement-targetable {
+  border-color: rgba(255, 190, 130, 0.55);
+}
+
+.board-player-cell.is-placement-targetable:hover {
+  border-color: rgba(255, 210, 160, 0.9);
 }
 
 .board-player-cell.is-engaged {
   animation: boss-engage-pulse 0.52s ease-out;
+}
+
+.board-player-cell.is-defeated {
+  animation: cell-defeat-pulse 0.42s ease-out;
 }
 
 @keyframes boss-engage-pulse {
@@ -239,6 +270,7 @@ body {
 /* Icons/labels standing on a tile counter-rotate the board's tilt so they
    read as upright standees rather than lying flat with the floor. */
 .board-figure {
+  --board-figure-shift-x: 0px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -246,8 +278,14 @@ body {
   gap: 8px;
   transform-style: preserve-3d;
   transform-origin: 50% 100%;
-  transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(16px);
+  transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(16px) translateX(var(--board-figure-shift-x));
   transition: transform 0.18s ease;
+}
+
+/* Shifts the player's own card left within the (now wider) boss cell so
+   allies/enemies standing there have room on its right. */
+.board-figure--boss-player {
+  --board-figure-shift-x: -50px;
 }
 
 .board-figure.is-arrived {
@@ -256,11 +294,13 @@ body {
 
 @keyframes figure-pop {
   0% {
-    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(16px) scale(0.4);
+    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(16px) translateX(var(--board-figure-shift-x))
+      scale(0.4);
     opacity: 0;
   }
   100% {
-    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(16px) scale(1);
+    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(16px) translateX(var(--board-figure-shift-x))
+      scale(1);
     opacity: 1;
   }
 }
@@ -533,15 +573,15 @@ body {
 }
 
 .entity-card--enemy {
-  width: 84px;
+  width: 68px;
 }
 
 .entity-card--ally {
-  width: 84px;
+  width: 68px;
 }
 
 .entity-card--player {
-  width: 108px;
+  width: 80px;
 }
 
 .entity-card-art {
@@ -617,25 +657,13 @@ body {
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
-/* Deep-sea water fill: no numeric label, just a flowing blue gradient. */
+/* Deep-sea water fill: no numeric label, just a calm, static blue gradient. */
 .entity-card-hp-fill {
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  background: linear-gradient(90deg, #0c3a52, #1a7ea6 45%, #57cfe4 80%, #b9f1ff);
-  background-size: 220% 100%;
-  animation: hp-water-flow 2.6s linear infinite;
+  background: linear-gradient(90deg, #144a63, #2f89ab);
   transition: width 0.28s ease;
-  box-shadow: inset 0 1px 0 rgba(200, 240, 255, 0.35);
-}
-
-@keyframes hp-water-flow {
-  0% {
-    background-position: 0% 0%;
-  }
-  100% {
-    background-position: -220% 0%;
-  }
 }
 
 /* ---------- Relic reward overlay (every 3 waves cleared) ---------- */

@@ -115,7 +115,6 @@ export class Game {
   }
 
   private tryPlaceCard(cellIndex: number, card: HandCard): void {
-    if (this.waveSystem.getCells()[cellIndex]) return // can't deploy on top of an enemy
     if (!this.defenderSystem.place(cellIndex, card.label)) return
     this.handSystem.removeCard(card.id)
   }
