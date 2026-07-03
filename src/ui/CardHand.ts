@@ -45,7 +45,9 @@ export class CardHand {
       el.style.setProperty('--hand-y', `${y}px`)
       el.style.setProperty('--hand-rot', `${rot}deg`)
       el.style.setProperty('--hand-i', `${i}`)
-      const artHtml = creature ? `<img class="hand-card-image" src="${creature.enemyArt}" alt="" />` : Icons.enemyToken()
+      // Shows the necromanced (after) form — this is a preview of the ally
+      // you'll get when you place it, not the enemy it was captured from.
+      const artHtml = creature ? `<img class="hand-card-image" src="${creature.allyArt}" alt="" />` : Icons.enemyToken()
       el.innerHTML = `<div class="hand-card-art">${artHtml}</div><div class="hand-card-label">${card.label}</div>`
       el.addEventListener('click', () => this.onCardClick(card.id))
       this.container.appendChild(el)

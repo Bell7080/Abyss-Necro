@@ -53,8 +53,8 @@ npm run dist              # electron-builder로 exe 패키징
 - `AbilitySystem`: 코스트 풀(최대10, 1.2초당 +1). 기본 공격(코스트2, 단일 칸 클릭 즉시 발동)과 스킬(코스트10, 생존 적 전체)은 `CurseMortar`로 본진 카드에서 곡선 발사되어 착탄 시에만 실제 피해가 들어간다(`WaveSystem.applyDamage`, 착탄 지점에 `FloatingDamage`). 임시 소환수 실험(`DefenderSystem.summon`/`stepSummons`/`getAttack`, `AllyToken.attack`/`movesLeft`)은 플레이 결과 롤백되어 현재 어느 능력에도 연결돼 있지 않지만, 추후 재사용을 위해 코드는 보존돼 있다.
 - `DefenderSystem`: 손패 카드를 선택해 칸(적이 있어도 무관, 칸당 최대 3기)에 배치하면 아군 디펜더(hp3)가 된다. 전투는 적과 아군이 실제로 같은 칸에 있을 때만 시작되어 매 틱 서로 피해를 교환한다.
 - `CoinSystem`/`CoinPanel`(좌상단): 적 처치 시 100% 확정으로 코인 1개가 드롭된다. `CoinDrop` 이펙트가 처치 지점 위에서 곡사포 형태로 짧게 낙하해 착지한 뒤, 그 자리에서 `BubbleBurst.travelTo`로 좌상단 코인 패널까지 날아가 카운트가 오르며 패널이 살짝 떠올랐다 가라앉는다. 아이콘은 Unmelting 불빛/화폐 공용 다이아 글리프를 심연 청록(#7fe8ff)으로 재해석. 코인 사용처(소강 정비 단계)는 아직 미구현 — 누적만 된다.
-- 모든 보드 개체(적/아군/플레이어)는 `EntityCard`로 렌더링 — 풀 일러스트 카드 프레임 + 하단 심해 색 체력바(숫자 없음). `CreatureDefinitions.ts`에 등록된 크리처(현재 해파리/바다토끼 2종 + 플레이어)는 실제 원화를 `object-fit: cover`로 표시하고, 나머지 적 종류는 아직 flat 아이콘 워터마크 실루엣을 사용한다(둘이 혼재 가능). `EnemyToken`/`AllyToken`/`HandCard`가 `creatureId`를 스폰→처치→카드→배치 전 구간에 들고 다녀 같은 크리처의 before(적)/after(사령된 아군) 원화가 일관되게 이어진다.
-- GitHub Actions(`/.github/workflows/deploy.yml`)로 `main` 푸시마다 Vite 빌드를 GitHub Pages에 자동 배포한다(Electron 바이너리 다운로드는 CI에서 스킵).
+- 모든 보드 개체(적/아군/플레이어)는 `EntityCard`로 렌더링 — 풀 일러스트 카드 프레임(적/아군 160px, 플레이어 190px 폭) + 하단 심해 색 체력바(숫자 없음). `CreatureDefinitions.ts`에 등록된 크리처(현재 해파리/바다토끼 2종 + 플레이어)는 실제 원화를 `object-fit: cover`로 표시하고, 나머지 적 종류는 아직 flat 아이콘 워터마크 실루엣을 사용한다(둘이 혼재 가능). `EnemyToken`/`AllyToken`/`HandCard`가 `creatureId`를 스폰→처치→카드→배치 전 구간에 들고 다녀 같은 크리처의 before(적)/after(사령된 아군) 원화가 일관되게 이어지며, 손패 카드 자체는 배치 시 실제로 얻을 사령 후(after) 모습을 미리 보여준다.
+- GitHub Actions(`/.github/workflows/deploy.yml`)로 `main` 푸시마다 Vite 빌드를 GitHub Pages에 자동 배포한다(Electron 바이너리 다운로드는 CI에서 스킵). `upload-pages-artifact`가 아티팩트를 덮어쓰지 않아 같은 run을 재시도하면 확정 실패하는 문제가 있어, 업로드 전 기존 `github-pages` 아티팩트를 지우는 정리 스텝을 추가해뒀다.
 - 카드 3합성 진화, 보스 사령, 도감 비포/애프터, 40종 적·40종 카드·20종 진화체·5종 보스 데이터 테이블은 아직 미구현 — `Abyss_Necro_Game_Concept.md`의 코어 루프 정의를 기준으로 다음 세션에서 구현한다.
 
 ## 코드 규칙

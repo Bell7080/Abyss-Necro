@@ -10,6 +10,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write
 
 concurrency:
   group: pages
@@ -41,6 +42,20 @@ jobs:
         run: npm run build
 
       - uses: actions/configure-pages@v4
+
+      # upload-pages-artifact never overwrites a same-named artifact, so a
+      # "Re-run failed jobs" on this same run would otherwise leave the prior
+      # attempt's "github-pages" artifact in place — deploy-pages then finds
+      # two artifacts and hard-fails with "Multiple artifacts... found".
+      # Clearing any leftover before uploading keeps retries idempotent.
+      - name: Remove stale github-pages artifact from a previous attempt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ids=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts?name=github-pages" --jq '.artifacts[].id')
+          for id in $ids; do
+            gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id"
+          done
 
       - uses: actions/upload-pages-artifact@v3
         with:

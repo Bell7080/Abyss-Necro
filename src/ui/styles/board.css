@@ -40,9 +40,9 @@ body {
 .board-mount {
   position: absolute;
   top: 46%;
-  left: 54%;
+  left: 46%;
   transform: translate(-50%, -56%);
-  perspective: 950px;
+  perspective: 1900px;
   perspective-origin: 50% -14%;
 }
 
@@ -51,10 +51,10 @@ body {
   content: '';
   position: absolute;
   left: 50%;
-  bottom: -80px;
+  bottom: -160px;
   transform: translateX(-50%);
   width: 82%;
-  height: 110px;
+  height: 220px;
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), transparent 72%);
   filter: blur(3px);
   z-index: -1;
@@ -63,10 +63,10 @@ body {
 .board-layout {
   --board-tilt: 62deg;
   display: grid;
-  grid-template-columns: 160px 64px auto;
-  grid-template-rows: repeat(3, 140px);
+  grid-template-columns: 320px 128px auto;
+  grid-template-rows: repeat(3, 280px);
   align-items: center;
-  gap: 20px;
+  gap: 40px;
   transform-style: preserve-3d;
   transform-origin: 50% 100%;
   transform: rotateX(var(--board-tilt));
@@ -76,10 +76,10 @@ body {
   position: relative;
   grid-column: 1;
   grid-row: 2;
-  width: 160px;
-  height: 160px;
+  width: 320px;
+  height: 320px;
   padding: 0;
-  border-radius: 22px;
+  border-radius: 40px;
   background: linear-gradient(160deg, rgba(70, 46, 112, 0.55), rgba(18, 13, 32, 0.88));
   border: 1px solid var(--abyss-border-strong);
   box-shadow:
@@ -162,9 +162,9 @@ body {
   grid-column: 3;
   grid-row: 1 / span 3;
   display: grid;
-  grid-template-columns: repeat(3, 140px);
-  grid-template-rows: repeat(3, 140px);
-  gap: 16px;
+  grid-template-columns: repeat(3, 280px);
+  grid-template-rows: repeat(3, 280px);
+  gap: 32px;
   transform-style: preserve-3d;
 }
 
@@ -178,8 +178,8 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  width: 140px;
-  height: 140px;
+  width: 280px;
+  height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -206,10 +206,10 @@ body {
 }
 
 .board-cell {
-  width: 140px;
-  height: 140px;
+  width: 280px;
+  height: 280px;
   padding: 0;
-  border-radius: 18px;
+  border-radius: 32px;
   background: rgba(20, 15, 34, 0.6);
   border: 1px solid var(--abyss-border);
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
@@ -291,14 +291,14 @@ body {
   gap: 8px;
   transform-style: preserve-3d;
   transform-origin: 50% 100%;
-  transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(16px) translateX(var(--board-figure-shift-x));
+  transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(32px) translateX(var(--board-figure-shift-x));
   transition: transform 0.18s ease;
 }
 
 /* Shifts the player's own card left within the (now wider) boss cell so
    allies/enemies standing there have room on its right. */
 .board-figure--boss-player {
-  --board-figure-shift-x: -60px;
+  --board-figure-shift-x: -120px;
 }
 
 .board-figure.is-arrived {
@@ -307,12 +307,12 @@ body {
 
 @keyframes figure-pop {
   0% {
-    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(16px) translateX(var(--board-figure-shift-x))
+    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(32px) translateX(var(--board-figure-shift-x))
       scale(0.4);
     opacity: 0;
   }
   100% {
-    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(16px) translateX(var(--board-figure-shift-x))
+    transform: rotateX(calc(var(--board-tilt) * -1)) translateZ(32px) translateX(var(--board-figure-shift-x))
       scale(1);
     opacity: 1;
   }
@@ -591,7 +591,7 @@ body {
 .entity-card {
   position: relative;
   aspect-ratio: 3 / 4;
-  border-radius: 14px;
+  border-radius: 26px;
   overflow: hidden;
   isolation: isolate;
   background: #0c0918;
@@ -604,15 +604,15 @@ body {
 }
 
 .entity-card--enemy {
-  width: 80px;
+  width: 160px;
 }
 
 .entity-card--ally {
-  width: 80px;
+  width: 160px;
 }
 
 .entity-card--player {
-  width: 96px;
+  width: 190px;
 }
 
 .entity-card-art {
@@ -682,12 +682,12 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  gap: 6px;
-  padding: 8px;
+  gap: 11px;
+  padding: 15px;
 }
 
 .entity-card-name {
-  font-size: 11px;
+  font-size: 20px;
   letter-spacing: 0.04em;
   color: var(--abyss-lavender-bright);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
@@ -695,7 +695,7 @@ body {
 
 .entity-card-hp {
   position: relative;
-  height: 8px;
+  height: 14px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.55);
   border: 1px solid rgba(140, 210, 255, 0.22);

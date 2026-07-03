@@ -1,7 +1,7 @@
 // Flat inline-SVG icons, `currentColor` fill/stroke — no emoji, matches Unmelting's Icons.ts convention.
 export const Icons = {
   flowArrow(): string {
-    return `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+    return `<svg viewBox="0 0 24 24" width="52" height="52" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M18 5 8 12l10 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`
   },

@@ -11,24 +11,24 @@ const GRID_COLS = 3
 // Must match .board-grid's grid-template-columns/gap in board.css — tokens
 // are positioned by pixel math instead of CSS grid placement so their
 // movement between cells can transition smoothly.
-const CELL_SIZE = 140
-const CELL_GAP = 16
+const CELL_SIZE = 280
+const CELL_GAP = 32
 // Allies sit slightly left of a cell's center, enemies slightly right, so
 // a shared cell reads as a face-off instead of a pile. Multiple occupants
 // on the same side stack with a small vertical offset.
-const GRID_ROLE_OFFSET_X = 40
-const STACK_GAP_Y = 20
+const GRID_ROLE_OFFSET_X = 80
+const STACK_GAP_Y = 40
 // In the boss/player cell: player leftmost, allies in the middle, enemies
 // rightmost — the same "standing off against each other" composition.
 const BOSS_ALLY_OFFSET_X = 0
-const BOSS_ENEMY_OFFSET_X = 52
+const BOSS_ENEMY_OFFSET_X = 104
 
 const DEFEAT_FX_MS = 420
 const ENGAGE_FX_MS = 520
 const ARRIVE_FX_MS = 340
 const LUNGE_FX_MS = 280
 // How far a token lunges toward its opponent on a clash, in px.
-const LUNGE_DISTANCE = 22
+const LUNGE_DISTANCE = 44
 
 interface Occupant {
   id: string

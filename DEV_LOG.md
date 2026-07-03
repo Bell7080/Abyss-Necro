@@ -2,6 +2,12 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-03 (21) — GitHub Pages 배포 재시도 버그 수정 + 보드/카드 2배 확대 + 손패 아트를 사령 후 형태로
+- **배포 워크플로 수정**: `deploy.yml`에 "같은 run을 Re-run하면 100% 실패하는" 버그를 고쳤다. `upload-pages-artifact`가 내부적으로 `overwrite: false`로 업로드하기 때문에, 실패한 run을 재시도하면 이전 시도의 `github-pages` 아티팩트가 남아있는 채로 새 아티팩트가 또 생겨 `deploy-pages`가 "Multiple artifacts... found"로 확정 실패하는 것이 원인이었다. `actions: write` 권한을 추가하고, 업로드 전에 현재 run의 기존 `github-pages` 아티팩트를 `gh api` DELETE로 미리 지우는 스텝을 넣어 재시도해도 항상 성공하게 했다.
+- **보드/카드 2배 확대**: `BoardRenderer`의 셀 픽셀 상수(`CELL_SIZE` 140→280, `CELL_GAP` 16→32, 역할 오프셋·스택 간격·클래시 돌진 거리 전부 비례 확대)와 `board.css`의 대응 치수(`.board-cell`/`.board-token` 140→280, `.board-player-cell` 160→320, `.board-layout` 그리드 트랙, `.entity-card` 계열 80~96px→160~190px, 카드 내부 이름/체력바/패딩)를 전부 2배 안팎으로 키웠다. 큰 지오메트리에 맞춰 `perspective`(950→1900)·`translateZ`(16→32)도 비례 조정해 기울기 강도는 그대로 유지. 커진 보드가 우측 유물/인벤토리 패널과 겹쳐서 `.board-mount`의 수평 앵커(`left` 54%→46%)도 같이 조정했다.
+- **손패 카드 아트를 사령 후(after)로 변경**: `CardHand`가 그동안 `creature.enemyArt`(적 상태)를 보여주고 있던 것을 `creature.allyArt`(사령된 형태)로 바꿔, 손에 든 카드가 배치했을 때 실제로 나올 아군 모습을 미리 보여주게 했다.
+- Playwright로 확인: 1920×1080에서 확대된 보드가 패널과 겹치지 않는 것, 손패 카드가 사령된 캐릭터 일러스트로 표시되는 것, 배치 후 보드 위 아군 카드도 커진 크기로 정상 렌더링되는 것.
+
 ## 2026-07-03 (20) — 첫 실제 원화 적용(해파리/바다토끼/플레이어/배경/아이콘)
 - 신규 `CreatureDefinitions.ts`: 40종 로스터의 첫 2종(해파리 `en_001`/`al_001`, 바다토끼 `en_002`/`al_002`)을 before(적)/after(사령된 아군) 원화 쌍으로 등록. `EnemyToken`/`AllyToken`/`HandCard`가 모두 `creatureId`를 들고 다니며 스폰→처치→카드 드롭→배치 전 구간에서 같은 크리처 정체성이 유지된다(`WaveSystem`이 스폰 시 무작위 배정, 처치 시 `EncounterResult.creatureId`로 전달, `Game`이 카드 생성/배치에 그대로 사용).
 - `EntityCard`/`BoardRenderer`/`CardHand`: `imageUrl`이 있으면 기존 flat SVG 워터마크 대신 실제 원화를 풀 프레임 `object-fit: cover`로 렌더링하도록 확장(`has-image` 변형 클래스로 배경 그라디언트/워터마크를 끔). 아직 원화가 없는 나머지 적 종류는 기존 placeholder 아이콘을 그대로 사용해 혼재 가능.
