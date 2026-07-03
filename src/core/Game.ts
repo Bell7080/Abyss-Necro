@@ -14,7 +14,7 @@ import { DefenderSystem } from '@systems/DefenderSystem'
 import { HandSystem } from '@systems/HandSystem'
 import { ItemSystem } from '@systems/ItemSystem'
 import { RelicSystem } from '@systems/RelicSystem'
-import { WaveSystem, type CheckpointInfo, type EncounterResult } from '@systems/WaveSystem'
+import { WaveSystem, type CheckpointInfo, type ClashInfo, type EncounterResult } from '@systems/WaveSystem'
 import { drawRandomConsumable } from '@data/ConsumablePool'
 import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
@@ -80,6 +80,7 @@ export class Game {
     this.waveSystem.onChange(() => this.board.syncCells())
     this.waveSystem.onEncounter((result) => this.handleEncounter(result))
     this.waveSystem.onCheckpoint((info) => this.handleCheckpoint(info))
+    this.waveSystem.onClash((info) => this.handleClash(info))
     this.defenderSystem.onChange(() => this.board.syncCells())
     this.handSystem.onChange(() => {
       this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
@@ -183,6 +184,17 @@ export class Game {
         onArrive: () => this.itemSystem.addItem(drawRandomConsumable()),
       })
     }
+  }
+
+  /** A defender and enemy sharing a cell trade a hit — lunge the two tokens
+   * at each other and pop a shallow bubble burst at the collision point. */
+  private handleClash(info: ClashInfo): void {
+    const rect = this.board.getCellRect(info.cellIndex)
+    if (!rect) return
+    const center = centerOf(rect)
+
+    this.board.playClashFx(info.cellIndex)
+    BubbleBurst.burstAt(center.x, center.y, { count: 6, size: [6, 12] })
   }
 
   /** Every 5 forced waves the game pauses for a lull; every 3rd such

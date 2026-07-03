@@ -24,6 +24,9 @@ const BOSS_ENEMY_OFFSET_X = 44
 const DEFEAT_FX_MS = 420
 const ENGAGE_FX_MS = 520
 const ARRIVE_FX_MS = 340
+const LUNGE_FX_MS = 280
+// How far a token lunges toward its opponent on a clash, in px.
+const LUNGE_DISTANCE = 22
 
 interface Occupant {
   id: string
@@ -138,7 +141,10 @@ export class BoardRenderer {
       list.forEach((occupant, i) => {
         seen.add(occupant.id)
         const y = baseY + (i - (list.length - 1) / 2) * STACK_GAP_Y
-        this.upsertToken(tokens, this.gridEl, occupant, role, baseX, y)
+        // Freshly-spawned enemies walk in from a phantom column just past
+        // the entry edge instead of popping into place on the grid.
+        const spawnFromX = role === 'enemy' ? baseX + CELL_SIZE + CELL_GAP : undefined
+        this.upsertToken(tokens, this.gridEl, occupant, role, baseX, y, spawnFromX)
       })
     })
 
@@ -168,11 +174,13 @@ export class BoardRenderer {
     occupant: Occupant,
     variant: 'enemy' | 'ally',
     x: number,
-    y: number
+    y: number,
+    spawnFromX?: number
   ): void {
     const existing = tokens.get(occupant.id)
     if (existing) {
-      existing.style.transform = `translate(${x}px, ${y}px)`
+      existing.style.setProperty('--token-x', `${x}px`)
+      existing.style.setProperty('--token-y', `${y}px`)
       const fill = existing.querySelector<HTMLElement>('.entity-card-hp-fill')
       if (fill) fill.style.width = `${Math.round((occupant.hp / occupant.maxHp) * 100)}%`
       return
@@ -180,7 +188,10 @@ export class BoardRenderer {
 
     const el = document.createElement('div')
     el.className = 'board-token'
-    el.style.transform = `translate(${x}px, ${y}px)`
+    // Custom properties (not a direct transform) so the lunge keyframe can
+    // layer an extra offset on top without fighting the slide transition.
+    el.style.setProperty('--token-x', `${spawnFromX ?? x}px`)
+    el.style.setProperty('--token-y', `${y}px`)
     el.innerHTML = `<div class="board-figure is-arrived">${entityCardHtml({
       variant,
       art: Icons.enemyToken(),
@@ -192,6 +203,14 @@ export class BoardRenderer {
     window.setTimeout(() => {
       el.querySelector('.board-figure')?.classList.remove('is-arrived')
     }, ARRIVE_FX_MS)
+
+    if (spawnFromX !== undefined) {
+      // Land on the phantom column first, then let the transition slide it
+      // in to its real cell position on the next frame.
+      requestAnimationFrame(() => {
+        el.style.setProperty('--token-x', `${x}px`)
+      })
+    }
   }
 
   private pruneTokens(tokens: Map<string, HTMLElement>, seen: Set<string>): void {
@@ -234,5 +253,29 @@ export class BoardRenderer {
   pulseBossRoom(): void {
     this.playerCellEl.classList.add('is-engaged')
     window.setTimeout(() => this.playerCellEl.classList.remove('is-engaged'), ENGAGE_FX_MS)
+  }
+
+  /** Front-of-queue enemy/ally briefly lunge at each other for a clash tick.
+   * Ally sits left of enemy in both the grid (role offset) and the boss
+   * room (BOSS_ALLY_OFFSET_X < BOSS_ENEMY_OFFSET_X), so the lunge direction
+   * is the same in either case: ally lunges right, enemy lunges left. */
+  playClashFx(cellIndex: number): void {
+    const isBossRoom = cellIndex === BOSS_CELL_INDEX
+    const enemy = isBossRoom ? this.waveSystem.getBossEnemies()[0] : this.waveSystem.getCells()[cellIndex]?.[0]
+    const ally = isBossRoom
+      ? this.defenderSystem.getBossAllies()[0]
+      : this.defenderSystem.getCells()[cellIndex]?.[0]
+    const enemyTokenMap = isBossRoom ? this.bossEnemyTokens : this.enemyTokens
+    const allyTokenMap = isBossRoom ? this.bossAllyTokens : this.allyTokens
+
+    if (enemy) this.lungeToken(enemyTokenMap.get(enemy.id), -LUNGE_DISTANCE)
+    if (ally) this.lungeToken(allyTokenMap.get(ally.id), LUNGE_DISTANCE)
+  }
+
+  private lungeToken(el: HTMLElement | undefined, distance: number): void {
+    if (!el) return
+    el.style.setProperty('--token-lunge-x', `${distance}px`)
+    el.classList.add('is-lunging')
+    window.setTimeout(() => el.classList.remove('is-lunging'), LUNGE_FX_MS)
   }
 }

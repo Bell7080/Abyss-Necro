@@ -22,6 +22,17 @@ export interface BubbleTravelOptions {
   onArrive?: () => void
 }
 
+export interface BubbleBurstOptions {
+  /** How many bubbles to spawn (default 7). */
+  count?: number
+  /** Pop duration in ms (default 340). */
+  duration?: number
+  /** Min/max bubble diameter in px (default [5, 11]). */
+  size?: [number, number]
+  /** Max scatter distance in px (default 26) — small, a "shallow" pop. */
+  spread?: number
+}
+
 const OVERLAY_ID = 'bubble-burst-overlay'
 const STYLE_ID = 'bubble-burst-styles'
 
@@ -116,7 +127,56 @@ function spawnBubble(
   window.setTimeout(() => piece.remove(), duration + delay + 200)
 }
 
+function spawnImpactBubble(
+  overlay: HTMLElement,
+  x: number,
+  y: number,
+  duration: number,
+  sizeRange: [number, number],
+  spread: number
+): void {
+  const piece = document.createElement('div')
+  piece.className = 'bubble-burst-piece'
+  const size = rand(sizeRange[0], sizeRange[1])
+  const angle = rand(0, Math.PI * 2)
+  const distance = rand(spread * 0.4, spread)
+  const dx = Math.cos(angle) * distance
+  const dy = Math.sin(angle) * distance
+
+  piece.style.width = `${size}px`
+  piece.style.height = `${size}px`
+  piece.style.left = `${x - size / 2}px`
+  piece.style.top = `${y - size / 2}px`
+  piece.style.background = pickShade()
+  overlay.appendChild(piece)
+
+  const anim = piece.animate(
+    [
+      { transform: 'translate(0px, 0px) scale(0.5)', opacity: 0.95 },
+      { transform: `translate(${dx}px, ${dy}px) scale(1)`, opacity: 0 },
+    ],
+    { duration, easing: 'ease-out', fill: 'forwards' }
+  )
+
+  anim.onfinish = () => piece.remove()
+  window.setTimeout(() => piece.remove(), duration + 150)
+}
+
 export const BubbleBurst = {
+  /** A small stationary pop — used for a clash landing, not a delivery. */
+  burstAt(x: number, y: number, opts: BubbleBurstOptions = {}): void {
+    ensureStyles()
+    const overlay = getOverlay()
+    const count = opts.count ?? 7
+    const duration = opts.duration ?? 340
+    const sizeRange = opts.size ?? [5, 11]
+    const spread = opts.spread ?? 26
+
+    for (let i = 0; i < count; i += 1) {
+      spawnImpactBubble(overlay, x, y, duration, sizeRange, spread)
+    }
+  },
+
   travelTo(
     originX: number,
     originY: number,

@@ -2,6 +2,15 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-03 (12) — 동일 칸 조우 전투 + 돌진 클래시 이펙트 + 적 입장 슬라이드
+- 전투 발생 조건 변경: `WaveSystem.stepEnemy`가 더 이상 인접 접근만으로 이동을 막지 않고, 적은 아군이 있는 칸에도 자유롭게 걸어 들어간다. 실제로 같은 칸(또는 본진)에 적과 아군이 함께 있을 때만 `resolveClashes`가 매 틱 서로 피해를 교환하고, 그동안 그 칸의 적은 배회를 멈춘다(`stepEnemy` 조기 반환).
+- `WaveSystem`에 `onClash` 이벤트 추가(`ClashInfo{cellIndex}`), 클래시가 발생한 칸을 매 틱 UI에 통지한다.
+- `BoardRenderer.upsertToken`을 `style.transform` 직접 대입 대신 `--token-x`/`--token-y` CSS 커스텀 프로퍼티로 전환(`board.css` `.board-token`도 `transform: translate(var(--token-x), var(--token-y))`로 변경)해, 슬라이드 트랜지션을 깨지 않고 위에 얹을 수 있는 별도 애니메이션 레이어를 만들었다.
+- 신규 `BoardRenderer.playClashFx(cellIndex)`: 해당 칸(또는 본진) 큐 맨 앞의 적/아군 토큰에 `is-lunging` 클래스 + `--token-lunge-x`를 부여해 서로에게 짧게 돌진했다 되돌아오는 `board-token-lunge` 키프레임(0.28s)을 재생한다. `Game.handleClash`가 `onClash`를 받아 `playClashFx` 호출 + 충돌 지점에 `BubbleBurst.burstAt`(옅게 터지는 얕은 버블)을 동시에 띄운다.
+- `BubbleBurst`에 `burstAt(x, y, opts)` 추가: 기존 `travelTo`(이동형)와 별개로 한 지점에서 사방으로 짧게 튀는 정지형 팝 이펙트(count/size/spread 옵션), 클래시 착지 연출 전용.
+- 적 신규 스폰 시 그리드 진입 열(우측 끝)보다 한 칸 더 바깥(가상 칸, `CELL_SIZE+CELL_GAP`만큼 우측)에서 시작해 다음 프레임에 실제 칸 좌표로 갱신 — 기존 슬라이드 트랜지션이 그대로 "밖에서 걸어 들어오는" 연출을 만든다(`upsertToken`의 `spawnFromX`, 적 역할에만 적용, 아군/본진 개체는 기존과 동일).
+- Playwright로 확인: 기본 공격으로 카드 획득 → 적이 있는 칸에 배치 → 다음 틱에 `is-lunging`/`bubble-burst-piece` 동시 발생(본진 칸 포함), 새 웨이브 진입 시 적 3기가 그리드 바깥 위치에서 시작해 입구 열로 슬라이드해 들어오는 것.
+
 ## 2026-07-03 (11) — 칸당 다중 배치 + 좌우 대치 구도 + 이펙트 정리
 - `WaveSystem.cells`/`DefenderSystem.cells`를 `EnemyToken | null`/`AllyToken | null` 배열에서 `EnemyToken[]`/`AllyToken[]` 배열로 전환. 적은 한 칸에 무제한으로 쌓일 수 있고(입구 강제 푸시도 더 이상 점유 여부로 스킵하지 않음), 아군은 칸당 최대 3기까지 배치 가능(`DefenderSystem` MAX_ALLIES_PER_CELL=3).
 - 칸 내부 배치 규칙 추가: 아군은 칸 중심에서 살짝 좌측, 적은 살짝 우측에 서도록 `BoardRenderer`가 역할별 x오프셋(±34px)과 다중 개체 시 y축 스택 오프셋을 계산해 픽셀 단위로 배치— 마주 선 대치 구도가 실제로 보인다.

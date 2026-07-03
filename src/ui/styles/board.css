@@ -176,6 +176,9 @@ body {
    moving to a new cell transitions `transform` into a walk/slide instead
    of the DOM node teleporting between .board-cell parents. */
 .board-token {
+  --token-x: 0px;
+  --token-y: 0px;
+  --token-lunge-x: 0px;
   position: absolute;
   top: 0;
   left: 0;
@@ -186,7 +189,24 @@ body {
   justify-content: center;
   pointer-events: none;
   transform-style: preserve-3d;
+  transform: translate(var(--token-x), var(--token-y));
   transition: transform 0.85s ease-in-out;
+}
+
+/* A clash tick — front-of-queue enemy/ally dash a short step toward each
+   other and back, timed with a shallow BubbleBurst at the collision point. */
+.board-token.is-lunging {
+  animation: board-token-lunge 0.28s ease-out;
+}
+
+@keyframes board-token-lunge {
+  0%,
+  100% {
+    transform: translate(var(--token-x), var(--token-y));
+  }
+  45% {
+    transform: translate(calc(var(--token-x) + var(--token-lunge-x)), var(--token-y));
+  }
 }
 
 .board-cell {

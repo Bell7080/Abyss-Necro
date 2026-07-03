@@ -36,6 +36,10 @@ export interface CheckpointInfo {
   isRelicCheckpoint: boolean
 }
 
+export interface ClashInfo {
+  cellIndex: number
+}
+
 // Lets WaveSystem clash with placed defenders without holding a reference to
 // DefenderSystem itself — Game.ts wires the two together. cellIndex may be
 // BOSS_CELL_INDEX.
@@ -45,17 +49,19 @@ export interface DefenderHooks {
 }
 
 // Enemies enter at the grid's far edge (opposite the boss room) and wander
-// toward it a step per tick. Any number of enemies can share a cell — there
-// is no per-cell cap, so ignoring the board lets them pile up. A
-// defender-occupied cell blocks the step and both sides trade damage
-// instead of the enemy advancing. Enemies that walk off the grid's near
-// edge don't auto-resolve anymore — they cross into the boss room and
-// stand there as a real, attackable threat next to the player. A new wave
-// of 3 forces its way in every WAVE_PUSH_INTERVAL_MS; every 5 pushes is a
-// checkpoint (movement/the push timer pause for a lull), and every 3rd
-// checkpoint offers a relic instead of just resuming. Enemy tokens and hp
-// are placeholder values until the 40-enemy roster and real combat stats
-// land — the movement/encounter/checkpoint rules themselves are not stubs.
+// toward it a step per tick, moving freely through any cell — allies don't
+// block movement anymore. Any number of enemies can share a cell; combat
+// only starts once an enemy and a defender actually occupy the same cell,
+// and while that fight is on the enemy holds still there instead of
+// wandering off (see stepEnemy's early-out). Enemies that walk off the
+// grid's near edge don't auto-resolve — they cross into the boss room and
+// stand there as a real, attackable threat next to the player, which can
+// also hold defenders. A new wave of 3 forces its way in every
+// WAVE_PUSH_INTERVAL_MS; every 5 pushes is a checkpoint (movement/the push
+// timer pause for a lull), and every 3rd checkpoint offers a relic instead
+// of just resuming. Enemy tokens and hp are placeholder values until the
+// 40-enemy roster and real combat stats land — the movement/encounter/
+// checkpoint/clash rules themselves are not stubs.
 export class WaveSystem {
   private cells: EnemyToken[][] = Array.from({ length: ROWS * COLS }, () => [])
   private bossEnemies: EnemyToken[] = []
@@ -67,6 +73,7 @@ export class WaveSystem {
   private readonly changeListeners: Array<() => void> = []
   private readonly encounterListeners: Array<(result: EncounterResult) => void> = []
   private readonly checkpointListeners: Array<(info: CheckpointInfo) => void> = []
+  private readonly clashListeners: Array<(info: ClashInfo) => void> = []
 
   constructor(private readonly defenders?: DefenderHooks) {
     this.spawnWave()
@@ -84,6 +91,10 @@ export class WaveSystem {
 
   onCheckpoint(fn: (info: CheckpointInfo) => void): void {
     this.checkpointListeners.push(fn)
+  }
+
+  onClash(fn: (info: ClashInfo) => void): void {
+    this.clashListeners.push(fn)
   }
 
   getCells(): readonly EnemyToken[][] {
@@ -193,10 +204,15 @@ export class WaveSystem {
     })
 
     for (const [index, enemy] of toStep) this.stepEnemy(index, enemy)
+    this.resolveClashes()
     this.emitChange()
   }
 
   private stepEnemy(index: number, enemy: EnemyToken): void {
+    // A defender shares this cell — stand and fight instead of wandering
+    // off; resolveClashes() handles the actual damage trade this tick.
+    if (this.defenders?.getHp(index) != null) return
+
     const list = this.cells[index]
     const roll = Math.random()
     let targetRow = enemy.row
@@ -217,24 +233,34 @@ export class WaveSystem {
       enemy.row = targetRow
       enemy.col = targetCol
       this.bossEnemies.push(enemy)
-      this.emitChange()
       return
     }
 
+    // Enemies move freely into any cell, including defended ones — combat
+    // only starts once they actually share it (see resolveClashes()).
     const targetIndex = targetRow * COLS + targetCol
-    const defenderHp = this.defenders?.getHp(targetIndex)
-    if (defenderHp !== null && defenderHp !== undefined) {
-      // Blocked by a defender — both sides trade damage this tick instead
-      // of the enemy advancing.
-      this.defenders?.damage(targetIndex, ENEMY_ATTACK_DAMAGE)
-      this.damageEnemy(list, index, enemy, ALLY_COUNTER_DAMAGE, false)
-      return
-    }
-
     list.splice(list.indexOf(enemy), 1)
     enemy.row = targetRow
     enemy.col = targetCol
     this.cells[targetIndex].push(enemy)
+  }
+
+  /** Wherever a defender and an enemy now occupy the same cell, the front
+   * of each queue trades a hit. Runs once per tick after movement. */
+  private resolveClashes(): void {
+    this.cells.forEach((list, index) => this.resolveClashAt(index, list))
+    this.resolveClashAt(BOSS_CELL_INDEX, this.bossEnemies)
+  }
+
+  private resolveClashAt(cellIndex: number, enemyList: EnemyToken[]): void {
+    const enemy = enemyList[0]
+    if (!enemy) return
+    const defenderHp = this.defenders?.getHp(cellIndex)
+    if (defenderHp === null || defenderHp === undefined) return
+
+    this.defenders?.damage(cellIndex, ENEMY_ATTACK_DAMAGE)
+    this.damageEnemy(enemyList, cellIndex, enemy, ALLY_COUNTER_DAMAGE, cellIndex === BOSS_CELL_INDEX)
+    this.emitClash({ cellIndex })
   }
 
   /** Initial board fill only — later waves arrive via pushReinforcements(). */
@@ -278,5 +304,9 @@ export class WaveSystem {
 
   private emitCheckpoint(info: CheckpointInfo): void {
     for (const fn of this.checkpointListeners) fn(info)
+  }
+
+  private emitClash(info: ClashInfo): void {
+    for (const fn of this.clashListeners) fn(info)
   }
 }
