@@ -1,0 +1,30 @@
+// Flat inline-SVG icons, `currentColor` fill/stroke — no emoji, matches Unmelting's Icons.ts convention.
+export const Icons = {
+  skullCrown(): string {
+    return `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 3c-4 0-7 2.8-7 6.4 0 2 .9 3.6 2.3 4.8l-.6 2.4c-.1.5.3 1 .8 1h2l.5 1.6c.1.4.5.7 1 .7s.9-.3 1-.7l.5-1.6h2c.5 0 .9-.5.8-1l-.6-2.4C18.1 13 19 11.4 19 9.4 19 5.8 16 3 12 3Z" fill="currentColor"/>
+      <circle cx="9.3" cy="9.6" r="1.4" fill="#12101c"/>
+      <circle cx="14.7" cy="9.6" r="1.4" fill="#12101c"/>
+      <path d="M9.8 2.4l.9 1.5 1.3-1.9 1.3 1.9.9-1.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </svg>`
+  },
+  flowArrow(): string {
+    return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 5 8 12l10 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`
+  },
+  enemyToken(): string {
+    return `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="12" cy="10" rx="7" ry="6.4" fill="currentColor"/>
+      <path d="M6 15c0 2 .8 5 1 6.4M9.4 15.6c0 2 .4 4.6.6 5.6M14 15.6c0 2-.2 4.6-.4 5.6M18 15c0 2-.8 5-1 6.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="9.4" cy="9.6" r="1.2" fill="#0a0716"/>
+      <circle cx="14.6" cy="9.6" r="1.2" fill="#0a0716"/>
+    </svg>`
+  },
+  relicGem(): string {
+    return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2 4 9l8 13 8-13-8-7Z" fill="currentColor"/>
+      <path d="M4 9h16M8.5 9 12 2l3.5 7M9 9l3 12 3-12" stroke="#0a0716" stroke-width="0.8" stroke-linejoin="round" fill="none"/>
+    </svg>`
+  },
+}
