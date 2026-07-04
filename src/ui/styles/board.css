@@ -2859,48 +2859,65 @@ body {
   width: 100%;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  align-items: stretch;
+  align-items: center;
   gap: 28px;
 }
 
+/* No panel behind — just the full illustration, with the text written over it.
+   Portrait tile, the two forms placed side by side. */
 .codex-figure {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-  border-radius: 24px;
-  background: rgba(8, 12, 28, 0.5);
-  box-shadow: inset 0 0 0 1px rgba(150, 205, 255, 0.12);
-}
-
-/* Full illustration panel — big and portrait, showing the whole card art. */
-.codex-figure-art {
+  position: relative;
+  justify-self: center;
   width: 100%;
-  max-width: 320px;
+  max-width: 384px;
   aspect-ratio: 3 / 4;
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow:
-    inset 0 0 0 1px var(--codex-ring, rgba(150, 205, 255, 0.3)),
-    0 16px 30px rgba(0, 0, 0, 0.6),
-    0 0 30px var(--codex-glow, rgba(120, 160, 255, 0.32));
 }
 
-.codex-figure-art img {
+/* Full illustration filling the tile. Its rectangular edge is feathered away
+   with a soft mask so there's no hard boundary — a drop-shadow in the faction
+   color follows that soft alpha as a gentle halo (no ring box). */
+.codex-figure-art {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 20%;
+  object-position: center 18%;
+  /* Feather all four edges to transparent — subtle, wide falloff. */
+  -webkit-mask:
+    linear-gradient(to right, transparent 0%, #000 9%, #000 91%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 8%, #000 92%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask:
+    linear-gradient(to right, transparent 0%, #000 9%, #000 91%, transparent 100%),
+    linear-gradient(to bottom, transparent 0%, #000 8%, #000 92%, transparent 100%);
+  mask-composite: intersect;
+  filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 0 26px var(--codex-glow, rgba(120, 160, 255, 0.3)));
 }
 
+/* Bottom scrim so overlaid text stays legible over any illustration. Follows
+   the same feathered side edges as the art. */
+.codex-figure-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(6, 9, 22, 0) 42%, rgba(5, 7, 18, 0.86) 92%);
+  -webkit-mask: linear-gradient(to right, transparent 0%, #000 9%, #000 91%, transparent 100%);
+  mask: linear-gradient(to right, transparent 0%, #000 9%, #000 91%, transparent 100%);
+}
+
+/* Text written directly on the illustration, anchored to the bottom. */
 .codex-figure-info {
-  width: 100%;
-  max-width: 340px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
+  padding: 0 22px 26px;
   text-align: center;
 }
 
@@ -2910,6 +2927,7 @@ body {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.14em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
 }
 
 /* Cold(before) → warm(after) color split per the concept's 냉기→온기 read. */
@@ -2935,11 +2953,13 @@ body {
 
 .codex-figure-name {
   margin: 0;
-  font-size: 24px;
+  font-size: 25px;
   font-weight: 800;
   letter-spacing: 0.05em;
   color: #eaf1ff;
-  text-shadow: 0 0 16px rgba(140, 190, 255, 0.4);
+  text-shadow:
+    0 0 16px rgba(140, 190, 255, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.95);
 }
 
 /* Stat chips: 공격 / 체력 readouts. */
@@ -2954,8 +2974,10 @@ body {
   gap: 7px;
   padding: 5px 14px;
   border-radius: 999px;
-  background: rgba(4, 8, 22, 0.6);
-  box-shadow: inset 0 0 0 1px rgba(150, 205, 255, 0.2);
+  background: rgba(4, 8, 22, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(150, 205, 255, 0.24),
+    0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .codex-stat-key {
@@ -2974,7 +2996,10 @@ body {
   margin: 2px 0 0;
   font-size: 13.5px;
   line-height: 1.6;
-  color: rgba(206, 218, 250, 0.88);
+  color: rgba(214, 224, 252, 0.92);
+  text-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.95),
+    0 0 12px rgba(0, 0, 0, 0.8);
 }
 
 /* Center transform column — the cold→warm 사령 sweep between the two forms. */
@@ -3069,7 +3094,7 @@ body {
     flex-direction: row;
     gap: 10px;
   }
-  .codex-figure-art {
-    max-width: 220px;
+  .codex-figure {
+    max-width: 240px;
   }
 }

@@ -66,7 +66,8 @@ export class CodexOverlay {
       <section class="codex-page">
         <div class="codex-pair">
           <article class="codex-figure codex-figure--before">
-            <div class="codex-figure-art"><img src="${c.enemyArt}" alt="${c.label}" /></div>
+            <img class="codex-figure-art" src="${c.enemyArt}" alt="${c.label}" />
+            <div class="codex-figure-scrim" aria-hidden="true"></div>
             <div class="codex-figure-info">
               <span class="codex-figure-tag codex-figure-tag--before">적</span>
               <h3 class="codex-figure-name">${c.label}</h3>
@@ -79,7 +80,8 @@ export class CodexOverlay {
             <span class="codex-transform-word">사령</span>
           </div>
           <article class="codex-figure codex-figure--after">
-            <div class="codex-figure-art"><img src="${c.allyArt}" alt="${c.label} (사령)" /></div>
+            <img class="codex-figure-art" src="${c.allyArt}" alt="${c.label} (사령)" />
+            <div class="codex-figure-scrim" aria-hidden="true"></div>
             <div class="codex-figure-info">
               <span class="codex-figure-tag codex-figure-tag--after">사령</span>
               <h3 class="codex-figure-name">${c.label}</h3>
