@@ -2,7 +2,6 @@ import { AbyssAmbience } from '@ui/AbyssAmbience'
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
 import { CardInspector, type InspectorData } from '@ui/CardInspector'
-import { CellMergeButton } from '@ui/CellMergeButton'
 import { CoinPanel } from '@ui/CoinPanel'
 import { CosmosLayer } from '@ui/CosmosLayer'
 import { DefeatOverlay } from '@ui/DefeatOverlay'
@@ -77,10 +76,12 @@ export class Game {
   private basicDamageBonus = 0
   private readonly inspector: CardInspector
   private readonly mergeButton: MergeButton
-  private readonly cellMergeButton: CellMergeButton
   private readonly cosmos: CosmosLayer
   private readonly shellEl: HTMLElement
   private mergeInProgress = false
+  // Which merge the central 합성 button will perform when pressed — a hand
+  // trio or an on-board cell trio (whichever is currently available).
+  private mergeTarget: { type: 'hand' } | { type: 'cell'; cellIndex: number } | null = null
   private aiming = false
   // Which toggle skill is armed (raise/capture aim at a cell; null/basic =
   // plain click-to-attack). raise-all fires immediately and never stays armed.
@@ -119,8 +120,7 @@ export class Game {
     this.hand = new CardHand(shell, (cardId) => {
       this.handSystem.toggleSelect(cardId)
     })
-    this.mergeButton = new MergeButton(shell, () => this.performMerge())
-    this.cellMergeButton = new CellMergeButton(shell, () => this.performCellMerge())
+    this.mergeButton = new MergeButton(shell, () => this.performActiveMerge())
     this.cosmos = new CosmosLayer(shell)
     this.board = new BoardRenderer(
       boardMount,
@@ -159,7 +159,7 @@ export class Game {
     this.playerSystem.onDefeat(() => this.handleDefeat())
     this.defenderSystem.onChange(() => {
       this.board.syncCells()
-      this.refreshCellMerge()
+      this.refreshMerge()
     })
     this.defenderSystem.onAllyDeath((e) => this.handleAllyDeath(e))
     this.graveyardSystem.onChange(() => this.cosmos.render(this.graveyardSystem.getSouls()))
@@ -187,11 +187,11 @@ export class Game {
     // Selecting a card and arming a skill are mutually exclusive modes.
     if (selected && this.armedAbility) this.disarmSkill()
     this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId(), (c) => this.canAffordCard(c))
-    this.mergeButton.setVisible(!this.mergeInProgress && !!this.handSystem.findTriple())
 
     if (selected) this.inspector.show(selected)
     else this.inspector.hide()
     this.updateAimState()
+    this.refreshMerge()
   }
 
   /** Whether either targeting mode is active — a held hand card or an armed
@@ -217,7 +217,7 @@ export class Game {
     const scale = active ? AIM_TIME_SCALE : 1
     this.tickManager.setRate(scale)
     this.waveSystem.setTimeScale(scale)
-    this.refreshCellMerge()
+    this.refreshMerge()
   }
 
   /** A hex was pressed. Basic disarms to plain attack, raise/capture toggle
@@ -577,11 +577,16 @@ export class Game {
     }
   }
 
-  /** Player pressed the sparkling 합성 button: three identical base cards
-   * jelly-merge into one tier-2 card (placeholder rank until the real
-   * evolution roster lands). The fx runs first; the model swap happens on
-   * its final beat, and the button re-lights if another triple remains. */
-  private performMerge(): void {
+  /** The central 합성 button was pressed — run whichever merge is primed. */
+  private performActiveMerge(): void {
+    if (!this.mergeTarget || this.mergeInProgress) return
+    if (this.mergeTarget.type === 'hand') this.performHandMerge()
+    else this.performCellMerge(this.mergeTarget.cellIndex)
+  }
+
+  /** Three identical same-tier hand cards jelly-merge into one a tier up. The
+   * fx runs first; the model swap lands on its final beat. */
+  private performHandMerge(): void {
     if (this.mergeInProgress) return
     const triple = this.handSystem.findTriple()
     if (!triple) return
@@ -603,7 +608,7 @@ export class Game {
           }
         )
         this.mergeInProgress = false
-        this.mergeButton.setVisible(!!this.handSystem.findTriple())
+        this.refreshMerge()
       }
     )
   }
@@ -627,36 +632,50 @@ export class Game {
     this.blast.passiveBurst(rect, kind)
   }
 
-  /** Shows the cell-merge button over the first cell holding a same-creature
-   * trio (hidden while aiming or mid-hand-merge). Re-run on every defender
-   * change and aim toggle. */
-  private refreshCellMerge(): void {
-    if (this.aiming) {
-      this.cellMergeButton.hide()
+  /** Primes the central 합성 button and pulses the candidate cards/allies:
+   * a hand trio wins over an on-board cell trio when both exist. Hidden while
+   * aiming or mid-merge. Re-run on every hand/defender change and aim toggle. */
+  private refreshMerge(): void {
+    const clear = (): void => {
+      this.mergeTarget = null
+      this.mergeButton.setVisible(false)
+      this.hand.setMergeCandidates([])
+      this.board.setMergeCandidates([])
+    }
+    if (this.mergeInProgress || this.aiming) {
+      clear()
       return
     }
+
+    const triple = this.handSystem.findTriple()
+    if (triple) {
+      this.mergeTarget = { type: 'hand' }
+      this.hand.setMergeCandidates(triple.map((c) => c.id))
+      this.board.setMergeCandidates([])
+      this.mergeButton.setVisible(true)
+      return
+    }
+
     const cellIndex = this.defenderSystem.findCellTriple()
-    if (cellIndex === null) {
-      this.cellMergeButton.hide()
+    if (cellIndex !== null) {
+      this.mergeTarget = { type: 'cell', cellIndex }
+      const allies = cellIndex === BOSS_CELL_INDEX ? this.defenderSystem.getBossAllies() : this.defenderSystem.getCells()[cellIndex]
+      this.board.setMergeCandidates(allies.map((a) => a.id))
+      this.hand.setMergeCandidates([])
+      this.mergeButton.setVisible(true)
       return
     }
-    const rect = this.board.getCellRect(cellIndex)
-    if (!rect) {
-      this.cellMergeButton.hide()
-      return
-    }
-    this.cellMergeButton.showAt(rect.left + rect.width / 2, rect.top + 6)
+
+    clear()
   }
 
-  /** Fuses the on-board trio into a 2-star ally with a blast at that cell. */
-  private performCellMerge(): void {
-    const cellIndex = this.defenderSystem.findCellTriple()
-    if (cellIndex === null) return
+  /** Fuses an on-board trio into one ally a tier up, with a blast at that cell. */
+  private performCellMerge(cellIndex: number): void {
     const rect = this.board.getCellRect(cellIndex)
     if (this.defenderSystem.mergeCellTriple(cellIndex) && rect) {
       this.blast.clashBurst(rect)
     }
-    this.refreshCellMerge()
+    this.refreshMerge()
   }
 
   /** An enemy in the player room found no defender and struck the

@@ -336,6 +336,21 @@ export class BoardRenderer {
     }
   }
 
+  /** Marks the given ally tokens as merge candidates — each pulses in its own
+   * accent hue, mirroring the hand-card highlight for on-board (cell) merges. */
+  setMergeCandidates(allyIds: readonly string[]): void {
+    for (const el of [...this.allyTokens.values(), ...this.bossAllyTokens.values()]) {
+      el.classList.remove('is-merge-candidate')
+      el.style.removeProperty('--merge-hue')
+    }
+    allyIds.forEach((id, i) => {
+      const el = this.allyTokens.get(id) ?? this.bossAllyTokens.get(id)
+      if (!el) return
+      el.classList.add('is-merge-candidate')
+      el.style.setProperty('--merge-hue', `${(i * 118) % 360}`)
+    })
+  }
+
   /** Toggles the "pick a cell to deploy" affordance while a hand card is selected. */
   setPlacementTargeting(active: boolean): void {
     this.gridEl.classList.toggle('is-placement-targeting', active)

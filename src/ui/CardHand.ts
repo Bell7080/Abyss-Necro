@@ -92,6 +92,22 @@ export class CardHand {
     })
   }
 
+  /** Marks the given hand cards as merge candidates — each pulses in its own
+   * accent hue so it's clear which trio the 합성 button will fuse. */
+  setMergeCandidates(ids: readonly string[]): void {
+    this.container.querySelectorAll<HTMLElement>('.is-merge-candidate').forEach((el) => {
+      el.classList.remove('is-merge-candidate')
+      el.style.removeProperty('--merge-hue')
+    })
+    ids.forEach((id, i) => {
+      const el = this.container.querySelector<HTMLElement>(`[data-card-id="${id}"]`)
+      if (!el) return
+      el.classList.add('is-merge-candidate')
+      // Spread the trio across the spectrum so each reads as its own spark.
+      el.style.setProperty('--merge-hue', `${(i * 118) % 360}`)
+    })
+  }
+
   /** Re-evaluates affordability and toggles the dim/lock class on existing
    * cards without rebuilding the fan — called when the gauge changes so a
    * card lights up the instant its summon cost is met. */

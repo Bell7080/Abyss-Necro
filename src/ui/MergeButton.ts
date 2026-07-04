@@ -1,9 +1,7 @@
-import { Icons } from '@ui/Icons'
-
-// Sparkling "합성" button at the left of the hand fan — appears only while
-// the hand holds three identical base cards. Merging is now the player's
-// call (this button), not an automatic snap; clicking hands off to Game,
-// which runs the jelly-merge fx and the model swap.
+// The unified "합성" button — a big pulsing diamond floating at the center,
+// just above the hand fan. Shown whenever a merge is available, whether the
+// trio sits in the hand or on a board cell (Game primes which). The candidate
+// cards/allies pulse in their own accent colors so it's clear what will fuse.
 export class MergeButton {
   private readonly button: HTMLButtonElement
 
@@ -11,7 +9,9 @@ export class MergeButton {
     this.button = document.createElement('button')
     this.button.type = 'button'
     this.button.className = 'merge-button'
-    this.button.innerHTML = `${Icons.coinSparkle()}<span class="merge-button-label">합성</span>`
+    this.button.innerHTML = `
+      <span class="merge-button-diamond" aria-hidden="true"></span>
+      <span class="merge-button-label">합성</span>`
     this.button.addEventListener('click', onClick)
     root.appendChild(this.button)
   }
