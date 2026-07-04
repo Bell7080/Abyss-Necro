@@ -2680,3 +2680,66 @@ body {
     filter: drop-shadow(0 0 16px rgba(200, 150, 255, 0.95));
   }
 }
+
+/* ---------- Cosmos graveyard (scattered soul stars) ---------- */
+/* Fallen souls become sky: shards scatter as faint per-creature stars over
+   the whole screen, fragments burn bigger and brighter. Non-interactive. */
+.cosmos-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 8;
+}
+
+.cosmos-soul {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--soul-color, #c9b8ff) 0%, transparent 70%);
+  box-shadow: 0 0 8px 1px var(--soul-color, #c9b8ff);
+  animation:
+    soul-appear 0.5s ease-out,
+    soul-twinkle 3.2s ease-in-out infinite;
+}
+
+.cosmos-soul.is-fragment {
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  box-shadow: 0 0 14px 2px var(--soul-color, #c9b8ff);
+}
+
+.cosmos-soul.is-leaving {
+  animation: soul-leave 0.42s ease-in forwards;
+}
+
+@keyframes soul-appear {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes soul-twinkle {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+@keyframes soul-leave {
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}

@@ -4,8 +4,8 @@ import { CardHand } from '@ui/CardHand'
 import { CardInspector, type InspectorData } from '@ui/CardInspector'
 import { CellMergeButton } from '@ui/CellMergeButton'
 import { CoinPanel } from '@ui/CoinPanel'
+import { CosmosLayer } from '@ui/CosmosLayer'
 import { DefeatOverlay } from '@ui/DefeatOverlay'
-import { GraveyardPanel } from '@ui/GraveyardPanel'
 import { IntroOverlay } from '@ui/IntroOverlay'
 import { MergeButton } from '@ui/MergeButton'
 import { RelicInventory } from '@ui/RelicInventory'
@@ -77,7 +77,7 @@ export class Game {
   private readonly inspector: CardInspector
   private readonly mergeButton: MergeButton
   private readonly cellMergeButton: CellMergeButton
-  private readonly graveyard: GraveyardPanel
+  private readonly cosmos: CosmosLayer
   private readonly shellEl: HTMLElement
   private mergeInProgress = false
   private aiming = false
@@ -120,7 +120,7 @@ export class Game {
     })
     this.mergeButton = new MergeButton(shell, () => this.performMerge())
     this.cellMergeButton = new CellMergeButton(shell, () => this.performCellMerge())
-    this.graveyard = new GraveyardPanel(shell)
+    this.cosmos = new CosmosLayer(shell)
     this.board = new BoardRenderer(
       boardMount,
       this.waveSystem,
@@ -158,7 +158,7 @@ export class Game {
       this.refreshCellMerge()
     })
     this.defenderSystem.onAllyDeath((e) => this.handleAllyDeath(e))
-    this.graveyardSystem.onChange(() => this.graveyard.render(this.graveyardSystem.getStars()))
+    this.graveyardSystem.onChange(() => this.cosmos.render(this.graveyardSystem.getSouls()))
     this.corpseSystem.onChange(() => this.board.syncCorpses(this.corpseSystem.getCorpses()))
     this.corpseSystem.onDecayShard((c) => this.handleCorpseShard(c))
     this.handSystem.onChange(() => this.handleHandChange())
@@ -169,7 +169,7 @@ export class Game {
     this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
     this.relics.render(this.relicSystem.getRelics())
     this.coins.render(this.coinSystem.getCoins())
-    this.graveyard.render(this.graveyardSystem.getStars())
+    this.cosmos.render(this.graveyardSystem.getSouls())
     this.hive.render()
   }
 
@@ -658,13 +658,12 @@ export class Game {
     }
   }
 
-  /** A neglected corpse sank and left a shard — fly it to the graveyard. */
+  /** A neglected corpse sank and left a shard — fly it out to the cosmos. */
   private handleCorpseShard(c: Corpse): void {
     const rect = this.board.getCellRect(c.cellIndex)
-    const from = rect ? centerOf(rect) : this.graveyard.getDropPoint()
-    this.blast.starFly(from, this.graveyard.getDropPoint(), () =>
-      this.graveyardSystem.addStar(c.creatureId, c.label)
-    )
+    const id = `soul-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const from = rect ? centerOf(rect) : this.cosmos.getAnchorPoint()
+    this.blast.starFly(from, this.cosmos.pointFor(id), () => this.graveyardSystem.addShard(id, c.creatureId, c.label))
   }
 
   /** Shop purchase: pay 별빛, then the bought card bubbles into the hand. */
@@ -696,31 +695,52 @@ export class Game {
     this.blast.travelDrop(cardEl.getBoundingClientRect(), target, () => this.relicSystem.addRelic(relic))
   }
 
-  /** Leaving the round-end lull: reclaim any graveyard triples as cards,
-   * then let the waves push again. */
+  /** Leaving the round-end lull: cascade the cosmos into whole cards, then
+   * let the waves push again. */
   private resumeRun(): void {
-    this.reclaimGraveyardTriples()
+    this.cascadeCosmos()
     this.waveSystem.resumeFromCheckpoint()
   }
 
-  /** A fallen ally rises as a gold star and drifts to the graveyard dock. */
+  /** Death-return ladder — every fallen ally gives back 1/3 of its worth, one
+   * step down: raised → shard, 1성 → fragment (both drift to the cosmos as
+   * stars); 2성 → a 1성 card, 3성 → a 2성 card (flown straight back to hand). */
   private handleAllyDeath(e: AllyDeath): void {
     const rect = this.board.getCellRect(e.cellIndex)
-    const from = rect ? centerOf(rect) : this.graveyard.getDropPoint()
-    this.blast.starFly(from, this.graveyard.getDropPoint(), () =>
-      this.graveyardSystem.addStar(e.creatureId, e.label)
+    const from = rect ? centerOf(rect) : this.cosmos.getAnchorPoint()
+    const tier = e.raised ? 0 : e.tier ?? 1
+
+    if (tier <= 1) {
+      const id = `soul-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+      const to = this.cosmos.pointFor(id)
+      this.blast.starFly(from, to, () => {
+        if (tier === 0) this.graveyardSystem.addShard(id, e.creatureId, e.label)
+        else this.graveyardSystem.addFragment(id, e.creatureId, e.label)
+      })
+      return
+    }
+
+    // 2성/3성 return a card one tier down, straight to hand.
+    const returnedTier = tier - 1
+    const target = this.hand.getNextSlotPoint(this.handSystem.getCards().length + 1)
+    this.blast.starFly(from, target, () =>
+      this.handSystem.addCard({
+        id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        label: e.label,
+        creatureId: e.creatureId,
+        tier: returnedTier === 1 ? undefined : returnedTier,
+      })
     )
   }
 
-  /** Round-end recovery: every three same-creature stars fuse back into one
-   * whole card, each flying from the graveyard into the hand. */
-  private reclaimGraveyardTriples(): void {
-    const reclaimed = this.graveyardSystem.combineTriples()
-    reclaimed.forEach((card, i) => {
+  /** Round-end recovery: the cosmos cascades — 3 shards → fragment, 3 fragments
+   * → a whole tier-1 card — and each produced card streaks into the hand. */
+  private cascadeCosmos(): void {
+    const cards = this.graveyardSystem.cascade()
+    cards.forEach((card, i) => {
       window.setTimeout(() => {
-        const from = this.graveyard.getDropPoint()
-        const nextCount = this.handSystem.getCards().length + 1
-        const target = this.hand.getNextSlotPoint(nextCount)
+        const from = this.cosmos.getAnchorPoint()
+        const target = this.hand.getNextSlotPoint(this.handSystem.getCards().length + 1)
         this.blast.starFly(from, target, () =>
           this.handSystem.addCard({
             id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,

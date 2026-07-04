@@ -117,7 +117,7 @@ export class DefenderSystem {
         const i = list.indexOf(ally)
         if (i >= 0) list.splice(i, 1)
         changed = true
-        if (ally.creatureId) this.emitDeath({ creatureId: ally.creatureId, label: ally.label, cellIndex })
+        if (ally.creatureId) this.emitDeath({ creatureId: ally.creatureId, label: ally.label, cellIndex, raised: true })
       }
     }
     this.cells.forEach((list, index) => sweep(list, index))
@@ -177,9 +177,9 @@ export class DefenderSystem {
       if (!ally.raised && ally.creatureId && getCreature(ally.creatureId)?.passiveId === 'rabbit-heal') {
         this.triggerRabbitHeal(cellIndex)
       }
-      // Only captured creatures (not abstract summons) leave a star.
+      // Only captured creatures (not abstract summons) leave a soul.
       if (ally.creatureId) {
-        this.emitDeath({ creatureId: ally.creatureId, label: ally.label, cellIndex })
+        this.emitDeath({ creatureId: ally.creatureId, label: ally.label, cellIndex, tier: ally.tier, raised: ally.raised })
       }
     }
     this.emit()
@@ -336,4 +336,8 @@ export interface AllyDeath {
   creatureId: string
   label: string
   cellIndex: number
+  /** Tier of the fallen ally (1/2/3); undefined for a raised undead. */
+  tier?: number
+  /** True if a hasty undead (급조) fell — it leaves only a shard. */
+  raised?: boolean
 }
