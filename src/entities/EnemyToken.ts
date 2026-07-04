@@ -12,8 +12,11 @@ export interface EnemyToken {
   /** Per-tick damage this enemy deals in a clash / to the player. Defaults to
    * the shared enemy value; a boss hits much harder. */
   attack?: number
-  /** Elite boss token — bigger card, purple glow, stricter capture cut. */
+  /** Elite token (round mini-boss or the final boss) — bigger card, purple
+   * glow, stricter capture cut. */
   isBoss?: boolean
+  /** The single final boss (상어) — defeating/capturing it ends the run. */
+  isFinal?: boolean
   /** Display name override (e.g. "엘리트 해파리"); falls back to the creature label. */
   label?: string
   /** Cell it most recently left, and when — an attack landing on that cell

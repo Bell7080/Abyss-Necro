@@ -178,7 +178,7 @@ export class BoardRenderer {
         el = document.createElement('div')
         el.className = 'board-token board-corpse'
         const creature = c.creatureId ? getCreature(c.creatureId) : undefined
-        const img = creature ? `<img src="${creature.allyArt}" alt="" />` : ''
+        const img = creature?.allyArt ? `<img src="${creature.allyArt}" alt="" />` : ''
         el.innerHTML = `<div class="board-figure board-corpse-figure">${img}</div>`
         const container = c.cellIndex === BOSS_CELL_INDEX ? this.playerCellEl : this.gridEl
         container.appendChild(el)

@@ -2,6 +2,12 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-04 (45) — 크리처 19종 로스터 + 라운드별 엘리트/최종 보스(상어)
+- 신규 16종(플랑크톤·소라게·피라냐·새우·흰동가리·우파루파·문어·해마·복어·불가사리·조개·가리비·오징어·청새치·상어·고래)을 `CreatureDefinitions.SEEDS`에 추가(총 19종). 넓은 로스터 위해 패시브는 3종 와이어드 메카닉(감전/힐/등껍질)에 테마 매핑 + 크리처별 고유 설명.
+- **아트 id 기반 자동 연결**: 기존 `en_001…`/`al_001…` → 크리처 id명(`jellyfish.webp` 등)으로 rename, `import.meta.glob`로 `enemies/<id>.webp`·`allies/<id>.webp` 매핑. 파일 없으면 빌드 안 깨지고 폴백 워터마크(보드/도감 `figureArt` placeholder). 나머지 16종은 webp 넣는 즉시 점등.
+- **엘리트/최종 보스**: 단일 `BOSS_WAVE` → `ELITE_BY_WAVE`(웨이브3 피라냐/6 복어/9 청새치/12 고래/13 상어=최종). `spawnElite`가 def 스탯으로 스폰, `EnemyToken.isFinal` 추가. 1~4라운드 엘리트는 포획/처치해도 런 지속, **상어(isFinal)만 승리 트리거**(`EncounterResult.isFinal`/`captureFrontEnemy.isFinal`). 일반 스폰은 `ROUND_POOLS`로 라운드별 풀(얕은 바다→심연)에서 추첨.
+- 검증: type-check/build 통과, 1920×1080에서 라운드1 풀 스폰(새우)·도감 19슬라이드·아트 대기 크리처 폴백 워터마크 확인, 임시 상어(wave1) 처치 → 승리 발동 확인.
+
 ## 2026-07-04 (44) — 1차 엔딩(승리 조건) + 보스 5라운드 배치
 - 런을 **5라운드 구조**로 확정: 1~4라운드 체크포인트 리워드 뒤 **5라운드 첫 웨이브(`BOSS_WAVE` 6→13)**에 보스 등장. 보스 스탯을 엘리트보다 강화(체60→100, 공3→4).
 - **승리 조건**: 보스 처치 또는 포획 시 1차 엔딩. `EncounterResult.isBoss` 추가(처치 경로), `captureFrontEnemy`가 `{creatureId, isBoss}` 반환(포획 경로) → `Game.handleVictory(captured)`가 `runWon` 래치로 한 번만 발동, `tickManager.stop()`+`waveSystem.halt()`로 월드 정지 후 700ms 뒤 오버레이. 패배는 기존 디펜스 실패(HP 0) 그대로.

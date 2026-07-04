@@ -2,7 +2,6 @@ import type { TickManager } from '@core/TickManager'
 import type { EnemyToken } from '@entities/EnemyToken'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import type { PassiveEvent } from '@systems/PassiveEvent'
-import { randomCreature } from '@data/CreatureDefinitions'
 
 const ROWS = 3 // lanes — enemies march straight down their own lane
 const COLS = 4 // lane depth — cells an enemy crosses before the boss room
@@ -12,18 +11,37 @@ const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss r
 const ENEMY_BASE_HP = 8
 const ENEMY_HP_PER_WAVE = 2
 const ENEMY_ATTACK_DAMAGE = 1
-// The climax: the run is a bounded 5 rounds (3 waves each). Rounds 1–4 each end
-// in a checkpoint reward (shop/relic); the 5th round opens with the boss —
-// wave 13 (= round 5, wave 1). Defeating OR capturing it closes the 1st ending.
-// A single elite jellyfish, a touch stronger than the mid-run elite, the whole
-// run's capture loop pointed at one target. Uses the jellyfish art at boss scale.
-const BOSS_WAVE = 13
-const BOSS_CREATURE_ID = 'jellyfish'
-const BOSS_LABEL = '엘리트 해파리'
-const BOSS_HP = 100
-const BOSS_ATTACK = 4
-// Capture ("넌 내꺼야!") cuts: an ordinary enemy is claimable at ≤25% hp, a
-// boss only at ≤10% — the harder execute that makes sacrificing it a payoff.
+// The run is a bounded 5 rounds (3 waves each). Rounds 1–4 each end in a
+// checkpoint reward (shop/relic); every round is capped by an elite mini-boss,
+// and round 5 opens on the final boss (상어). Elites spawn at a fixed wave; the
+// final one (isFinal) closes the 1st ending when slain/captured, the others are
+// just tough, capturable mini-bosses that keep the run going.
+interface EliteSpawn {
+  id: string
+  label: string
+  hp: number
+  attack: number
+  isFinal?: boolean
+}
+const ELITE_BY_WAVE: Record<number, EliteSpawn> = {
+  3: { id: 'piranha', label: '굶주린 피라냐', hp: 40, attack: 3 },
+  6: { id: 'pufferfish', label: '부푼 복어', hp: 60, attack: 3 },
+  9: { id: 'marlin', label: '질주하는 청새치', hp: 80, attack: 4 },
+  12: { id: 'whale', label: '심연의 고래', hp: 130, attack: 3 },
+  13: { id: 'shark', label: '심연의 지배자', hp: 110, attack: 5, isFinal: true },
+}
+// Round-scoped normal spawn pools (0-based round = floor((wave-1)/3), clamped),
+// so the tide reads as descending from a cute shallows into the deep. Ids must
+// match CreatureDefinitions.
+const ROUND_POOLS: string[][] = [
+  ['plankton', 'shrimp', 'clownfish', 'jellyfish'],
+  ['hermit-crab', 'clam', 'scallop', 'starfish'],
+  ['sea-rabbit', 'axolotl', 'seahorse', 'clownfish'],
+  ['crab', 'octopus', 'squid'],
+  ['octopus', 'squid', 'jellyfish'],
+]
+// Capture ("넌 내꺼야!") cuts: an ordinary enemy is claimable at ≤25% hp, an
+// elite only at ≤10% — the harder execute that makes sacrificing it a payoff.
 const CAPTURE_THRESHOLD = 0.25
 const BOSS_CAPTURE_THRESHOLD = 0.1
 // Fallback only, used if DefenderHooks isn't wired — DefenderSystem's own
@@ -61,8 +79,8 @@ export interface EncounterResult {
   /** Always true — every kill drops exactly one coin. */
   dropCoin: boolean
   viaBossRoom: boolean
-  /** The slain enemy was the climax boss — Game ends the run in victory. */
-  isBoss: boolean
+  /** The slain enemy was the final boss — Game ends the run in victory. */
+  isFinal: boolean
 }
 
 export interface DamageResult {
@@ -313,14 +331,14 @@ export class WaveSystem {
   /** Capture the front enemy of a cell if it's at/below its capture cut — it's
    * claimed whole (no corpse, no coin) and its creatureId returned so Game can
    * hand over a guaranteed card. Returns null if not capturable. */
-  captureFrontEnemy(cellIndex: number): { creatureId: string; isBoss: boolean } | null {
+  captureFrontEnemy(cellIndex: number): { creatureId: string; isFinal: boolean } | null {
     const list = this.listFor(cellIndex)
     const enemy = list[0]
     if (!enemy || enemy.hp / enemy.maxHp > this.captureThreshold(enemy)) return null
     list.shift()
     this.emitChange()
     this.triggerInstantPushIfClear()
-    return { creatureId: enemy.creatureId, isBoss: !!enemy.isBoss }
+    return { creatureId: enemy.creatureId, isFinal: !!enemy.isFinal }
   }
 
   /** The clicked cell is empty — find the most recent enemy to have left it
@@ -377,7 +395,7 @@ export class WaveSystem {
         outcome,
         dropCoin: true,
         viaBossRoom,
-        isBoss: !!enemy.isBoss,
+        isFinal: !!enemy.isFinal,
       })
       this.triggerInstantPushIfClear()
       return { cellIndex, amount: total, defeated: true }
@@ -582,8 +600,10 @@ export class WaveSystem {
     // Previous wave's arrivals have long fired — drop the stale ids.
     this.spawnTimeoutIds = []
     const wave = this.waveNumber
-    // The climax wave leads with the elite boss, its escort trickling in after.
-    if (wave === BOSS_WAVE) this.spawnBoss()
+    // A round-capping elite (or the final boss) leads its wave; escorts trickle
+    // in after.
+    const elite = ELITE_BY_WAVE[wave]
+    if (elite) this.spawnElite(elite)
     const count = this.enemyCountForWave(wave)
     const startLane = Math.floor(Math.random() * ROWS)
     const hp = this.enemyHpForWave(wave)
@@ -594,7 +614,7 @@ export class WaveSystem {
       const spawn = (): void => {
         this.cells[lane * COLS + ENTRY_COL].push({
           id: `enemy-${wave}-${i}`,
-          creatureId: randomCreature().id,
+          creatureId: this.pickPoolCreature(wave),
           row: lane,
           col: ENTRY_COL,
           hp,
@@ -614,20 +634,28 @@ export class WaveSystem {
     }
   }
 
-  /** The elite boss enters in the middle lane at the entry column, marching the
-   * same path as any enemy — just far tougher and hard-hitting. */
-  private spawnBoss(): void {
+  /** A random creature id from the current round's spawn pool. */
+  private pickPoolCreature(wave: number): string {
+    const round = Math.min(ROUND_POOLS.length - 1, Math.max(0, Math.floor((wave - 1) / WAVES_PER_CHECKPOINT)))
+    const pool = ROUND_POOLS[round]
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+
+  /** An elite enters in the middle lane at the entry column, marching the same
+   * path as any enemy — just far tougher and hard-hitting. */
+  private spawnElite(def: EliteSpawn): void {
     const lane = Math.floor(ROWS / 2)
     this.cells[lane * COLS + ENTRY_COL].push({
-      id: `boss-${this.waveNumber}`,
-      creatureId: BOSS_CREATURE_ID,
-      label: BOSS_LABEL,
+      id: `elite-${this.waveNumber}`,
+      creatureId: def.id,
+      label: def.label,
       row: lane,
       col: ENTRY_COL,
-      hp: BOSS_HP,
-      maxHp: BOSS_HP,
-      attack: BOSS_ATTACK,
+      hp: def.hp,
+      maxHp: def.hp,
+      attack: def.attack,
       isBoss: true,
+      isFinal: def.isFinal,
       guaranteedCard: true,
     })
     this.emitChange()

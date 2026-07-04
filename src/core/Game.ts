@@ -443,8 +443,8 @@ export class Game {
           creatureId: captured.creatureId,
         })
       )
-      // Claiming the climax boss is the sacral 1st ending.
-      if (captured.isBoss) this.handleVictory()
+      // Claiming the final boss is the sacral 1st ending.
+      if (captured.isFinal) this.handleVictory()
     }
     this.disarmSkill()
   }
@@ -578,8 +578,8 @@ export class Game {
       })
     }
 
-    // Slaying the climax boss closes the 1st ending.
-    if (result.isBoss) this.handleVictory()
+    // Slaying the final boss closes the 1st ending.
+    if (result.isFinal) this.handleVictory()
   }
 
   /** The climax boss fell or was claimed — freeze the world and, after a beat

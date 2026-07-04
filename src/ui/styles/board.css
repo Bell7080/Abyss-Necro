@@ -3077,6 +3077,20 @@ body {
     drop-shadow(0 0 26px var(--codex-glow, rgba(120, 160, 255, 0.3)));
 }
 
+/* Shown until a creature's webp lands — a faint flat watermark. */
+.codex-figure-art--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 40%, rgba(44, 64, 116, 0.5), rgba(8, 12, 26, 0.9) 78%);
+  color: rgba(150, 190, 255, 0.42);
+}
+
+.codex-figure-art--placeholder svg {
+  width: 44%;
+  height: 44%;
+}
+
 /* Bottom scrim so overlaid text stays legible over any illustration. Follows
    the same feathered side edges as the art. */
 .codex-figure-scrim {

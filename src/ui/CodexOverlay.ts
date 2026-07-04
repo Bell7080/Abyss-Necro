@@ -68,7 +68,7 @@ export class CodexOverlay {
       <section class="codex-page">
         <div class="codex-pair">
           <article class="codex-figure codex-figure--before">
-            <img class="codex-figure-art" src="${c.enemyArt}" alt="${c.label}" />
+            ${figureArt(c.enemyArt, c.label)}
             <div class="codex-figure-scrim" aria-hidden="true"></div>
             <div class="codex-figure-info">
               <span class="codex-figure-tag codex-figure-tag--before">적</span>
@@ -82,7 +82,7 @@ export class CodexOverlay {
             <span class="codex-transform-word">사령</span>
           </div>
           <article class="codex-figure codex-figure--after">
-            <img class="codex-figure-art" src="${c.allyArt}" alt="${c.label} (사령)" />
+            ${figureArt(c.allyArt, `${c.label} (사령)`)}
             <div class="codex-figure-scrim" aria-hidden="true"></div>
             <div class="codex-figure-info">
               <span class="codex-figure-tag codex-figure-tag--after">사령</span>
@@ -150,6 +150,12 @@ export class CodexOverlay {
   private close(): void {
     this.overlay.classList.remove('is-visible')
   }
+}
+
+/** The full illustration, or a flat watermark placeholder until the art lands. */
+function figureArt(url: string | undefined, alt: string): string {
+  if (url) return `<img class="codex-figure-art" src="${url}" alt="${alt}" />`
+  return `<div class="codex-figure-art codex-figure-art--placeholder" role="img" aria-label="${alt}">${Icons.enemyToken()}</div>`
 }
 
 /** Two stat chips (공격 / 체력) — the shared codex stat readout. */
