@@ -2,8 +2,11 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-04 (42) — 도감 슬라이드 뷰어(한 몹씩)
+- 도감을 스크롤 리스트 → **크리처 1종당 한 슬라이드** 뷰어로 재구성. 큰 풀 일러스트(3:4)를 적(좌)→사령→아군(우) 좌우 대비로 크게 늘리고, 각 형태에 공격/체력 스탯 칩 추가(적 공1/체8, 아군 1성 `tierStats(1)` 4/7·꽃게 껍질 +4). 하단 위/아래 셰브런 + `n / N` 카운터 + `scroll-snap-type: y mandatory`로 한 몹씩 넘긴다("내리면 다음 몹"). `Icons.chevronDown` 추가.
+
 ## 2026-07-04 (41) — 도감 + 엘리트 보스 + 4열 레인 확장
-- **도감(`CodexOverlay`)**: Unmelting `compendium-btn` 런처/hover 이식(우측 상단 책 아이콘, hover 시 발광·라벨 페이드). 클릭 시 반투명 짙은 청색 창이 떠오르며 `CREATURES` 전종을 **적(before) 일러스트+설명 → 사령 → 사령된 아군(after) 일러스트+패시브** 한 행으로 비교(냉기 청색 링→온기 보라/오렌지 링). `CreatureDefinition.enemyDesc` 추가. 표시 전용, 상태 변경 없음. `Icons.book`/`closeMark`/`necroArrow` 추가.
+- **도감(`CodexOverlay`)**: Unmelting `compendium-btn` 런처/hover 이식(우측 상단 책 아이콘, hover 시 발광·라벨 페이드). 클릭 시 반투명 짙은 청색 창. `CreatureDefinition.enemyDesc` 추가. 표시 전용, 상태 변경 없음. `Icons.book`/`closeMark`/`necroArrow` 추가. (표시 형식은 (42)에서 슬라이드 뷰어로 개편)
 - **엘리트 보스**: `BOSS_WAVE`(6) 시작 시 중앙 레인에 **엘리트 해파리**(체60·공3, 해파리 아트) 한 마리를 함께 스폰(`WaveSystem.spawnBoss`). `EnemyToken`에 `attack`/`isBoss`/`label` 추가 — 적 공격이 개별화돼 클래시·플레이어 피격에 반영. 보드에선 `board-token.is-boss`로 카드가 더 크고 보라 오라가 숨쉰다. 포획 임계를 셀 기준→적(`isBoss`) 기준으로 리팩터(보스 ≤10%/일반 ≤25%, `WaveSystem.captureThreshold`), `isCapturable`/`captureFrontEnemy` 시그니처에서 threshold 인자 제거. 처치·포획 모두 사령 카드 확정.
 - **4열 레인 확장**: 그리드를 3×3 → **4열×3행**(가로 4칸 깊이, 3레인)으로. `WaveSystem`/`DefenderSystem` `ROWS/COLS`, `BoardRenderer` `GRID_ROWS/GRID_COLS` 동기화, 칸 280→210px 축소로 1920×1080에 맞춤. `constellationSvg`를 정사각 가정 제거하고 임의 행×열로 일반화. `.board-layout`/`.board-grid` 템플릿·`.board-token`/`.board-cell` 크기 갱신.
 - 검증: type-check/build 통과, 1920×1080 Playwright로 4열 보드·엘리트 보스(임시 wave1)·도감 비포/애프터 확인.

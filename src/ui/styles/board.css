@@ -2754,8 +2754,8 @@ body {
 }
 
 .codex-modal {
-  width: min(880px, 94vw);
-  max-height: 86vh;
+  width: min(1120px, 95vw);
+  height: 88vh;
   display: flex;
   flex-direction: column;
   border-radius: 26px;
@@ -2828,129 +2828,248 @@ body {
   transform: scale(1.06);
 }
 
+/* Slide viewport: one creature-page fills the view; scroll-snaps between them
+   so a wheel/drag lands cleanly on the next 몹, same as the nav buttons. */
 .codex-body {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 20px 24px 26px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
 }
 
-/* One creature = one before → after row. */
-.codex-entry {
+.codex-body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Each creature owns a full slide. */
+.codex-page {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 40px;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* before (left) → 사령 → after (right) — the current format, stretched taller
+   and larger with full illustrations. */
+.codex-pair {
+  width: 100%;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
+  gap: 28px;
+}
+
+.codex-figure {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 18px;
-  padding: 16px;
-  border-radius: 20px;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 24px;
   background: rgba(8, 12, 28, 0.5);
   box-shadow: inset 0 0 0 1px rgba(150, 205, 255, 0.12);
 }
 
-.codex-side {
-  display: grid;
-  grid-template-columns: 128px 1fr;
-  grid-template-rows: auto auto auto;
-  column-gap: 16px;
-  align-items: center;
-}
-
-.codex-art {
-  grid-row: 1 / -1;
-  width: 128px;
-  height: 128px;
-  border-radius: 16px;
+/* Full illustration panel — big and portrait, showing the whole card art. */
+.codex-figure-art {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 3 / 4;
+  border-radius: 18px;
   overflow: hidden;
   box-shadow:
     inset 0 0 0 1px var(--codex-ring, rgba(150, 205, 255, 0.3)),
-    0 10px 22px rgba(0, 0, 0, 0.55),
-    0 0 24px var(--codex-glow, rgba(120, 160, 255, 0.3));
+    0 16px 30px rgba(0, 0, 0, 0.6),
+    0 0 30px var(--codex-glow, rgba(120, 160, 255, 0.32));
 }
 
-.codex-art img {
+.codex-figure-art img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 22%;
+  object-position: center 20%;
 }
 
-.codex-side-tag {
-  align-self: end;
-  justify-self: start;
-  padding: 2px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-}
-
-/* Cold(before) → warm(after) color split per the concept's 냉기→온기 read. */
-.codex-side--before {
-  --codex-ring: rgba(96, 130, 210, 0.5);
-  --codex-glow: rgba(60, 90, 190, 0.4);
-}
-
-.codex-side-tag--before {
-  color: #bcd2ff;
-  background: rgba(60, 84, 160, 0.5);
-}
-
-.codex-side--after {
-  --codex-ring: rgba(255, 190, 130, 0.5);
-  --codex-glow: rgba(190, 120, 255, 0.4);
-}
-
-.codex-side-tag--after {
-  color: #ffe0c0;
-  background: rgba(150, 90, 60, 0.5);
-}
-
-.codex-side-name {
-  justify-self: start;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  color: #eaf1ff;
-}
-
-.codex-side-desc {
-  grid-column: 2;
-  margin: 4px 0 0;
-  font-size: 12.5px;
-  line-height: 1.55;
-  color: rgba(206, 218, 250, 0.86);
-}
-
-.codex-arrow {
+.codex-figure-info {
+  width: 100%;
+  max-width: 340px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  /* Gradient sweep cold → warm to echo the sacral transformation. */
-  color: rgba(190, 170, 255, 0.9);
+  gap: 10px;
+  text-align: center;
 }
 
-.codex-arrow-icon {
-  display: inline-flex;
-  filter: drop-shadow(0 0 8px rgba(180, 140, 255, 0.6));
-}
-
-.codex-arrow-word {
+.codex-figure-tag {
+  padding: 3px 14px;
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.12em;
-  color: rgba(220, 200, 255, 0.92);
-  text-shadow: 0 0 10px rgba(180, 140, 255, 0.55);
+  letter-spacing: 0.14em;
 }
 
-@media (max-width: 640px) {
-  .codex-entry {
+/* Cold(before) → warm(after) color split per the concept's 냉기→온기 read. */
+.codex-figure--before {
+  --codex-ring: rgba(96, 130, 210, 0.55);
+  --codex-glow: rgba(60, 90, 190, 0.42);
+}
+
+.codex-figure-tag--before {
+  color: #bcd2ff;
+  background: rgba(60, 84, 160, 0.55);
+}
+
+.codex-figure--after {
+  --codex-ring: rgba(255, 190, 130, 0.55);
+  --codex-glow: rgba(190, 120, 255, 0.42);
+}
+
+.codex-figure-tag--after {
+  color: #ffe0c0;
+  background: rgba(150, 90, 60, 0.55);
+}
+
+.codex-figure-name {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #eaf1ff;
+  text-shadow: 0 0 16px rgba(140, 190, 255, 0.4);
+}
+
+/* Stat chips: 공격 / 체력 readouts. */
+.codex-stats {
+  display: flex;
+  gap: 10px;
+}
+
+.codex-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: rgba(4, 8, 22, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(150, 205, 255, 0.2);
+}
+
+.codex-stat-key {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: rgba(180, 205, 255, 0.72);
+}
+
+.codex-stat-val {
+  font-size: 17px;
+  font-weight: 800;
+  color: #eaf1ff;
+}
+
+.codex-figure-desc {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: rgba(206, 218, 250, 0.88);
+}
+
+/* Center transform column — the cold→warm 사령 sweep between the two forms. */
+.codex-transform {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: rgba(200, 175, 255, 0.95);
+}
+
+.codex-transform-icon {
+  display: inline-flex;
+  transform: scale(1.5);
+  filter: drop-shadow(0 0 10px rgba(180, 140, 255, 0.7));
+}
+
+.codex-transform-word {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: rgba(224, 204, 255, 0.95);
+  text-shadow: 0 0 12px rgba(180, 140, 255, 0.6);
+}
+
+/* Bottom nav — 내리면 다음 몹. Up/down chevrons flanking a slide counter. */
+.codex-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 14px 24px 20px;
+  border-top: 1px solid rgba(150, 205, 255, 0.16);
+}
+
+.codex-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(12, 18, 38, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(150, 205, 255, 0.24);
+  color: var(--abyss-lavender-bright);
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.codex-nav-btn:hover:not(:disabled) {
+  background: rgba(46, 34, 84, 0.8);
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 0 0 1px rgba(210, 180, 255, 0.5),
+    0 0 20px rgba(150, 120, 255, 0.4);
+}
+
+.codex-nav-btn:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+/* Up chevron = the down glyph flipped. */
+.codex-nav-up {
+  transform: rotate(180deg);
+}
+
+.codex-nav-up:hover:not(:disabled) {
+  transform: rotate(180deg) translateY(2px);
+}
+
+.codex-nav-counter {
+  min-width: 58px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: rgba(206, 218, 250, 0.9);
+}
+
+@media (max-width: 720px) {
+  .codex-pair {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 14px;
   }
-  .codex-arrow {
+  .codex-transform {
     flex-direction: row;
-    gap: 8px;
+    gap: 10px;
+  }
+  .codex-figure-art {
+    max-width: 220px;
   }
 }

@@ -63,6 +63,12 @@ export const Icons = {
       <path d="M12 6.6v12" stroke="#0a0716" stroke-width="1" stroke-linecap="round"/>
     </svg>`
   },
+  /** Down chevron — codex "다음 몹" slide navigation (rotate via CSS for up). */
+  chevronDown(): string {
+    return `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5 8.5 12 15.5 19 8.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`
+  },
   /** Close X for overlays. */
   closeMark(): string {
     return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
