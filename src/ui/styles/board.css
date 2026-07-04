@@ -2245,12 +2245,16 @@ body {
    necromancer stands. Basic is the resting default; raise/capture light
    amber when armed. */
 /* No backdrop panel — the hexes + gauge hug the left flank of the player card
-   directly, vertically centered on it (card spans ~y233–524 at 1080p). */
+   directly, vertically centered on it (card spans ~y233–524 at 1080p). The
+   whole cluster leans on the SAME plane as the board figures: net ~-15° tilt
+   (top toward viewer) + scaleY stretch, so it sits coplanar with the card
+   rather than reading as a flat 2D overlay. */
 .skill-hive {
   position: absolute;
   left: 158px;
   top: 35%;
-  transform: translateY(-50%);
+  transform: perspective(1300px) translateY(-50%) rotateX(-15deg) scaleY(1.14);
+  transform-style: preserve-3d;
   display: flex;
   align-items: center;
   gap: 9px;
