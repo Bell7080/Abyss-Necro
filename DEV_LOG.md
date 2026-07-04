@@ -2,6 +2,12 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-04 (44) — 1차 엔딩(승리 조건) + 보스 5라운드 배치
+- 런을 **5라운드 구조**로 확정: 1~4라운드 체크포인트 리워드 뒤 **5라운드 첫 웨이브(`BOSS_WAVE` 6→13)**에 보스 등장. 보스 스탯을 엘리트보다 강화(체60→100, 공3→4).
+- **승리 조건**: 보스 처치 또는 포획 시 1차 엔딩. `EncounterResult.isBoss` 추가(처치 경로), `captureFrontEnemy`가 `{creatureId, isBoss}` 반환(포획 경로) → `Game.handleVictory(captured)`가 `runWon` 래치로 한 번만 발동, `tickManager.stop()`+`waveSystem.halt()`로 월드 정지 후 700ms 뒤 오버레이. 패배는 기존 디펜스 실패(HP 0) 그대로.
+- **`VictoryOverlay`**: `DefeatOverlay` 구조 미러링(보라-금 새벽 톤 veil + 타이틀 "심연을 다스리다" + 처치/사령 분기 서브 + 다시 도전하기=리로드).
+- 검증: 임시 저체력 보스(wave1)로 기본공격 처치 → 승리 오버레이 실발동 확인, 포획 경로/오버레이 비주얼 1920×1080 확인. type-check/build 통과.
+
 ## 2026-07-04 (43) — 별빛 패널 라인 리디자인 + Unmelting 슬롯팝 이식
 - 좌상단 별빛(`CoinPanel`)을 Unmelting 불빛 패널(`score-panel-total`/로그 로우) 참고로 정리: 처음엔 헤어라인 링+좌측 액센트+디바이더의 라인 프레임으로 갔다가, 뒤판이 못생겨서 **뒤판 완전 제거** → 배경 투명 + 위·아래 두 발광 라인(`::before`/`::after`, 양끝 페이드 청록 그라디언트 + 글로우)만으로 경계. 크기 한 단계 확대(숫자 30→40px).
 - 획득 애니메이션을 패널 전체 상승 → **숫자 슬롯팝**으로 교체(Unmelting `score-slot-pop` 이식: `scale(1.16,0.88)`→`scale(0.95,1.08)` 스쿼시-스트레치 + brightness/saturate 플래시). 반짝이도 한 줄 → **좌우 대각 2줄**(`coin-sparks` 우상 + `coin-sparks-mirror` 좌하, 회전 포함)로 확장. `CoinPanel.pulse()` JS는 그대로(`is-gain` 토글).

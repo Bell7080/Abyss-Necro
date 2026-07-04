@@ -12,6 +12,7 @@ import { RelicInventory } from '@ui/RelicInventory'
 import { RewardOverlay } from '@ui/RewardOverlay'
 import { ShopOverlay, type ShopOffer } from '@ui/ShopOverlay'
 import { SkillHive } from '@ui/SkillHive'
+import { VictoryOverlay } from '@ui/VictoryOverlay'
 import { WaveHud } from '@ui/WaveHud'
 import { BlastManager } from '@ui/effects/BlastManager'
 import { BubbleBolt } from '@ui/effects/BubbleBolt'
@@ -69,6 +70,10 @@ export class Game {
   private readonly rewardOverlay: RewardOverlay
   private readonly shopOverlay: ShopOverlay
   private readonly defeatOverlay: DefeatOverlay
+  private readonly victoryOverlay: VictoryOverlay
+  // Latches once the climax boss falls/gets captured so the 1st-ending veil
+  // fires exactly once.
+  private runWon = false
   // Epic permanent upgrade to the player's basic attack.
   private basicDamageBonus = 0
   private readonly inspector: CardInspector
@@ -139,6 +144,7 @@ export class Game {
     new AbyssAmbience(shell)
     new CodexOverlay(shell)
     this.defeatOverlay = new DefeatOverlay(shell)
+    this.victoryOverlay = new VictoryOverlay(shell)
     new IntroOverlay(shell, () => this.startRun())
 
     this.waveSystem.onChange(() => {
@@ -437,6 +443,8 @@ export class Game {
           creatureId: captured.creatureId,
         })
       )
+      // Claiming the climax boss is the sacral 1st ending.
+      if (captured.isBoss) this.handleVictory(true)
     }
     this.disarmSkill()
   }
@@ -569,6 +577,20 @@ export class Game {
         this.coins.pulse()
       })
     }
+
+    // Slaying the climax boss closes the 1st ending.
+    if (result.isBoss) this.handleVictory(false)
+  }
+
+  /** The climax boss fell or was claimed — freeze the world and, after a beat
+   * so the finishing blow/capture reads, raise the 1st-ending veil. Fires once. */
+  private handleVictory(captured: boolean): void {
+    if (this.runWon) return
+    this.runWon = true
+    this.tickManager.stop()
+    this.waveSystem.halt()
+    this.disarmSkill()
+    window.setTimeout(() => this.victoryOverlay.show(captured), 700)
   }
 
   /** The central 합성 button was pressed — run whichever merge is primed. */

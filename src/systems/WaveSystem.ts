@@ -12,14 +12,16 @@ const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss r
 const ENEMY_BASE_HP = 8
 const ENEMY_HP_PER_WAVE = 2
 const ENEMY_ATTACK_DAMAGE = 1
-// The climax: the final wave always opens with a single elite boss — an
-// oversized jellyfish that hits far harder and soaks far more, the whole run's
-// capture loop pointed at one target. Uses the jellyfish art at boss scale.
-const BOSS_WAVE = 6
+// The climax: the run is a bounded 5 rounds (3 waves each). Rounds 1–4 each end
+// in a checkpoint reward (shop/relic); the 5th round opens with the boss —
+// wave 13 (= round 5, wave 1). Defeating OR capturing it closes the 1st ending.
+// A single elite jellyfish, a touch stronger than the mid-run elite, the whole
+// run's capture loop pointed at one target. Uses the jellyfish art at boss scale.
+const BOSS_WAVE = 13
 const BOSS_CREATURE_ID = 'jellyfish'
 const BOSS_LABEL = '엘리트 해파리'
-const BOSS_HP = 60
-const BOSS_ATTACK = 3
+const BOSS_HP = 100
+const BOSS_ATTACK = 4
 // Capture ("넌 내꺼야!") cuts: an ordinary enemy is claimable at ≤25% hp, a
 // boss only at ≤10% — the harder execute that makes sacrificing it a payoff.
 const CAPTURE_THRESHOLD = 0.25
@@ -59,6 +61,8 @@ export interface EncounterResult {
   /** Always true — every kill drops exactly one coin. */
   dropCoin: boolean
   viaBossRoom: boolean
+  /** The slain enemy was the climax boss — Game ends the run in victory. */
+  isBoss: boolean
 }
 
 export interface DamageResult {
@@ -309,14 +313,14 @@ export class WaveSystem {
   /** Capture the front enemy of a cell if it's at/below its capture cut — it's
    * claimed whole (no corpse, no coin) and its creatureId returned so Game can
    * hand over a guaranteed card. Returns null if not capturable. */
-  captureFrontEnemy(cellIndex: number): { creatureId: string } | null {
+  captureFrontEnemy(cellIndex: number): { creatureId: string; isBoss: boolean } | null {
     const list = this.listFor(cellIndex)
     const enemy = list[0]
     if (!enemy || enemy.hp / enemy.maxHp > this.captureThreshold(enemy)) return null
     list.shift()
     this.emitChange()
     this.triggerInstantPushIfClear()
-    return { creatureId: enemy.creatureId }
+    return { creatureId: enemy.creatureId, isBoss: !!enemy.isBoss }
   }
 
   /** The clicked cell is empty — find the most recent enemy to have left it
@@ -367,7 +371,14 @@ export class WaveSystem {
       const outcome: 'card' | 'corpse' =
         enemy.guaranteedCard || Math.random() < CARD_DROP_CHANCE ? 'card' : 'corpse'
       this.emitChange()
-      this.emitEncounter({ cellIndex, creatureId: enemy.creatureId, outcome, dropCoin: true, viaBossRoom })
+      this.emitEncounter({
+        cellIndex,
+        creatureId: enemy.creatureId,
+        outcome,
+        dropCoin: true,
+        viaBossRoom,
+        isBoss: !!enemy.isBoss,
+      })
       this.triggerInstantPushIfClear()
       return { cellIndex, amount: total, defeated: true }
     }
