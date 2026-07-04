@@ -2,14 +2,14 @@ import type { TickManager } from '@core/TickManager'
 import type { EnemyToken } from '@entities/EnemyToken'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import type { PassiveEvent } from '@systems/PassiveEvent'
+import { getCreature } from '@data/CreatureDefinitions'
+import { enemyStatsForLevel } from '@data/Tiers'
 
 const ROWS = 3 // lanes — enemies march straight down their own lane
 const COLS = 4 // lane depth — cells an enemy crosses before the boss room
 const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss room
-// Wave-1 enemy hp; each later wave adds ENEMY_HP_PER_WAVE so the ally tier
-// ladder (1성 7 → 3성 88) stays meaningful as the tide toughens.
-const ENEMY_BASE_HP = 8
-const ENEMY_HP_PER_WAVE = 2
+// Fallback per-tick enemy attack, only if a token carries none (all spawned
+// enemies now carry their creature-level attack).
 const ENEMY_ATTACK_DAMAGE = 1
 // The run is a bounded 5 rounds (3 waves each). Rounds 1–4 each end in a
 // checkpoint reward (shop/relic); every round is capped by an elite mini-boss,
@@ -30,16 +30,31 @@ const ELITE_BY_WAVE: Record<number, EliteSpawn> = {
   12: { id: 'whale', label: '심연의 고래', hp: 130, attack: 3 },
   13: { id: 'shark', label: '심연의 지배자', hp: 110, attack: 5, isFinal: true },
 }
-// Round-scoped normal spawn pools (0-based round = floor((wave-1)/3), clamped),
-// so the tide reads as descending from a cute shallows into the deep. Ids must
-// match CreatureDefinitions.
-const ROUND_POOLS: string[][] = [
-  ['plankton', 'shrimp', 'clownfish', 'jellyfish'],
-  ['hermit-crab', 'clam', 'scallop', 'starfish'],
-  ['sea-rabbit', 'axolotl', 'seahorse', 'clownfish'],
-  ['crab', 'octopus', 'squid'],
-  ['octopus', 'squid', 'jellyfish'],
-]
+// Curated per-wave spawn schedule (id → count), separate from the elites above.
+// The tide climbs by introducing creatures in strict ascending level order —
+// a new creature debuts as a lone "preview" one wave, then becomes the bulk the
+// next — so each wave is a clear power step (no similar-spec mobs mixed) and the
+// difficulty escalates sharply as higher-level creatures take over. Enemy stats
+// come from the creature's level (enemyStatsForLevel), not the wave. Waves past
+// the table reuse the last entry (the run has normally ended at the boss).
+const WAVE_SPAWNS: Record<number, Array<[string, number]>> = {
+  1: [['jellyfish', 1]],
+  2: [['jellyfish', 2], ['sea-rabbit', 1]],
+  3: [['sea-rabbit', 1], ['clownfish', 1]], // + 피라냐
+  4: [['clownfish', 2], ['shrimp', 1]],
+  5: [['shrimp', 2], ['plankton', 1]],
+  6: [['plankton', 1], ['starfish', 1]], // + 복어
+  7: [['hermit-crab', 2], ['clam', 1]],
+  8: [['clam', 2], ['scallop', 1]],
+  9: [['scallop', 1], ['axolotl', 1]], // + 청새치
+  10: [['axolotl', 2], ['seahorse', 1]],
+  11: [['seahorse', 2], ['crab', 1]],
+  12: [['crab', 1], ['octopus', 1]], // + 고래
+  13: [['octopus', 1]], // + 상어(최종)
+  14: [['squid', 2]],
+  15: [['squid', 3]],
+}
+const LAST_SCHEDULED_WAVE = 15
 // Capture ("넌 내꺼야!") cuts: an ordinary enemy is claimable at ≤25% hp, an
 // elite only at ≤10% — the harder execute that makes sacrificing it a payoff.
 const CAPTURE_THRESHOLD = 0.25
@@ -578,24 +593,20 @@ export class WaveSystem {
     this.spawnWaveStaggered()
   }
 
-  /** Early-level curve: wave 1 stays a single enemy (necro pity) so the
-   * capture loop can be learned in peace; later waves fill lanes to keep the
-   * tide bearing down. */
-  private enemyCountForWave(wave: number): number {
-    if (wave <= 1) return 1
-    if (wave === 2) return 2
-    if (wave <= 5) return 3
-    return 4
-  }
-
-  private enemyHpForWave(wave: number): number {
-    return ENEMY_BASE_HP + Math.max(0, wave - 1) * ENEMY_HP_PER_WAVE
+  /** The wave's roster (creature ids, counts expanded) from the schedule. */
+  private waveRoster(wave: number): string[] {
+    const entries = WAVE_SPAWNS[Math.min(wave, LAST_SCHEDULED_WAVE)] ?? []
+    const ids: string[] = []
+    for (const [id, count] of entries) for (let n = 0; n < count; n += 1) ids.push(id)
+    return ids
   }
 
   /** The wave's enemies trickle in one by one with random gaps rather than
    * sliding in as a synchronized block. They're spread across lanes (rows)
    * from a random starting lane so a wave pressures several lanes at once —
-   * a rising tide. Pending arrivals are tracked so halt() can cancel them. */
+   * a rising tide. Each enemy's stats come from its creature level, so a wave
+   * introducing a higher-level creature is a real difficulty jump. Pending
+   * arrivals are tracked so halt() can cancel them. */
   private spawnWaveStaggered(): void {
     // Previous wave's arrivals have long fired — drop the stale ids.
     this.spawnTimeoutIds = []
@@ -604,21 +615,22 @@ export class WaveSystem {
     // in after.
     const elite = ELITE_BY_WAVE[wave]
     if (elite) this.spawnElite(elite)
-    const count = this.enemyCountForWave(wave)
+    const roster = this.waveRoster(wave)
     const startLane = Math.floor(Math.random() * ROWS)
-    const hp = this.enemyHpForWave(wave)
     let delay = 0
 
-    for (let i = 0; i < count; i += 1) {
+    roster.forEach((creatureId, i) => {
       const lane = (startLane + i) % ROWS
       const spawn = (): void => {
+        const stats = enemyStatsForLevel(getCreature(creatureId)?.level ?? 1)
         this.cells[lane * COLS + ENTRY_COL].push({
           id: `enemy-${wave}-${i}`,
-          creatureId: this.pickPoolCreature(wave),
+          creatureId,
           row: lane,
           col: ENTRY_COL,
-          hp,
-          maxHp: hp,
+          hp: stats.hp,
+          maxHp: stats.hp,
+          attack: stats.attack,
           // The very first kill must hand the player a necro card.
           guaranteedCard: wave === 1,
         })
@@ -627,18 +639,11 @@ export class WaveSystem {
 
       if (i === 0) {
         spawn()
-        continue
+        return
       }
       delay += 340 + Math.random() * 520
       this.spawnTimeoutIds.push(window.setTimeout(spawn, delay))
-    }
-  }
-
-  /** A random creature id from the current round's spawn pool. */
-  private pickPoolCreature(wave: number): string {
-    const round = Math.min(ROUND_POOLS.length - 1, Math.max(0, Math.floor((wave - 1) / WAVES_PER_CHECKPOINT)))
-    const pool = ROUND_POOLS[round]
-    return pool[Math.floor(Math.random() * pool.length)]
+    })
   }
 
   /** An elite enters in the middle lane at the entry column, marching the same

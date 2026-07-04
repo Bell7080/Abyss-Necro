@@ -1,13 +1,9 @@
 import { CREATURES } from '@data/CreatureDefinitions'
-import { tierStats } from '@data/Tiers'
+import { allyStatsForLevel, enemyStatsForLevel } from '@data/Tiers'
 import { Icons } from '@ui/Icons'
 
-// Enemy base stats — mirror WaveSystem's wave-1 values for the codex readout
-// (display only; the codex never touches game state).
-const ENEMY_BASE_HP = 8
-const ENEMY_BASE_ATTACK = 1
 // Crab's hard-shell placement bonus mirrors DefenderSystem.CRAB_GUARD_BONUS_HP,
-// so the "사령" stat reads the same 11 the passive line promises.
+// so the 사령 stat reads what the passive line promises.
 const CRAB_GUARD_BONUS_HP = 4
 
 // 도감 — Unmelting's compendium launcher/hover idiom ported to the abyss:
@@ -62,8 +58,9 @@ export class CodexOverlay {
 
   private buildHtml(): string {
     const pages = CREATURES.map((c) => {
-      const allyHp = tierStats(1).hp + (c.passiveId === 'crab-guard' ? CRAB_GUARD_BONUS_HP : 0)
-      const allyAtk = tierStats(1).attack
+      const es = enemyStatsForLevel(c.level)
+      const as = allyStatsForLevel(c.level, 1)
+      const allyHp = as.hp + (c.passiveId === 'crab-guard' ? CRAB_GUARD_BONUS_HP : 0)
       return `
       <section class="codex-page">
         <div class="codex-pair">
@@ -73,7 +70,7 @@ export class CodexOverlay {
             <div class="codex-figure-info">
               <span class="codex-figure-tag codex-figure-tag--before">적</span>
               <h3 class="codex-figure-name">${c.label}</h3>
-              ${statsRow(ENEMY_BASE_ATTACK, ENEMY_BASE_HP)}
+              ${statsRow(es.attack, es.hp)}
               <p class="codex-figure-desc">${c.enemyDesc}</p>
             </div>
           </article>
@@ -87,7 +84,7 @@ export class CodexOverlay {
             <div class="codex-figure-info">
               <span class="codex-figure-tag codex-figure-tag--after">사령</span>
               <h3 class="codex-figure-name">${c.label}</h3>
-              ${statsRow(allyAtk, allyHp)}
+              ${statsRow(as.attack, allyHp)}
               <p class="codex-figure-desc">${c.passive}</p>
             </div>
           </article>

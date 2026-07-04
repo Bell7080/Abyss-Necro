@@ -2,14 +2,14 @@ import type { AllyToken } from '@entities/AllyToken'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import type { PassiveEvent } from '@systems/PassiveEvent'
 import { getCreature } from '@data/CreatureDefinitions'
-import { MAX_TIER, RAISED_STATS, tierStats } from '@data/Tiers'
+import { MAX_TIER, RAISED_STATS, allyStatsForLevel } from '@data/Tiers'
 
 const ROWS = 3
 const COLS = 4
 const CELL_COUNT = ROWS * COLS
 const MAX_ALLIES_PER_CELL = 3
 // Fallback attack for a placed ally that carries no explicit value.
-const DEFAULT_ALLY_ATTACK = tierStats(1).attack
+const DEFAULT_ALLY_ATTACK = allyStatsForLevel(1, 1).attack
 // Hasty undead raised from a corpse: a cheap, disposable wall. No passive,
 // purged at the lull.
 const RAISED_ALLY_HP = RAISED_STATS.hp
@@ -76,7 +76,7 @@ export class DefenderSystem {
     if (!this.canPlace(cellIndex)) return false
     // 단단한 등껍질: a crab enters with a bigger life pool (and a shield blast).
     const guarded = getCreature(creatureId)?.passiveId === 'crab-guard'
-    const stats = tierStats(tier)
+    const stats = allyStatsForLevel(getCreature(creatureId)?.level ?? 1, tier)
     const hp = stats.hp + (guarded ? CRAB_GUARD_BONUS_HP : 0)
     this.listFor(cellIndex).push({
       id: `ally-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -241,7 +241,7 @@ export class DefenderSystem {
     if (!this.isSameTriple(list)) return false
     const base = list[0]
     const nextTier = (base.tier ?? 1) + 1
-    const stats = tierStats(nextTier)
+    const stats = allyStatsForLevel(getCreature(base.creatureId ?? '')?.level ?? 1, nextTier)
     const merged: AllyToken = {
       id: `ally-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       label: base.label,
