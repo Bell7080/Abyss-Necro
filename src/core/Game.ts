@@ -14,7 +14,7 @@ import { ShopOverlay, type ShopOffer } from '@ui/ShopOverlay'
 import { SkillHive } from '@ui/SkillHive'
 import { WaveHud } from '@ui/WaveHud'
 import { BlastManager } from '@ui/effects/BlastManager'
-import { CurseMortar } from '@ui/effects/CurseMortar'
+import { BubbleBolt } from '@ui/effects/BubbleBolt'
 import { showDamageNumber } from '@ui/effects/FloatingDamage'
 import { AbilitySystem, type AbilityId } from '@systems/AbilitySystem'
 import { CoinSystem } from '@systems/CoinSystem'
@@ -45,8 +45,9 @@ import type { Relic } from '@entities/Relic'
 const BASIC_ATTACK_DAMAGE = 4
 const RELIC_CHOICE_COUNT = 3
 // Capture ("넌 내꺼야!") only claims enemies at or below this fraction of
-// max hp (bosses will use a stricter one later).
+// max hp — a stricter cut for bosses.
 const CAPTURE_THRESHOLD = 0.25
+const BOSS_CAPTURE_THRESHOLD = 0.1
 // While a hand card is held or a skill is armed the whole game clock crawls,
 // giving the player a slow-motion beat to read the board and aim.
 const AIM_TIME_SCALE = 0.3
@@ -71,9 +72,8 @@ export class Game {
   private readonly rewardOverlay: RewardOverlay
   private readonly shopOverlay: ShopOverlay
   private readonly defeatOverlay: DefeatOverlay
-  // Epic permanent upgrades to the player's own casts.
+  // Epic permanent upgrade to the player's basic attack.
   private basicDamageBonus = 0
-  private ultimateDamageBonus = 0
   private readonly inspector: CardInspector
   private readonly mergeButton: MergeButton
   private readonly cellMergeButton: CellMergeButton
@@ -142,7 +142,10 @@ export class Game {
     this.defeatOverlay = new DefeatOverlay(shell)
     new IntroOverlay(shell, () => this.startRun())
 
-    this.waveSystem.onChange(() => this.board.syncCells())
+    this.waveSystem.onChange(() => {
+      this.board.syncCells()
+      this.refreshCaptureMarkers()
+    })
     this.waveSystem.onEncounter((result) => this.handleEncounter(result))
     this.waveSystem.onCheckpoint((info) => this.handleCheckpoint(info))
     this.waveSystem.onClash((info) => this.handleClash(info))
@@ -234,6 +237,7 @@ export class Game {
     this.armedAbility = id
     this.hive.setArmed(id)
     this.updateAimState()
+    this.refreshCaptureMarkers()
   }
 
   private disarmSkill(): void {
@@ -241,6 +245,21 @@ export class Game {
     this.armedAbility = null
     this.hive.setArmed(null)
     this.updateAimState()
+    this.refreshCaptureMarkers()
+  }
+
+  /** While 포획 is armed, mark every cell whose front enemy is weak enough to
+   * claim (bosses need a stricter cut); otherwise clear all markers. */
+  private refreshCaptureMarkers(): void {
+    if (this.armedAbility !== 'capture') {
+      this.board.setCaptureMarkers([])
+      return
+    }
+    const marks = this.waveSystem.getAliveCellIndices().filter((idx) => {
+      const threshold = idx === BOSS_CELL_INDEX ? BOSS_CAPTURE_THRESHOLD : CAPTURE_THRESHOLD
+      return this.waveSystem.isCapturable(idx, threshold)
+    })
+    this.board.setCaptureMarkers(marks)
   }
 
   boot(): void {
@@ -398,7 +417,8 @@ export class Game {
   /** "넌 내꺼야!" — execute the aimed cell's front enemy if it's weak enough,
    * claiming a guaranteed necro card. No valid target = no spend. */
   private castCapture(cellIndex: number): void {
-    if (!this.waveSystem.isCapturable(cellIndex, CAPTURE_THRESHOLD)) {
+    const threshold = cellIndex === BOSS_CELL_INDEX ? BOSS_CAPTURE_THRESHOLD : CAPTURE_THRESHOLD
+    if (!this.waveSystem.isCapturable(cellIndex, threshold)) {
       this.disarmSkill()
       return
     }
@@ -406,7 +426,7 @@ export class Game {
       this.disarmSkill()
       return
     }
-    const captured = this.waveSystem.captureFrontEnemy(cellIndex, CAPTURE_THRESHOLD)
+    const captured = this.waveSystem.captureFrontEnemy(cellIndex, threshold)
     if (captured) {
       const creature = getCreature(captured.creatureId)
       const rect = this.board.getCellRect(cellIndex)
@@ -451,7 +471,7 @@ export class Game {
     } else if (def.id === 'sharpen-star') {
       this.basicDamageBonus += 1
     } else if (def.id === 'overload-star') {
-      this.ultimateDamageBonus += 2
+      this.abilitySystem.increaseMaxGauge(2)
     }
 
     const rect = this.board.getCellRect(cellIndex)
@@ -491,7 +511,7 @@ export class Game {
     const origin = centerOf(originRect)
     const target = centerOf(targetRect)
 
-    CurseMortar.fire(origin.x, origin.y, target.x, target.y, {
+    BubbleBolt.fire(origin.x, origin.y, target.x, target.y, {
       onImpact: () => {
         const result = this.waveSystem.applyDamage(cellIndex, BASIC_ATTACK_DAMAGE + this.basicDamageBonus)
         if (result) this.showHitNumber(result.cellIndex, result.amount, target)

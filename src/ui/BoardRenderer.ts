@@ -342,6 +342,26 @@ export class BoardRenderer {
     this.playerCellEl.classList.toggle('is-placement-targetable', active)
   }
 
+  /** Shows the purple skull capture marker on exactly the given cells (front
+   * enemy weak enough to claim), clearing it from all others. */
+  setCaptureMarkers(cellIndices: readonly number[]): void {
+    const wanted = new Set(cellIndices)
+    const apply = (el: HTMLElement, index: number): void => {
+      const on = wanted.has(index)
+      let marker = el.querySelector<HTMLElement>('.capture-marker')
+      if (on && !marker) {
+        marker = document.createElement('div')
+        marker.className = 'capture-marker'
+        marker.innerHTML = Icons.captureSkull()
+        el.appendChild(marker)
+      } else if (!on && marker) {
+        marker.remove()
+      }
+    }
+    this.cellEls.forEach((el, i) => apply(el, i))
+    apply(this.playerCellEl, BOSS_CELL_INDEX)
+  }
+
   getCellRect(cellIndex: number): DOMRect | null {
     if (cellIndex === BOSS_CELL_INDEX) return this.getPlayerRect()
     return this.cellEls[cellIndex]?.getBoundingClientRect() ?? null

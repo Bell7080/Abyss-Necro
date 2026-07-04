@@ -179,123 +179,6 @@ body {
   }
 }
 
-/* ---------- Graveyard dock (far left, vertical stars) ---------- */
-/* Fallen creature-allies collect here as gold stars; hovering one names it.
-   Borderless whisper-wash like the other HUD docks. */
-
-.graveyard-panel {
-  position: absolute;
-  left: 18px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 62;
-  width: 62px;
-  max-height: 62vh;
-  padding: 12px 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(16, 12, 28, 0.32), rgba(6, 4, 14, 0.5));
-  backdrop-filter: blur(6px);
-  transition: opacity 0.3s ease;
-}
-
-.graveyard-panel.is-empty {
-  opacity: 0.42;
-}
-
-.graveyard-title {
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  color: var(--abyss-lavender);
-  opacity: 0.8;
-}
-
-.graveyard-stars {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  overflow-y: auto;
-  overflow-x: visible;
-  min-height: 0;
-  padding: 2px 0;
-}
-
-.graveyard-star {
-  position: relative;
-  animation: graveyard-star-in 0.4s cubic-bezier(0.2, 1.1, 0.3, 1) both;
-}
-
-.graveyard-star-glyph {
-  display: block;
-  font-size: 20px;
-  line-height: 1;
-  color: #ffdf9a;
-  text-shadow:
-    0 0 8px rgba(255, 210, 120, 0.7),
-    0 0 16px rgba(255, 190, 90, 0.35);
-}
-
-/* Every completed triple twinkles, hinting it can be reclaimed at round end. */
-.graveyard-star.is-triple .graveyard-star-glyph {
-  color: #fff0c8;
-  animation: graveyard-triple-twinkle 1.3s ease-in-out infinite;
-}
-
-/* Hover tooltip — whose star this is. */
-.graveyard-star-tip {
-  position: absolute;
-  left: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%) translateX(-4px);
-  white-space: nowrap;
-  padding: 5px 11px;
-  border-radius: 999px;
-  background: rgba(8, 6, 16, 0.94);
-  box-shadow: inset 0 0 0 1px rgba(255, 210, 130, 0.3);
-  color: #ffe6b0;
-  font-size: 12px;
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
-  z-index: 2;
-}
-
-.graveyard-star:hover .graveyard-star-tip {
-  opacity: 1;
-  transform: translateY(-50%) translateX(0);
-}
-
-@keyframes graveyard-star-in {
-  0% {
-    opacity: 0;
-    transform: translateY(8px) scale(0.4);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes graveyard-triple-twinkle {
-  0%,
-  100% {
-    text-shadow:
-      0 0 8px rgba(255, 210, 120, 0.7),
-      0 0 16px rgba(255, 190, 90, 0.35);
-  }
-  50% {
-    text-shadow:
-      0 0 14px rgba(255, 235, 175, 0.95),
-      0 0 30px rgba(255, 205, 110, 0.7);
-  }
-}
-
 /* ---------- Board (center) ---------- */
 
 .board-mount {
@@ -1126,199 +1009,6 @@ body {
   box-shadow:
     inset 0 0 0 1px rgba(200, 180, 255, 0.38),
     0 0 14px rgba(180, 150, 255, 0.32);
-}
-
-/* ---------- Skill bar (bottom left) ---------- */
-
-.skill-bar {
-  position: absolute;
-  left: 30px;
-  bottom: 30px;
-  display: flex;
-  align-items: flex-end;
-  gap: 18px;
-}
-
-/* ---------- Cost gauge (vertical, left of the orbs) ---------- */
-/* The pool made visible: a tall capsule that fills bottom-up in real time
-   (rAF reads getSmoothCost each frame — no CSS transition, the motion IS
-   the data). Ten segment seams mark whole costs; the fill carries a bright
-   surface line and a slow internal shimmer so a full bar still feels alive. */
-
-.cost-gauge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 9px;
-}
-
-.cost-gauge-track {
-  position: relative;
-  width: 26px;
-  height: 218px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: linear-gradient(180deg, rgba(10, 8, 20, 0.55), rgba(4, 3, 10, 0.75));
-  box-shadow:
-    inset 0 0 0 1px rgba(150, 205, 255, 0.14),
-    inset 0 3px 10px rgba(0, 0, 0, 0.6);
-}
-
-.cost-gauge-fill {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 0%;
-  background: linear-gradient(180deg, #d9f4ff 0%, #5fc2dd 26%, #4a7ae0 62%, #7a4ae0 100%);
-  box-shadow: 0 0 18px rgba(127, 232, 255, 0.4);
-}
-
-/* Bright surface line where the liquid meets the dark. */
-.cost-gauge-fill::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: rgba(235, 250, 255, 0.95);
-  box-shadow: 0 0 10px rgba(180, 240, 255, 0.9);
-}
-
-/* Slow internal shimmer drifting upward, like light in rising water. */
-.cost-gauge-fill::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.22) 46%,
-    rgba(255, 255, 255, 0) 60%
-  );
-  background-size: 100% 220px;
-  animation: gauge-shimmer 2.8s linear infinite;
-  mix-blend-mode: screen;
-}
-
-@keyframes gauge-shimmer {
-  from {
-    background-position: 0 220px;
-  }
-  to {
-    background-position: 0 -220px;
-  }
-}
-
-/* Ten whole-cost seams over the fill. */
-.cost-gauge-ticks {
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    180deg,
-    transparent 0 calc(10% - 1px),
-    rgba(4, 3, 10, 0.55) calc(10% - 1px) 10%
-  );
-  pointer-events: none;
-}
-
-.cost-gauge-value {
-  min-width: 26px;
-  text-align: center;
-  font-size: 17px;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-  color: #aef0ff;
-  text-shadow: 0 0 8px rgba(127, 232, 255, 0.55);
-}
-
-/* Borderless deep-glass orbs: a soft top-light in the sphere gradient plus
-   an inset whisper-ring do the shaping; the glow answer on hover replaces
-   the old border-brightening cue. */
-.skill-orb {
-  position: relative;
-  width: 64px;
-  height: 64px;
-  padding: 0;
-  border-radius: 50%;
-  border: 0;
-  background: radial-gradient(
-    circle at 34% 28%,
-    rgba(122, 74, 170, 0.85),
-    rgba(38, 24, 66, 0.92) 46%,
-    rgba(10, 7, 20, 0.96) 76%
-  );
-  box-shadow:
-    inset 0 0 0 1px rgba(180, 220, 255, 0.18),
-    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
-    0 12px 26px var(--abyss-shadow),
-    0 0 18px rgba(150, 205, 255, 0.14);
-  color: var(--abyss-lavender-bright);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition:
-    transform 0.16s ease,
-    box-shadow 0.16s ease;
-}
-
-.skill-orb--ultimate {
-  width: 76px;
-  height: 76px;
-  background: radial-gradient(
-    circle at 34% 28%,
-    rgba(196, 62, 132, 0.85),
-    rgba(74, 20, 52, 0.92) 46%,
-    rgba(14, 6, 18, 0.96) 76%
-  );
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 170, 210, 0.2),
-    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
-    0 12px 26px var(--abyss-shadow),
-    0 0 18px rgba(255, 130, 190, 0.16);
-}
-
-.skill-orb:hover:not(.is-disabled) {
-  transform: translateY(-3px);
-  box-shadow:
-    inset 0 0 0 1px rgba(200, 230, 255, 0.32),
-    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
-    0 16px 30px var(--abyss-shadow),
-    0 0 28px rgba(150, 205, 255, 0.32);
-}
-
-.skill-orb--ultimate:hover:not(.is-disabled) {
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 190, 220, 0.36),
-    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
-    0 16px 30px var(--abyss-shadow),
-    0 0 30px rgba(255, 130, 190, 0.38);
-}
-
-.skill-orb.is-disabled {
-  opacity: 0.35;
-  cursor: default;
-  filter: grayscale(0.5);
-}
-
-/* Faint drop-shadow lifts the glyph off the sphere so it reads at a glance. */
-.skill-orb svg {
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
-}
-
-.skill-orb-cost {
-  position: absolute;
-  bottom: -8px;
-  right: -4px;
-  font-size: 10px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgba(8, 6, 16, 0.92);
-  border: 0;
-  box-shadow: inset 0 0 0 1px rgba(150, 205, 255, 0.16);
-  color: var(--abyss-lavender);
 }
 
 /* ---------- Entity card (full-illustration style, shared by board tokens) ---------- */
@@ -2694,22 +2384,22 @@ body {
 
 .cosmos-soul {
   position: absolute;
-  width: 7px;
-  height: 7px;
-  margin: -3.5px 0 0 -3.5px;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--soul-color, #c9b8ff) 0%, transparent 70%);
-  box-shadow: 0 0 8px 1px var(--soul-color, #c9b8ff);
+  background: radial-gradient(circle, #fff 0%, var(--soul-color, #c9b8ff) 40%, transparent 72%);
+  box-shadow: 0 0 12px 2px var(--soul-color, #c9b8ff);
   animation:
     soul-appear 0.5s ease-out,
-    soul-twinkle 3.2s ease-in-out infinite;
+    soul-twinkle 3s ease-in-out infinite;
 }
 
 .cosmos-soul.is-fragment {
-  width: 13px;
-  height: 13px;
-  margin: -6.5px 0 0 -6.5px;
-  box-shadow: 0 0 14px 2px var(--soul-color, #c9b8ff);
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  box-shadow: 0 0 20px 3px var(--soul-color, #c9b8ff);
 }
 
 .cosmos-soul.is-leaving {
@@ -2730,10 +2420,35 @@ body {
 @keyframes soul-twinkle {
   0%,
   100% {
-    opacity: 0.5;
+    opacity: 0.68;
   }
   50% {
-    opacity: 0.95;
+    opacity: 1;
+  }
+}
+
+/* ---------- Capture marker (넌 내꺼야! — weak-enough enemies) ---------- */
+.capture-marker {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  color: #d6a2ff;
+  pointer-events: none;
+  filter: drop-shadow(0 0 9px rgba(196, 132, 255, 0.95));
+  animation: capture-pulse 1s ease-in-out infinite;
+}
+
+@keyframes capture-pulse {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+    opacity: 0.82;
+  }
+  50% {
+    transform: translateX(-50%) scale(1.2);
+    opacity: 1;
   }
 }
 

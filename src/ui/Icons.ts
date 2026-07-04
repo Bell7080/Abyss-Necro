@@ -19,8 +19,17 @@ export const Icons = {
       <path d="M4 9h16M8.5 9 12 2l3.5 7M9 9l3 12 3-12" stroke="#0a0716" stroke-width="0.8" stroke-linejoin="round" fill="none"/>
     </svg>`
   },
-  /** Basic attack: a curse shot arcing away with trailing streaks — same
-   * lobbed-projectile silhouette as the CurseMortar it fires. */
+  /** Capture marker: a little skull for enemies weak enough to claim
+   * ("넌 내꺼야!"). Color/glow come from CSS. */
+  captureSkull(): string {
+    return `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2.5c-5 0-8.5 3.4-8.5 8 0 2.7 1.3 4.7 3 6v2.4c0 1 .8 1.8 1.8 1.8h7.4c1 0 1.8-.8 1.8-1.8V16.5c1.7-1.3 3-3.3 3-6 0-4.6-3.5-8-8.5-8Z" fill="currentColor"/>
+      <circle cx="8.6" cy="11" r="2.1" fill="#0a0716"/>
+      <circle cx="15.4" cy="11" r="2.1" fill="#0a0716"/>
+      <path d="M12 14.5l-1.1 2.2h2.2L12 14.5Z" fill="#0a0716"/>
+    </svg>`
+  },
+  /** Basic attack: a curse shot streaking away with trailing bubbles. */
   curseBolt(): string {
     return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="15.8" cy="8.2" r="4.4" fill="currentColor"/>

@@ -1,6 +1,6 @@
 import type { TickManager } from '@core/TickManager'
 
-const MAX_GAUGE = 10
+const BASE_MAX_GAUGE = 10
 // A slow passive trickle so the necromancer is never fully stuck with an
 // empty gauge and no way to act. The primary source is kills (chargeFromKill)
 // — this only guarantees a floor and keeps the gauge fill creeping visibly.
@@ -25,7 +25,8 @@ export const ABILITY_COST: Record<AbilityId, number> = {
 // refill it; a slow trickle keeps it from ever fully starving. This system
 // only decides whether a cast is affordable — the effects live in Game.
 export class AbilitySystem {
-  private gauge = MAX_GAUGE
+  private maxGauge = BASE_MAX_GAUGE
+  private gauge = BASE_MAX_GAUGE
   private lastRegenAt = Date.now()
   private readonly listeners: Array<() => void> = []
 
@@ -45,7 +46,7 @@ export class AbilitySystem {
   }
 
   getMaxGauge(): number {
-    return MAX_GAUGE
+    return this.maxGauge
   }
 
   costOf(ability: AbilityId): number {
@@ -56,9 +57,9 @@ export class AbilitySystem {
    * read every frame by the gauge fill so it visibly creeps up in real time.
    * Whole-number rules (can I cast?) use getGauge(). */
   getSmoothGauge(): number {
-    if (this.gauge >= MAX_GAUGE) return MAX_GAUGE
+    if (this.gauge >= this.maxGauge) return this.maxGauge
     const t = Math.min(1, (Date.now() - this.lastRegenAt) / REGEN_TICK_MS)
-    return Math.min(MAX_GAUGE, this.gauge + t)
+    return Math.min(this.maxGauge, this.gauge + t)
   }
 
   canCast(ability: AbilityId): boolean {
@@ -73,17 +74,24 @@ export class AbilitySystem {
     return true
   }
 
+  /** Epic 과부하 문양: permanently deepens the gauge pool (and tops it up). */
+  increaseMaxGauge(amount: number): void {
+    this.maxGauge += amount
+    this.gauge = Math.min(this.maxGauge, this.gauge + amount)
+    this.emit()
+  }
+
   /** A kill feeds the gauge — the necromancer grows stronger by slaying. */
   chargeFromKill(amount = KILL_CHARGE): void {
-    if (this.gauge >= MAX_GAUGE) return
-    this.gauge = Math.min(MAX_GAUGE, this.gauge + amount)
+    if (this.gauge >= this.maxGauge) return
+    this.gauge = Math.min(this.maxGauge, this.gauge + amount)
     this.emit()
   }
 
   private regen(): void {
     this.lastRegenAt = Date.now()
-    if (this.gauge >= MAX_GAUGE) return
-    this.gauge = Math.min(MAX_GAUGE, this.gauge + 1)
+    if (this.gauge >= this.maxGauge) return
+    this.gauge = Math.min(this.maxGauge, this.gauge + 1)
     this.emit()
   }
 

@@ -37,7 +37,7 @@ export const EPIC_CARDS: EpicCardDefinition[] = [
   {
     id: 'overload-star',
     label: '과부하 문양',
-    desc: '강화 공격(스킬)의 피해가 영구히 2 증가한다.',
+    desc: '최대 사령 게이지가 영구히 2 증가한다.',
     kind: 'global',
   },
 ]
