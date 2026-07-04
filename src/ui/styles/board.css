@@ -1707,14 +1707,15 @@ body {
   pointer-events: none;
 }
 
+/* Translucent dark blur laid over the board — the field stays faintly
+   visible behind, not sealed off. */
 .defeat-veil {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at 50% 46%, rgba(24, 6, 18, 0.62) 0%, rgba(3, 1, 7, 0.985) 80%),
-    #020007;
+  background: radial-gradient(circle at 50% 46%, rgba(24, 6, 18, 0.42) 0%, rgba(3, 1, 7, 0.66) 85%);
+  backdrop-filter: blur(7px);
   opacity: 0;
-  transition: opacity 1.6s ease-in;
+  transition: opacity 1.2s ease-in;
 }
 
 .defeat-overlay.is-visible {
@@ -1807,14 +1808,15 @@ body {
   pointer-events: none;
 }
 
+/* Translucent dark blur laid over the board — the field stays faintly
+   visible behind, not sealed off. */
 .victory-veil {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at 50% 42%, rgba(120, 78, 168, 0.66) 0%, rgba(6, 4, 14, 0.985) 78%),
-    #050310;
+  background: radial-gradient(circle at 50% 42%, rgba(120, 78, 168, 0.4) 0%, rgba(6, 4, 14, 0.66) 82%);
+  backdrop-filter: blur(7px);
   opacity: 0;
-  transition: opacity 1.6s ease-in;
+  transition: opacity 1.2s ease-in;
 }
 
 .victory-overlay.is-visible {

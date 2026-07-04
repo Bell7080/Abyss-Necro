@@ -6,6 +6,7 @@
 - 런을 **5라운드 구조**로 확정: 1~4라운드 체크포인트 리워드 뒤 **5라운드 첫 웨이브(`BOSS_WAVE` 6→13)**에 보스 등장. 보스 스탯을 엘리트보다 강화(체60→100, 공3→4).
 - **승리 조건**: 보스 처치 또는 포획 시 1차 엔딩. `EncounterResult.isBoss` 추가(처치 경로), `captureFrontEnemy`가 `{creatureId, isBoss}` 반환(포획 경로) → `Game.handleVictory(captured)`가 `runWon` 래치로 한 번만 발동, `tickManager.stop()`+`waveSystem.halt()`로 월드 정지 후 700ms 뒤 오버레이. 패배는 기존 디펜스 실패(HP 0) 그대로.
 - **`VictoryOverlay`**: `DefeatOverlay` 구조 미러링(보라-금 새벽 톤 veil + 타이틀 "심연을 다스리다" + 처치/사령 분기 서브 + 다시 도전하기=리로드).
+- 이어서 승리·패배 veil을 **불투명 암전 → 검은 반투명 + `backdrop-filter: blur`**로 바꿔 뒤 보드가 흐릿하게 비치도록(전경 유지). 알파 최대 ~0.66.
 - 검증: 임시 저체력 보스(wave1)로 기본공격 처치 → 승리 오버레이 실발동 확인, 포획 경로/오버레이 비주얼 1920×1080 확인. type-check/build 통과.
 
 ## 2026-07-04 (43) — 별빛 패널 라인 리디자인 + Unmelting 슬롯팝 이식
