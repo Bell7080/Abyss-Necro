@@ -34,8 +34,14 @@ export class SkillHive {
     private readonly ability: AbilitySystem,
     handlers: SkillHiveHandlers
   ) {
+    // .skill-hive = transparent perspective frame (matches the board's eye);
+    // .hive-plane = the tilted content plane. Splitting them lets the shared
+    // vanishing point live on the frame while the tilt/rotate pivot stays on
+    // the plane — so the gauge's edges run parallel to the card's (no wedge).
     const wrap = document.createElement('div')
     wrap.className = 'skill-hive'
+    const plane = document.createElement('div')
+    plane.className = 'hive-plane'
 
     const hexes = document.createElement('div')
     hexes.className = 'hive-hexes'
@@ -59,8 +65,9 @@ export class SkillHive {
       </div>`
     this.gaugeFill = gauge.querySelector('.hive-gauge-fill') as HTMLElement
 
-    wrap.appendChild(hexes)
-    wrap.appendChild(gauge)
+    plane.appendChild(hexes)
+    plane.appendChild(gauge)
+    wrap.appendChild(plane)
     root.appendChild(wrap)
 
     const tick = (): void => {
