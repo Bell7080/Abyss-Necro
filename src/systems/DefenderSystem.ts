@@ -2,26 +2,23 @@ import type { AllyToken } from '@entities/AllyToken'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import type { PassiveEvent } from '@systems/PassiveEvent'
 import { getCreature } from '@data/CreatureDefinitions'
+import { MAX_TIER, RAISED_STATS, tierStats } from '@data/Tiers'
 
 const ROWS = 3
 const COLS = 3
 const CELL_COUNT = ROWS * COLS
 const MAX_ALLIES_PER_CELL = 3
-const ALLY_BASE_HP = 3
-// Fallback attack for allies that don't carry their own value (placed hand
-// cards) — summons always set an explicit attack instead.
-const DEFAULT_ALLY_ATTACK = 2
-// Hasty undead raised from a corpse: a cheap, disposable wall (해파리 기준
-// 체2/공1). No passive, purged at the lull.
-const RAISED_ALLY_HP = 2
-const RAISED_ALLY_ATTACK = 1
+// A placed hand card deploys at tier 1.
+const ALLY_BASE_HP = tierStats(1).hp
+const DEFAULT_ALLY_ATTACK = tierStats(1).attack
+// Hasty undead raised from a corpse: a cheap, disposable wall. No passive,
+// purged at the lull.
+const RAISED_ALLY_HP = RAISED_STATS.hp
+const RAISED_ALLY_ATTACK = RAISED_STATS.attack
 // Sea-rabbit death-heal amount to adjacent allies.
 const RABBIT_HEAL = 2
-// Crab's hard-shell life pool on placement (vs the ALLY_BASE_HP default).
-const CRAB_ALLY_HP = 6
-// A merged 2-star ally: doubled life, +1 attack over the base card.
-const MERGED_ALLY_HP = ALLY_BASE_HP * 2
-const MERGED_ALLY_ATTACK = DEFAULT_ALLY_ATTACK + 1
+// Crab's hard-shell bonus on placement over the tier-1 hp.
+const CRAB_ALLY_HP = tierStats(1).hp + 4
 
 // Owns placed defenders — up to 3 per grid cell, plus a boss-room slot
 // (also capped at 3) so the player can stack allies right next to
@@ -227,24 +224,29 @@ export class DefenderSystem {
     if (list.length !== 3) return false
     const id = list[0].creatureId
     if (!id) return false
-    // Only full (non-raised) base allies fuse — hasty undead don't count.
-    return list.every((a) => a.creatureId === id && a.tier === undefined && !a.raised)
+    const tier = list[0].tier ?? 1
+    if (tier >= MAX_TIER) return false // 3성 is the cap
+    // Same creature, same tier, all full (non-raised) — hasty undead don't fuse.
+    return list.every((a) => a.creatureId === id && (a.tier ?? 1) === tier && !a.raised)
   }
 
-  /** Fuses a same-creature trio in one cell into a single 2-star ally
-   * (doubled hp, +1 attack). Returns false if the cell no longer qualifies. */
+  /** Fuses a same-creature, same-tier trio in one cell into a single ally one
+   * tier up (1→2→3성) with that tier's stats. Returns false if the cell no
+   * longer qualifies. */
   mergeCellTriple(cellIndex: number): boolean {
     const list = this.listFor(cellIndex)
     if (!this.isSameTriple(list)) return false
     const base = list[0]
+    const nextTier = (base.tier ?? 1) + 1
+    const stats = tierStats(nextTier)
     const merged: AllyToken = {
       id: `ally-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       label: base.label,
       creatureId: base.creatureId,
-      hp: MERGED_ALLY_HP,
-      maxHp: MERGED_ALLY_HP,
-      attack: MERGED_ALLY_ATTACK,
-      tier: 2,
+      hp: stats.hp,
+      maxHp: stats.hp,
+      attack: stats.attack,
+      tier: nextTier,
     }
     list.length = 0
     list.push(merged)

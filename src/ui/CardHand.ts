@@ -52,6 +52,7 @@ export class CardHand {
       if (card.kind === 'item') el.classList.add('hand-card--item')
       if (card.kind === 'epic') el.classList.add('hand-card--epic')
       if (card.tier === 2) el.classList.add('hand-card--tier2')
+      if (card.tier === 3) el.classList.add('hand-card--tier3')
       if (i === total - 1) el.classList.add('is-new')
       if (card.id === selectedId) el.classList.add('is-selected')
       const { x, y, rot } = fanTransform(i, total)

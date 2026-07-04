@@ -300,7 +300,7 @@ export class BoardRenderer {
     el.dataset.hp = `${occupant.hp}`
     const creature = occupant.creatureId ? getCreature(occupant.creatureId) : undefined
     const imageUrl = creature ? (variant === 'ally' ? creature.allyArt : creature.enemyArt) : undefined
-    const tierClass = occupant.tier === 2 ? ' is-tier2' : ''
+    const tierClass = occupant.tier === 3 ? ' is-tier3' : occupant.tier === 2 ? ' is-tier2' : ''
     const raisedClass = occupant.raised ? ' is-raised' : ''
     el.innerHTML = `<div class="board-figure is-arrived${tierClass}${raisedClass}">${entityCardHtml({
       variant,

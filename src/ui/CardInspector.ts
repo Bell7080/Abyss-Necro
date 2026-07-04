@@ -107,14 +107,15 @@ export class CardInspector {
       this.render({ title: card.label, tag: '아이템 카드 · 사용형', desc: item?.desc ?? '사용하면 소모된다.' })
     } else {
       const creature = getCreature(card.creatureId)
+      const tier = card.tier ?? 1
       this.render({
         imageUrl: creature?.allyArt,
         title: card.label,
-        stars: card.tier ?? 1,
-        tag: card.tier === 2 ? '진화체 · 강화된 사령' : '사령 카드',
+        stars: tier,
+        tag: tier >= 2 ? '진화체 · 강화된 사령' : '사령 카드',
         desc:
-          card.tier === 2
-            ? '세 장의 기억이 하나로 뭉친 사령. 칸을 골라 배치하면 아군 디펜더로 깨어난다.'
+          tier >= 2
+            ? '여러 장의 기억이 하나로 뭉친 사령. 칸을 골라 배치하면 강력한 아군 디펜더로 깨어난다.'
             : '심연에서 건져 올린 사령. 칸을 골라 배치하면 아군 디펜더로 깨어나 그 자리를 지킨다.',
         passive: creature?.passive,
       })

@@ -46,7 +46,7 @@ export const CREATURES: CreatureDefinition[] = [
     label: '꽃게',
     enemyArt: crabEnemyArt,
     allyArt: crabAllyArt,
-    passive: '단단한 등껍질 — 두꺼운 껍질로 더 많은 체력(6)을 지니고 배치된다.',
+    passive: '단단한 등껍질 — 두꺼운 껍질로 더 많은 체력(11)을 지니고 배치된다.',
     passiveId: 'crab-guard',
   },
 ]

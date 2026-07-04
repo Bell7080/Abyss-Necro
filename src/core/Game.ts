@@ -42,7 +42,7 @@ import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
 import type { Relic } from '@entities/Relic'
 
-const BASIC_ATTACK_DAMAGE = 2
+const BASIC_ATTACK_DAMAGE = 4
 const RELIC_CHOICE_COUNT = 3
 // Capture ("넌 내꺼야!") only claims enemies at or below this fraction of
 // max hp (bosses will use a stricter one later).
@@ -296,13 +296,13 @@ export class Game {
       return {
         imageUrl: creature?.allyArt,
         title: ally.label,
-        stars: ally.tier ?? 1,
-        tag: ally.tier === 2 ? '아군 디펜더 · 2성' : '아군 디펜더',
+        stars: ally.raised ? undefined : ally.tier ?? 1,
+        tag: ally.raised ? '급조 언데드' : (ally.tier ?? 1) >= 2 ? '아군 디펜더 · 진화체' : '아군 디펜더',
         stats: [
           { label: '공격', value: `${this.defenderSystem.getAttack(cellIndex) ?? 0}` },
           { label: '체력', value: `${ally.hp}/${ally.maxHp}` },
         ],
-        passive: creature?.passive,
+        passive: ally.raised ? undefined : creature?.passive,
         buffs,
       }
     }
@@ -553,6 +553,7 @@ export class Game {
     this.mergeInProgress = true
     this.mergeButton.setVisible(false)
     const base = triple[0]
+    const nextTier = (base.tier ?? 1) + 1
     this.hand.playMergeFx(
       triple.map((card) => card.id),
       () => {
@@ -562,7 +563,7 @@ export class Game {
             id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             label: base.label,
             creatureId: base.creatureId,
-            tier: 2,
+            tier: nextTier,
           }
         )
         this.mergeInProgress = false

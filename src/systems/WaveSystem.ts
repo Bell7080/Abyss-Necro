@@ -7,7 +7,10 @@ import { randomCreature } from '@data/CreatureDefinitions'
 const ROWS = 3 // lanes — enemies march straight down their own lane
 const COLS = 3
 const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss room
-const ENEMY_BASE_HP = 4
+// Wave-1 enemy hp; each later wave adds ENEMY_HP_PER_WAVE so the ally tier
+// ladder (1성 7 → 3성 88) stays meaningful as the tide toughens.
+const ENEMY_BASE_HP = 8
+const ENEMY_HP_PER_WAVE = 2
 const ENEMY_ATTACK_DAMAGE = 1
 // Fallback only, used if DefenderHooks isn't wired — DefenderSystem's own
 // getAttack() (placed card default or summon's own value) wins normally.
@@ -539,6 +542,10 @@ export class WaveSystem {
     return 4
   }
 
+  private enemyHpForWave(wave: number): number {
+    return ENEMY_BASE_HP + Math.max(0, wave - 1) * ENEMY_HP_PER_WAVE
+  }
+
   /** The wave's enemies trickle in one by one with random gaps rather than
    * sliding in as a synchronized block. They're spread across lanes (rows)
    * from a random starting lane so a wave pressures several lanes at once —
@@ -549,6 +556,7 @@ export class WaveSystem {
     const wave = this.waveNumber
     const count = this.enemyCountForWave(wave)
     const startLane = Math.floor(Math.random() * ROWS)
+    const hp = this.enemyHpForWave(wave)
     let delay = 0
 
     for (let i = 0; i < count; i += 1) {
@@ -559,8 +567,8 @@ export class WaveSystem {
           creatureId: randomCreature().id,
           row: lane,
           col: ENTRY_COL,
-          hp: ENEMY_BASE_HP,
-          maxHp: ENEMY_BASE_HP,
+          hp,
+          maxHp: hp,
           // The very first kill must hand the player a necro card.
           guaranteedCard: wave === 1,
         })
