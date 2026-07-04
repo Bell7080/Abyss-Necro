@@ -22,6 +22,8 @@ export interface CreatureDefinition {
   allyArt: string
   /** Flavor shown in the codex "before" (enemy) column. */
   enemyDesc: string
+  /** Dominant illustration color — the codex window tints toward this. */
+  tone: string
   passive: string
   passiveId: PassiveId
 }
@@ -33,6 +35,7 @@ export const CREATURES: CreatureDefinition[] = [
     enemyArt: jellyfishEnemyArt,
     allyArt: jellyfishAllyArt,
     enemyDesc: '심연을 부유하는 반투명 포식자. 스치는 촉수마다 저릿한 냉기를 흘린다.',
+    tone: 'rgba(96, 128, 214, 0.5)',
     passive: '감전 점막 — 이 칸에 있는 적이 받는 피해가 1 증가한다.',
     passiveId: 'jelly-amp',
   },
@@ -42,6 +45,7 @@ export const CREATURES: CreatureDefinition[] = [
     enemyArt: seaRabbitEnemyArt,
     allyArt: seaRabbitAllyArt,
     enemyDesc: '심해를 폴짝이며 무리 짓는 연약한 생물. 방심하면 순식간에 불어난다.',
+    tone: 'rgba(140, 108, 212, 0.5)',
     passive: '폭신 도약 — 처치될 때 인접한 아군의 체력을 2 회복시킨다.',
     passiveId: 'rabbit-heal',
   },
@@ -51,6 +55,7 @@ export const CREATURES: CreatureDefinition[] = [
     enemyArt: crabEnemyArt,
     allyArt: crabAllyArt,
     enemyDesc: '두꺼운 등껍질로 몸을 감싼 심연의 파수꾼. 좀처럼 무너지지 않는다.',
+    tone: 'rgba(198, 92, 108, 0.46)',
     passive: '단단한 등껍질 — 두꺼운 껍질로 더 많은 체력(11)을 지니고 배치된다.',
     passiveId: 'crab-guard',
   },

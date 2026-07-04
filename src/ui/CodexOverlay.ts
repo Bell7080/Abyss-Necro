@@ -18,6 +18,7 @@ const CRAB_GUARD_BONUS_HP = 4
 // Display-only, no game state touched.
 export class CodexOverlay {
   private readonly overlay: HTMLElement
+  private readonly modal: HTMLElement
   private readonly track: HTMLElement
   private readonly pages: HTMLElement[]
   private readonly counterEl: HTMLElement
@@ -45,6 +46,7 @@ export class CodexOverlay {
     this.overlay.querySelector('.codex-close')?.addEventListener('click', () => this.close())
     document.body.appendChild(this.overlay)
 
+    this.modal = this.overlay.querySelector('.codex-modal') as HTMLElement
     this.track = this.overlay.querySelector('.codex-body') as HTMLElement
     this.pages = Array.from(this.overlay.querySelectorAll<HTMLElement>('.codex-page'))
     this.counterEl = this.overlay.querySelector('.codex-nav-counter') as HTMLElement
@@ -133,6 +135,8 @@ export class CodexOverlay {
     this.counterEl.textContent = `${this.index + 1} / ${this.pages.length}`
     this.upBtn.disabled = this.index === 0
     this.downBtn.disabled = this.index === this.pages.length - 1
+    // Tint the whole window toward the current creature's illustration color.
+    this.modal.style.setProperty('--codex-tone', CREATURES[this.index]?.tone ?? 'transparent')
   }
 
   private open(): void {
