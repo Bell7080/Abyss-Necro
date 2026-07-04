@@ -2251,15 +2251,15 @@ body {
    rather than reading as a flat 2D overlay. */
 /* Transparent perspective frame sharing the board's eye: board-mount uses
    perspective:1900px with its origin at screen (960, -147); with the frame at
-   (158, 240) that eye is (960-158, -147-240) = (802px, -387px) relative to the
+   (158, 216) that eye is (960-158, -147-216) = (802px, -363px) relative to the
    frame. Sharing the eye makes the plane's vertical edges converge exactly
    like the card's, so the wedge-shaped gap disappears. */
 .skill-hive {
   position: absolute;
   left: 158px;
-  top: 240px;
+  top: 216px;
   perspective: 1900px;
-  perspective-origin: 802px -387px;
+  perspective-origin: 802px -363px;
   z-index: 40;
 }
 
@@ -2282,7 +2282,7 @@ body {
    the two ends lean in (margin-left), the middle bulges out — a bracket that
    cups the necromancer. margin (not transform) keeps hover/pop free. */
 .hive-hexes .skill-hex {
-  margin-top: -10px;
+  margin-top: 7px;
 }
 .hive-hexes .skill-hex:first-child {
   margin-top: 0;
@@ -2449,7 +2449,7 @@ body {
 .hive-gauge-track {
   position: relative;
   width: 13px;
-  height: 252px;
+  height: 300px;
   border-radius: 999px;
   overflow: hidden;
   background: linear-gradient(180deg, rgba(9, 7, 18, 0.9), rgba(3, 2, 9, 0.94));
