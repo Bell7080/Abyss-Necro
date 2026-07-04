@@ -1,9 +1,8 @@
-// Full-screen defeat veil, mirroring the intro overlay's language in
-// reverse: the abyss closes back over the board, a title surfaces, and the
-// only way out is a fresh run (page reload — no mid-run state survives).
+// Full-screen defeat veil — a translucent dark blur laid over the board (the
+// field stays faintly visible behind), with the cute-toned failure copy on top.
+// The only way out is a fresh run (page reload — no mid-run state survives).
 export class DefeatOverlay {
   private readonly overlay: HTMLElement
-  private readonly waveEl: HTMLElement
 
   constructor(root: HTMLElement) {
     this.overlay = document.createElement('div')
@@ -12,20 +11,18 @@ export class DefeatOverlay {
       <div class="defeat-veil"></div>
       <div class="defeat-content">
         <div class="defeat-kicker">패배</div>
-        <div class="defeat-title">심연에 잠기다</div>
-        <div class="defeat-wave"></div>
-        <button type="button" class="defeat-retry-button">다시 도전하기</button>
+        <div class="defeat-title">심해는 무서워!</div>
+        <div class="defeat-sub">다음에 다시 올래.</div>
+        <button type="button" class="defeat-retry-button">다시하기</button>
       </div>`
 
-    this.waveEl = this.overlay.querySelector('.defeat-wave') as HTMLElement
     this.overlay
       .querySelector('.defeat-retry-button')!
       .addEventListener('click', () => window.location.reload())
     root.appendChild(this.overlay)
   }
 
-  show(waveNumber: number): void {
-    this.waveEl.textContent = `웨이브 ${waveNumber}에서 스러졌다`
+  show(): void {
     // Double rAF so the pre-show state paints before the reveal transition.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => this.overlay.classList.add('is-visible'))

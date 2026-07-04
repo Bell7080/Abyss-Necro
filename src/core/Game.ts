@@ -444,7 +444,7 @@ export class Game {
         })
       )
       // Claiming the climax boss is the sacral 1st ending.
-      if (captured.isBoss) this.handleVictory(true)
+      if (captured.isBoss) this.handleVictory()
     }
     this.disarmSkill()
   }
@@ -579,18 +579,18 @@ export class Game {
     }
 
     // Slaying the climax boss closes the 1st ending.
-    if (result.isBoss) this.handleVictory(false)
+    if (result.isBoss) this.handleVictory()
   }
 
   /** The climax boss fell or was claimed — freeze the world and, after a beat
    * so the finishing blow/capture reads, raise the 1st-ending veil. Fires once. */
-  private handleVictory(captured: boolean): void {
+  private handleVictory(): void {
     if (this.runWon) return
     this.runWon = true
     this.tickManager.stop()
     this.waveSystem.halt()
     this.disarmSkill()
-    window.setTimeout(() => this.victoryOverlay.show(captured), 700)
+    window.setTimeout(() => this.victoryOverlay.show(), 700)
   }
 
   /** The central 합성 button was pressed — run whichever merge is primed. */
@@ -713,7 +713,7 @@ export class Game {
   private handleDefeat(): void {
     this.tickManager.stop()
     this.waveSystem.halt()
-    this.defeatOverlay.show(this.waveSystem.getWaveNumber())
+    this.defeatOverlay.show()
   }
 
   /** Each 3-wave round ends in a lull: hasty undead crumble to shards, any
