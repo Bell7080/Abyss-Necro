@@ -14,7 +14,7 @@ export const MAX_TIER = 3
 // climb evenly, so a wave introducing a higher-level creature reads as a real
 // jump. Indexed 1-based; clamped for any level past the table.
 const LEVEL_HP = [0, 6, 10, 15, 22, 32, 45, 62, 84, 112, 148, 194, 252, 326, 420]
-const LEVEL_ATK = [0, 1, 1, 2, 2, 3, 3, 4, 5, 6, 7, 9, 11, 13, 16]
+const LEVEL_ATK = [0, 1, 1, 2, 2, 3, 3, 4, 5, 6, 7, 8, 10, 12, 14]
 
 /** Enemy base stats for a creature's level. */
 export function enemyStatsForLevel(level: number): TierStats {
@@ -32,15 +32,15 @@ const TIER_MULT = [0, 1, 3.5, 12.25]
  * into the 사령 form too. */
 export function allyStatsForLevel(level: number, tier: number): TierStats {
   const base = enemyStatsForLevel(level)
-  const hp1 = Math.round(base.hp * 1.25)
-  const atk1 = Math.round(base.attack * 1.8) + 2
+  const hp1 = Math.round(base.hp * 1.5)
+  const atk1 = Math.round(base.attack * 2.2) + 3
   const m = TIER_MULT[Math.max(1, Math.min(MAX_TIER, Math.floor(tier)))]
   return { hp: Math.round(hp1 * m), attack: Math.round(atk1 * m) }
 }
 
 // Sacral-gauge cost to deploy a hand card as a full defender, by tier — the
 // stronger the sending, the more sorcery it takes. Item/epic cards are free.
-const SUMMON_COST: Record<number, number> = { 1: 4, 2: 7, 3: 10 }
+const SUMMON_COST: Record<number, number> = { 1: 3, 2: 6, 3: 8 }
 
 export function summonCost(tier: number): number {
   return SUMMON_COST[tier] ?? SUMMON_COST[1]

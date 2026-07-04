@@ -24,11 +24,11 @@ interface EliteSpawn {
   isFinal?: boolean
 }
 const ELITE_BY_WAVE: Record<number, EliteSpawn> = {
-  3: { id: 'piranha', label: '굶주린 피라냐', hp: 40, attack: 3 },
-  6: { id: 'pufferfish', label: '부푼 복어', hp: 60, attack: 3 },
-  9: { id: 'marlin', label: '질주하는 청새치', hp: 80, attack: 4 },
-  12: { id: 'whale', label: '심연의 고래', hp: 130, attack: 3 },
-  13: { id: 'shark', label: '심연의 지배자', hp: 110, attack: 5, isFinal: true },
+  3: { id: 'piranha', label: '굶주린 피라냐', hp: 22, attack: 2 },
+  6: { id: 'pufferfish', label: '부푼 복어', hp: 40, attack: 3 },
+  9: { id: 'marlin', label: '질주하는 청새치', hp: 66, attack: 4 },
+  12: { id: 'whale', label: '심연의 고래', hp: 150, attack: 4 },
+  13: { id: 'shark', label: '심연의 지배자', hp: 120, attack: 5, isFinal: true },
 }
 // Curated per-wave spawn schedule (id → count), separate from the elites above.
 // The tide climbs by introducing creatures in strict ascending level order —
@@ -65,7 +65,7 @@ const ALLY_COUNTER_DAMAGE = 2
 // A kill either hands over the creature's whole card (25%) or leaves a corpse
 // to raise/harvest (75%). Wave-1 enemies are pity-rigged to a card so the
 // very first kill always teaches the capture loop.
-const CARD_DROP_CHANCE = 0.25
+const CARD_DROP_CHANCE = 0.33
 const MOVE_TICK_MS = 1300
 // A new wave forces its way in every 30 seconds regardless of clear state —
 // this is the actual pacing mechanism, not just a display countdown. If the

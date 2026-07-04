@@ -1,4 +1,4 @@
-const PLAYER_MAX_HP = 10
+const PLAYER_MAX_HP = 18
 
 // The necromancer's own life pool. Enemies that reach the player room and
 // find no defender there chip at this every clash tick; reaching zero ends
