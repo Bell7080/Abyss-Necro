@@ -1913,36 +1913,42 @@ body {
 
 /* ---------- Coin panel (top-left) ---------- */
 /* Unmelting's 불빛/화폐 top-left panel, reinterpreted in the cool abyss
-   palette — same sparkle-diamond glyph, cyan instead of candle-gold. */
-
-/* Unmelting score-panel-total anatomy: a muted letterspaced kicker row over
-   a big glowing tabular number, on a borderless plate whose only shaping is
-   a soft radial glow bleeding from the top — the number is the actor. */
+   palette — same sparkle-diamond glyph, cyan instead of candle-gold. Clean
+   line-based framing (Unmelting log-row idiom): a crisp cyan hairline ring +
+   a left accent bar + a divider rule under the kicker — the number is the
+   actor, the lines do the shaping (no glow plate). Sized up a step. */
 .coin-panel {
   position: absolute;
   top: 22px;
   left: 24px;
-  min-width: 118px;
-  padding: 12px 18px 13px;
+  min-width: 176px;
+  padding: 14px 22px 15px;
   color: #7fe8ff;
   background:
-    radial-gradient(circle at 50% 0%, rgba(127, 232, 255, 0.13), transparent 70%),
-    linear-gradient(180deg, rgba(14, 18, 30, 0.4), rgba(5, 7, 15, 0.55));
+    radial-gradient(circle at 50% 0%, rgba(127, 232, 255, 0.1), transparent 72%),
+    linear-gradient(180deg, rgba(12, 18, 30, 0.34), rgba(5, 7, 15, 0.46));
   border: 0;
-  border-radius: 14px;
-  box-shadow: none;
-  backdrop-filter: blur(6px);
+  border-radius: 13px;
+  box-shadow:
+    inset 0 0 0 1px rgba(127, 232, 255, 0.26),
+    inset 3px 0 0 rgba(127, 232, 255, 0.72),
+    0 12px 28px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(7px);
   overflow: visible;
 }
 
+/* Full-width row so the hairline divider under it spans the whole panel. */
 .coin-panel-kicker {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  padding-bottom: 9px;
   font-size: 12px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   color: var(--abyss-lavender);
-  opacity: 0.85;
+  opacity: 0.92;
+  border-bottom: 1px solid rgba(127, 232, 255, 0.2);
 }
 
 .coin-panel-kicker-icon {
@@ -1951,15 +1957,15 @@ body {
 }
 
 .coin-panel-kicker-icon svg {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
 }
 
 .coin-panel-value {
-  margin-top: 5px;
+  margin-top: 11px;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 9px;
 }
 
 .coin-panel-icon {
@@ -1968,13 +1974,13 @@ body {
 }
 
 .coin-panel-icon svg {
-  width: 21px;
-  height: 21px;
+  width: 26px;
+  height: 26px;
 }
 
 .coin-panel-count {
   position: relative;
-  font-size: 30px;
+  font-size: 40px;
   font-weight: 900;
   line-height: 1;
   letter-spacing: 0.02em;
@@ -1985,58 +1991,95 @@ body {
     0 0 18px rgba(90, 190, 235, 0.3);
 }
 
-.coin-panel.is-gain {
-  animation: coin-panel-rise 0.62s cubic-bezier(0.16, 0.9, 0.22, 1);
-}
-
+/* Gain "ding" (Unmelting score-slot-pop ported onto the number): a
+   squash-and-stretch bounce with a brightness/saturation flash. */
 .coin-panel.is-gain .coin-panel-count {
+  animation: coin-slot-pop 0.6s cubic-bezier(0.16, 0.9, 0.22, 1);
   color: #ffffff;
   text-shadow:
     0 0 12px rgba(180, 244, 255, 0.9),
     0 0 26px rgba(127, 232, 255, 0.55);
 }
 
-/* Unmelting's coin "ding": a tiny sparkle row arcs off the number on gain. */
+/* Two sparkle rows arcing off in opposite diagonals (Unmelting dual-sparks). */
 .coin-panel.is-gain .coin-panel-count::after {
   content: '✦ ✧ ✦';
   position: absolute;
-  right: -4px;
-  top: -15px;
-  font-size: 13px;
-  font-weight: 400;
+  right: -6px;
+  top: -16px;
+  font-size: 14px;
   letter-spacing: 4px;
   color: rgba(217, 244, 255, 1);
   text-shadow:
     0 0 6px rgba(180, 244, 255, 0.95),
     0 0 14px rgba(127, 232, 255, 0.7);
-  animation: coin-sparks 0.62s ease-out forwards;
+  animation: coin-sparks 0.6s ease-out forwards;
   pointer-events: none;
+}
+
+.coin-panel.is-gain .coin-panel-count::before {
+  content: '✧ ✦ ✧';
+  position: absolute;
+  left: -4px;
+  bottom: -12px;
+  font-size: 12px;
+  letter-spacing: 5px;
+  color: rgba(150, 220, 250, 0.96);
+  text-shadow: 0 0 8px rgba(127, 232, 255, 0.85);
+  animation: coin-sparks-mirror 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes coin-slot-pop {
+  0% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+  18% {
+    transform: translateY(-4px) scale(1.16, 0.88);
+    filter: brightness(1.5) saturate(1.25);
+  }
+  42% {
+    transform: translateY(3px) scale(0.95, 1.08);
+    filter: brightness(1.25);
+  }
+  68% {
+    transform: translateY(-2px) scale(1.05);
+    filter: brightness(1.12);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
 }
 
 @keyframes coin-sparks {
   0% {
     opacity: 0;
-    transform: translateY(4px) scale(0.7);
+    transform: translate(0, 6px) scale(0.6) rotate(0deg);
   }
   30% {
     opacity: 1;
-    transform: translateY(-2px) scale(1);
+    transform: translate(7px, -6px) scale(1.1) rotate(8deg);
   }
   100% {
     opacity: 0;
-    transform: translateY(-12px) scale(1.05);
+    transform: translate(20px, -22px) scale(1.32) rotate(16deg);
   }
 }
 
-@keyframes coin-panel-rise {
+@keyframes coin-sparks-mirror {
   0% {
-    transform: translateY(0);
+    opacity: 0;
+    transform: translate(0, -4px) scale(0.55) rotate(0deg);
   }
   35% {
-    transform: translateY(-6px);
+    opacity: 1;
+    transform: translate(-7px, 4px) scale(1.02) rotate(-10deg);
   }
   100% {
-    transform: translateY(0);
+    opacity: 0;
+    transform: translate(-20px, 18px) scale(1.28) rotate(-18deg);
   }
 }
 
