@@ -2244,22 +2244,17 @@ body {
    gauge on their inner edge, hugging the left of the board where the
    necromancer stands. Basic is the resting default; raise/capture light
    amber when armed. */
+/* No backdrop panel — the hexes + gauge hug the left flank of the player card
+   directly, vertically centered on it (card spans ~y233–524 at 1080p). */
 .skill-hive {
   position: absolute;
-  left: 18px;
-  top: 50%;
+  left: 158px;
+  top: 35%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   z-index: 40;
-  /* Semi-transparent moody plate so the cluster reads as one panel lifted off
-     the board, not loose buttons floating on the seabed. */
-  padding: 20px 16px 20px 12px;
-  border-radius: 30px;
-  background: radial-gradient(130% 100% at 26% 50%, rgba(14, 10, 28, 0.5), rgba(8, 6, 16, 0.18) 78%, transparent);
-  backdrop-filter: blur(7px);
-  box-shadow: inset 0 0 0 1px rgba(150, 130, 220, 0.1);
 }
 
 .hive-hexes {
@@ -2324,17 +2319,54 @@ body {
     0 6px 16px rgba(0, 0, 0, 0.55);
 }
 
-/* Basic is the always-on resting default — smaller and quieter than the
-   toggle skills so the eye goes to what you actively press. */
+/* Basic is the always-on default — smaller than the toggle skills, with a
+   pressed-in resting look (recessed inset shadow) and a cyan arc that revolves
+   around its edge like a loading ring to prove it's permanently active. */
 .skill-hex--basic {
-  width: 56px;
-  height: 62px;
-  background: radial-gradient(circle at 50% 32%, rgba(70, 60, 104, 0.85), rgba(20, 15, 32, 0.95));
-  box-shadow: inset 0 0 0 1px rgba(140, 125, 190, 0.22);
-  opacity: 0.9;
+  width: 58px;
+  height: 64px;
+  background: radial-gradient(circle at 50% 34%, rgba(64, 55, 96, 0.9), rgba(17, 13, 28, 0.96));
+  box-shadow:
+    inset 0 5px 10px rgba(0, 0, 0, 0.62),
+    inset 0 -2px 5px rgba(180, 210, 255, 0.08),
+    inset 0 0 0 1px rgba(140, 125, 190, 0.3);
 }
 .skill-hex--basic .hex-name {
   font-size: 13px;
+}
+/* The revolving loading glow — a bright cyan arc masked to a hexagon-edge
+   ring, spinning slowly. */
+.skill-hex--basic::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  /* Faint cyan ring always present + a bright arc that sweeps around it. */
+  background: conic-gradient(
+    from 0deg,
+    rgba(150, 225, 255, 0.16) 0deg,
+    rgba(150, 225, 255, 0.16) 40deg,
+    rgba(180, 240, 255, 1) 96deg,
+    rgba(150, 225, 255, 0.5) 140deg,
+    rgba(150, 225, 255, 0.16) 200deg,
+    rgba(150, 225, 255, 0.16) 360deg
+  );
+  -webkit-mask: radial-gradient(circle, transparent 52%, #000 64%);
+  mask: radial-gradient(circle, transparent 52%, #000 64%);
+  filter: drop-shadow(0 0 4px rgba(140, 220, 255, 0.7));
+  animation: hex-loading-spin 2.4s linear infinite;
+  pointer-events: none;
+}
+@keyframes hex-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Keep the label/cost above the spinning ring. */
+.skill-hex .hex-name,
+.skill-hex .hex-cost {
+  position: relative;
+  z-index: 1;
 }
 
 .skill-hex:hover:not(.is-disabled) {
