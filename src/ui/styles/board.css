@@ -2382,6 +2382,15 @@ body {
 .skill-hex .hex-cost {
   position: relative;
   z-index: 1;
+  display: inline-block;
+  /* The plane's tilt (rotateX -15 · scaleY 1.16) stretches glyphs vertically;
+     counter it so the font keeps its true shape, and float it above the tilted
+     hex with a lifted drop shadow to smooth over the flat-text/tilted-body
+     dissonance. */
+  transform: scaleY(0.88);
+  text-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.92),
+    0 5px 13px rgba(0, 0, 0, 0.5);
 }
 
 .skill-hex:hover:not(.is-disabled) {
@@ -2392,7 +2401,6 @@ body {
 .skill-hex .hex-name {
   font-size: 15px;
   font-weight: 800;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
 .skill-hex .hex-cost {
