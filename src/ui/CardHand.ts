@@ -1,4 +1,5 @@
 import { getCreature } from '@data/CreatureDefinitions'
+import { summonCost } from '@data/Tiers'
 import type { HandCard } from '@entities/Card'
 import { Icons } from '@ui/Icons'
 
@@ -30,6 +31,10 @@ function fanTransform(index: number, total: number): { x: number; y: number; rot
 // selects it for placement; Game.ts decides what happens next.
 export class CardHand {
   private readonly container: HTMLElement
+  private cards: readonly HandCard[] = []
+  // Whether each card is affordable now — necro cards dim/lock until their
+  // summon cost is met. Defaults to always-affordable until Game supplies it.
+  private affordFn: (card: HandCard) => boolean = () => true
 
   constructor(
     root: HTMLElement,
@@ -40,8 +45,10 @@ export class CardHand {
     root.appendChild(this.container)
   }
 
-  render(cards: readonly HandCard[], selectedId: string | null): void {
+  render(cards: readonly HandCard[], selectedId: string | null, affordFn?: (card: HandCard) => boolean): void {
     this.container.innerHTML = ''
+    this.cards = cards
+    if (affordFn) this.affordFn = affordFn
     const total = cards.length
     cards.forEach((card, i) => {
       const el = document.createElement('button')
@@ -55,6 +62,7 @@ export class CardHand {
       if (card.tier === 3) el.classList.add('hand-card--tier3')
       if (i === total - 1) el.classList.add('is-new')
       if (card.id === selectedId) el.classList.add('is-selected')
+      if (!this.affordFn(card)) el.classList.add('is-unaffordable')
       const { x, y, rot } = fanTransform(i, total)
       el.style.setProperty('--hand-x', `${x}px`)
       el.style.setProperty('--hand-y', `${y}px`)
@@ -76,10 +84,23 @@ export class CardHand {
         tier > 0
           ? `<div class="hand-card-stars" aria-label="${tier}성">${'★'.repeat(tier)}</div>`
           : ''
-      el.innerHTML = `<div class="hand-card-art">${artHtml}</div>${starsHtml}<div class="hand-card-label">${card.label}</div>`
+      // Summon-cost badge (sacral gauge) — necro cards only; items are free.
+      const costHtml = creature ? `<div class="hand-card-cost">${summonCost(tier)}</div>` : ''
+      el.innerHTML = `<div class="hand-card-art">${artHtml}</div>${costHtml}${starsHtml}<div class="hand-card-label">${card.label}</div>`
       el.addEventListener('click', () => this.onCardClick(card.id))
       this.container.appendChild(el)
     })
+  }
+
+  /** Re-evaluates affordability and toggles the dim/lock class on existing
+   * cards without rebuilding the fan — called when the gauge changes so a
+   * card lights up the instant its summon cost is met. */
+  refreshAffordability(affordFn: (card: HandCard) => boolean): void {
+    this.affordFn = affordFn
+    for (const card of this.cards) {
+      const el = this.container.querySelector<HTMLElement>(`[data-card-id="${card.id}"]`)
+      el?.classList.toggle('is-unaffordable', !affordFn(card))
+    }
   }
 
   /** Viewport point the (nextCount)-th card will occupy, for aiming an incoming burst. */

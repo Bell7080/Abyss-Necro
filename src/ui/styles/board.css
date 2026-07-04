@@ -601,11 +601,11 @@ body {
   position: absolute;
   left: 50%;
   bottom: -15px;
-  width: 74%;
-  height: 30px;
+  width: 80%;
+  height: 36px;
   transform: translateX(-50%);
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.52), transparent 68%);
-  filter: blur(2px);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.32) 55%, transparent 72%);
+  filter: blur(3px);
   z-index: -1;
   pointer-events: none;
 }
@@ -754,6 +754,41 @@ body {
   bottom: 32px;
   z-index: 1;
   pointer-events: none;
+}
+
+/* Summon-cost badge (top-left) — sacral gauge cost to deploy this card. */
+.hand-card-cost {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  z-index: 2;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #dff4ff;
+  background: rgba(10, 16, 34, 0.86);
+  box-shadow:
+    inset 0 0 0 1px rgba(120, 200, 255, 0.5),
+    0 0 8px rgba(70, 150, 230, 0.5);
+  pointer-events: none;
+}
+
+/* Unaffordable necro card — dimmed and locked (non-selectable) until the
+   sacral gauge meets its summon cost; the cost badge turns warning-red. */
+.hand-card.is-unaffordable {
+  filter: brightness(0.46) saturate(0.62);
+  pointer-events: none;
+}
+.hand-card.is-unaffordable .hand-card-cost {
+  color: #ffb0b0;
+  background: rgba(30, 12, 16, 0.88);
+  box-shadow: inset 0 0 0 1px rgba(255, 120, 120, 0.55);
 }
 
 /* ---------- Hand triple-merge (Unmelting jelly-merge language) ---------- */
@@ -1033,8 +1068,9 @@ body {
   box-shadow:
     inset 0 0 0 1px var(--card-ring),
     inset 0 -10px 22px rgba(0, 0, 0, 0.55),
-    0 10px 20px rgba(0, 0, 0, 0.5),
-    0 0 30px var(--card-glow);
+    0 20px 40px rgba(0, 0, 0, 0.78),
+    0 8px 16px rgba(0, 0, 0, 0.62),
+    0 0 32px var(--card-glow);
 }
 
 /* Red blink on damage — ::before tints the whole face for a beat. */
@@ -1061,16 +1097,18 @@ body {
   }
 }
 
+/* Enemy = deep, cold indigo; ally = fresh sky-cyan. Both sit in the blue
+   family but split by value (dark vs bright) for an at-a-glance read. */
 .entity-card--enemy {
   width: 160px;
-  --card-ring: rgba(255, 120, 135, 0.3);
-  --card-glow: rgba(255, 70, 100, 0.26);
+  --card-ring: rgba(96, 108, 200, 0.42);
+  --card-glow: rgba(52, 66, 165, 0.4);
 }
 
 .entity-card--ally {
   width: 160px;
-  --card-ring: rgba(130, 185, 255, 0.32);
-  --card-glow: rgba(95, 160, 255, 0.26);
+  --card-ring: rgba(150, 230, 255, 0.5);
+  --card-glow: rgba(120, 214, 255, 0.44);
 }
 
 .entity-card--player {
@@ -2208,37 +2246,57 @@ body {
    amber when armed. */
 .skill-hive {
   position: absolute;
-  left: 26px;
+  left: 18px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   z-index: 40;
+  /* Semi-transparent moody plate so the cluster reads as one panel lifted off
+     the board, not loose buttons floating on the seabed. */
+  padding: 20px 16px 20px 12px;
+  border-radius: 30px;
+  background: radial-gradient(130% 100% at 26% 50%, rgba(14, 10, 28, 0.5), rgba(8, 6, 16, 0.18) 78%, transparent);
+  backdrop-filter: blur(7px);
+  box-shadow: inset 0 0 0 1px rgba(150, 130, 220, 0.1);
 }
 
 .hive-hexes {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
 }
 
+/* Overlapping honeycomb column, gently fanned toward the player on the right:
+   the two ends lean in (margin-left), the middle bulges out — a bracket that
+   cups the necromancer. margin (not transform) keeps hover/pop free. */
 .hive-hexes .skill-hex {
-  margin-top: -12px;
+  margin-top: -10px;
 }
 .hive-hexes .skill-hex:first-child {
   margin-top: 0;
 }
-.hive-hexes .skill-hex:nth-child(even) {
-  margin-left: 36px;
+.skill-hex--basic {
+  margin-left: 22px;
+}
+.skill-hex--raise {
+  margin-left: 4px;
+}
+.skill-hex--raise-all {
+  margin-left: 0;
+}
+.skill-hex--capture {
+  margin-left: 18px;
 }
 
 .skill-hex {
   position: relative;
-  width: 68px;
-  height: 76px;
+  width: 72px;
+  height: 80px;
   clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   border: none;
-  background: radial-gradient(circle at 50% 34%, rgba(74, 58, 116, 0.92), rgba(20, 14, 34, 0.96));
+  background: radial-gradient(circle at 50% 32%, rgba(58, 46, 96, 0.94), rgba(15, 11, 26, 0.97));
   color: var(--abyss-lavender, #cdbcff);
   display: flex;
   flex-direction: column;
@@ -2247,60 +2305,102 @@ body {
   gap: 3px;
   cursor: pointer;
   box-shadow:
-    inset 0 0 0 1px rgba(160, 140, 230, 0.28),
-    0 4px 14px rgba(0, 0, 0, 0.5);
+    inset 0 0 0 1px rgba(150, 130, 220, 0.34),
+    0 6px 16px rgba(0, 0, 0, 0.55);
   transition:
     transform 0.14s ease,
-    filter 0.14s ease;
+    filter 0.14s ease,
+    box-shadow 0.2s ease;
 }
 
+/* The three press-to-use skills read as the stars of the hive: a live cyan
+   ready-ring while affordable so they invite the click. */
+.skill-hex--raise:not(.is-disabled):not(.is-armed),
+.skill-hex--raise-all:not(.is-disabled):not(.is-armed),
+.skill-hex--capture:not(.is-disabled):not(.is-armed) {
+  box-shadow:
+    inset 0 0 0 1px rgba(150, 225, 255, 0.55),
+    0 0 16px rgba(90, 190, 255, 0.4),
+    0 6px 16px rgba(0, 0, 0, 0.55);
+}
+
+/* Basic is the always-on resting default — smaller and quieter than the
+   toggle skills so the eye goes to what you actively press. */
 .skill-hex--basic {
-  background: radial-gradient(circle at 50% 34%, rgba(92, 76, 142, 0.95), rgba(26, 18, 42, 0.96));
+  width: 56px;
+  height: 62px;
+  background: radial-gradient(circle at 50% 32%, rgba(70, 60, 104, 0.85), rgba(20, 15, 32, 0.95));
+  box-shadow: inset 0 0 0 1px rgba(140, 125, 190, 0.22);
+  opacity: 0.9;
+}
+.skill-hex--basic .hex-name {
+  font-size: 13px;
 }
 
 .skill-hex:hover:not(.is-disabled) {
-  transform: scale(1.07);
-  filter: brightness(1.16);
+  transform: scale(1.08);
+  filter: brightness(1.18);
 }
 
 .skill-hex .hex-name {
   font-size: 15px;
   font-weight: 800;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
 .skill-hex .hex-cost {
   font-size: 11px;
   font-weight: 800;
-  color: #7fe8ff;
+  color: #8fdcff;
 }
 
 .skill-hex.is-armed {
-  background: radial-gradient(circle at 50% 34%, rgba(255, 172, 92, 0.96), rgba(120, 60, 20, 0.96));
+  background: radial-gradient(circle at 50% 32%, rgba(255, 172, 92, 0.96), rgba(120, 60, 20, 0.96));
   color: #fff2df;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 210, 150, 0.65),
-    0 0 20px rgba(255, 170, 90, 0.75);
+    inset 0 0 0 1px rgba(255, 210, 150, 0.7),
+    0 0 24px rgba(255, 170, 90, 0.85);
 }
 .skill-hex.is-armed .hex-cost {
   color: #ffe6c2;
 }
 
 .skill-hex.is-disabled {
-  filter: grayscale(0.7) brightness(0.5);
+  filter: grayscale(0.72) brightness(0.42);
+  opacity: 0.75;
   cursor: default;
 }
 
+/* "팅!" — a skill just became affordable: a quick pop + bright flash. */
+.skill-hex.is-ready-pop {
+  animation: hex-ready-pop 0.5s ease-out;
+}
+@keyframes hex-ready-pop {
+  0% {
+    transform: scale(1);
+  }
+  38% {
+    transform: scale(1.24);
+    filter: brightness(1.8) drop-shadow(0 0 16px rgba(150, 225, 255, 0.95));
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+/* Moody sacral gauge — a slim, dark, seamless capsule (no childish segment
+   seams). Deep teal sinking into indigo/violet, with a soft surface sheen. */
 .hive-gauge-track {
   position: relative;
-  width: 22px;
-  height: 244px;
+  width: 13px;
+  height: 252px;
   border-radius: 999px;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(10, 8, 20, 0.55), rgba(4, 3, 10, 0.75));
+  background: linear-gradient(180deg, rgba(9, 7, 18, 0.9), rgba(3, 2, 9, 0.94));
   box-shadow:
-    inset 0 0 0 1px rgba(150, 205, 255, 0.14),
-    inset 0 3px 10px rgba(0, 0, 0, 0.6);
+    inset 0 0 0 1px rgba(120, 150, 210, 0.16),
+    inset 0 4px 12px rgba(0, 0, 0, 0.72);
 }
 
 .hive-gauge-fill {
@@ -2309,21 +2409,16 @@ body {
   right: 0;
   bottom: 0;
   height: 0%;
-  background: linear-gradient(180deg, #9be7ff, #4aa6ff 58%, #6a5cff);
-  box-shadow: 0 0 12px rgba(120, 200, 255, 0.7);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #79d3e0 0%, #3f74c2 52%, #4a3d86 100%);
+  box-shadow:
+    0 0 10px rgba(90, 160, 220, 0.5),
+    inset 0 2px 5px rgba(220, 245, 255, 0.32);
 }
 
+/* Ticks element kept in the DOM but retired — the smooth fill IS the read. */
 .hive-gauge-ticks {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: repeating-linear-gradient(
-    180deg,
-    transparent 0,
-    transparent calc(10% - 1px),
-    rgba(0, 0, 0, 0.5) calc(10% - 1px),
-    rgba(0, 0, 0, 0.5) 10%
-  );
+  display: none;
 }
 
 /* ---------- Corpse markers + hasty-undead waver ---------- */

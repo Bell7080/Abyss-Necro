@@ -20,3 +20,11 @@ export const MAX_TIER = 3
 export function tierStats(tier: number): TierStats {
   return TIER_STATS[tier] ?? TIER_STATS[1]
 }
+
+// Sacral-gauge cost to deploy a hand card as a full defender, by tier — the
+// stronger the sending, the more sorcery it takes. Item/epic cards are free.
+const SUMMON_COST: Record<number, number> = { 1: 4, 2: 7, 3: 10 }
+
+export function summonCost(tier: number): number {
+  return SUMMON_COST[tier] ?? SUMMON_COST[1]
+}

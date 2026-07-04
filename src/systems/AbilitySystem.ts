@@ -66,6 +66,20 @@ export class AbilitySystem {
     return this.gauge >= ABILITY_COST[ability]
   }
 
+  /** Whether an arbitrary gauge amount is affordable — used for tiered summon
+   * costs (placing a hand card as a full defender). */
+  canAfford(amount: number): boolean {
+    return this.gauge >= amount
+  }
+
+  /** Spends an arbitrary gauge amount if affordable (summon cost). */
+  spend(amount: number): boolean {
+    if (this.gauge < amount) return false
+    this.gauge = Math.max(0, this.gauge - amount)
+    this.emit()
+    return true
+  }
+
   /** Spends an ability's cost if affordable. */
   tryCast(ability: AbilityId): boolean {
     if (!this.canCast(ability)) return false

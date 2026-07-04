@@ -38,6 +38,7 @@ import playerArtUrl from '@/assets/sprites/player_001.webp'
 import { getCreature } from '@data/CreatureDefinitions'
 import { getEpicCard } from '@data/EpicCardDefinitions'
 import { getItemCard } from '@data/ItemCardDefinitions'
+import { summonCost } from '@data/Tiers'
 import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
 import type { Relic } from '@entities/Relic'
@@ -167,9 +168,12 @@ export class Game {
     this.handSystem.onChange(() => this.handleHandChange())
     this.relicSystem.onChange((relics) => this.relics.render(relics))
     this.coinSystem.onChange((coins) => this.coins.render(coins))
-    this.abilitySystem.onChange(() => this.hive.render())
+    this.abilitySystem.onChange(() => {
+      this.hive.render()
+      this.hand.refreshAffordability((c) => this.canAffordCard(c))
+    })
 
-    this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
+    this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId(), (c) => this.canAffordCard(c))
     this.relics.render(this.relicSystem.getRelics())
     this.coins.render(this.coinSystem.getCoins())
     this.cosmos.render(this.graveyardSystem.getSouls())
@@ -182,7 +186,7 @@ export class Game {
     const selected = this.handSystem.getSelectedCard()
     // Selecting a card and arming a skill are mutually exclusive modes.
     if (selected && this.armedAbility) this.disarmSkill()
-    this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
+    this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId(), (c) => this.canAffordCard(c))
     this.mergeButton.setVisible(!this.mergeInProgress && !!this.handSystem.findTriple())
 
     if (selected) this.inspector.show(selected)
@@ -452,8 +456,20 @@ export class Game {
       this.useEpicCard(cellIndex, card)
       return
     }
-    if (!this.defenderSystem.place(cellIndex, card.label, card.creatureId)) return
+    // Full-summon costs sacral gauge by tier (1성 4 / 2성 7 / 3성 10). The
+    // hand card is dimmed until affordable, but re-check on the cast too.
+    const cost = summonCost(card.tier ?? 1)
+    if (!this.abilitySystem.canAfford(cost)) return
+    if (!this.defenderSystem.place(cellIndex, card.label, card.creatureId, card.tier ?? 1)) return
+    this.abilitySystem.spend(cost)
     this.handSystem.removeCard(card.id)
+  }
+
+  /** Whether a hand card can be played now: item/epic are always usable, a
+   * necro card needs its tier's summon cost in gauge. */
+  private canAffordCard(card: HandCard): boolean {
+    if (card.kind) return true
+    return this.abilitySystem.canAfford(summonCost(card.tier ?? 1))
   }
 
   /** Epic facility cards: 함정별 needs a grid cell; the global ones apply

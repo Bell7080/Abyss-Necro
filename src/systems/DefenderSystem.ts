@@ -8,8 +8,7 @@ const ROWS = 3
 const COLS = 3
 const CELL_COUNT = ROWS * COLS
 const MAX_ALLIES_PER_CELL = 3
-// A placed hand card deploys at tier 1.
-const ALLY_BASE_HP = tierStats(1).hp
+// Fallback attack for a placed ally that carries no explicit value.
 const DEFAULT_ALLY_ATTACK = tierStats(1).attack
 // Hasty undead raised from a corpse: a cheap, disposable wall. No passive,
 // purged at the lull.
@@ -17,8 +16,8 @@ const RAISED_ALLY_HP = RAISED_STATS.hp
 const RAISED_ALLY_ATTACK = RAISED_STATS.attack
 // Sea-rabbit death-heal amount to adjacent allies.
 const RABBIT_HEAL = 2
-// Crab's hard-shell bonus on placement over the tier-1 hp.
-const CRAB_ALLY_HP = tierStats(1).hp + 4
+// Crab's hard-shell bonus hp on placement, on top of its tier stats.
+const CRAB_GUARD_BONUS_HP = 4
 
 // Owns placed defenders — up to 3 per grid cell, plus a boss-room slot
 // (also capped at 3) so the player can stack allies right next to
@@ -72,17 +71,21 @@ export class DefenderSystem {
     return MAX_ALLIES_PER_CELL - this.listFor(cellIndex).length
   }
 
-  place(cellIndex: number, label: string, creatureId: string): boolean {
+  /** Deploys a hand card at its tier (1→2→3성) with the matching stats. */
+  place(cellIndex: number, label: string, creatureId: string, tier = 1): boolean {
     if (!this.canPlace(cellIndex)) return false
     // 단단한 등껍질: a crab enters with a bigger life pool (and a shield blast).
     const guarded = getCreature(creatureId)?.passiveId === 'crab-guard'
-    const hp = guarded ? CRAB_ALLY_HP : ALLY_BASE_HP
+    const stats = tierStats(tier)
+    const hp = stats.hp + (guarded ? CRAB_GUARD_BONUS_HP : 0)
     this.listFor(cellIndex).push({
       id: `ally-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       label,
       creatureId,
       hp,
       maxHp: hp,
+      attack: stats.attack,
+      tier: tier > 1 ? tier : undefined,
     })
     this.emit()
     if (guarded) this.emitPassive({ passiveId: 'crab-guard', cellIndex })

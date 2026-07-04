@@ -78,7 +78,18 @@ export class SkillHive {
 
   render(): void {
     for (const [aid, btn] of this.hexes) {
-      btn.classList.toggle('is-disabled', !this.ability.canCast(aid))
+      const can = this.ability.canCast(aid)
+      btn.classList.toggle('is-disabled', !can)
+      // "팅!" — when a skill first becomes affordable, pop + flash it.
+      if (this.prevAffordable.get(aid) === false && can) {
+        btn.classList.remove('is-ready-pop')
+        void btn.offsetWidth // restart the keyframe
+        btn.classList.add('is-ready-pop')
+        window.setTimeout(() => btn.classList.remove('is-ready-pop'), 520)
+      }
+      this.prevAffordable.set(aid, can)
     }
   }
+
+  private readonly prevAffordable = new Map<AbilityId, boolean>()
 }
