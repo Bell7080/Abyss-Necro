@@ -5,13 +5,25 @@ import type { PassiveEvent } from '@systems/PassiveEvent'
 import { randomCreature } from '@data/CreatureDefinitions'
 
 const ROWS = 3 // lanes — enemies march straight down their own lane
-const COLS = 3
+const COLS = 4 // lane depth — cells an enemy crosses before the boss room
 const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss room
 // Wave-1 enemy hp; each later wave adds ENEMY_HP_PER_WAVE so the ally tier
 // ladder (1성 7 → 3성 88) stays meaningful as the tide toughens.
 const ENEMY_BASE_HP = 8
 const ENEMY_HP_PER_WAVE = 2
 const ENEMY_ATTACK_DAMAGE = 1
+// The climax: the final wave always opens with a single elite boss — an
+// oversized jellyfish that hits far harder and soaks far more, the whole run's
+// capture loop pointed at one target. Uses the jellyfish art at boss scale.
+const BOSS_WAVE = 6
+const BOSS_CREATURE_ID = 'jellyfish'
+const BOSS_LABEL = '엘리트 해파리'
+const BOSS_HP = 60
+const BOSS_ATTACK = 3
+// Capture ("넌 내꺼야!") cuts: an ordinary enemy is claimable at ≤25% hp, a
+// boss only at ≤10% — the harder execute that makes sacrificing it a payoff.
+const CAPTURE_THRESHOLD = 0.25
+const BOSS_CAPTURE_THRESHOLD = 0.1
 // Fallback only, used if DefenderHooks isn't wired — DefenderSystem's own
 // getAttack() (placed card default or summon's own value) wins normally.
 const ALLY_COUNTER_DAMAGE = 2
@@ -282,20 +294,25 @@ export class WaveSystem {
     return results
   }
 
-  /** Whether a cell's front enemy is weak enough to capture ("넌 내꺼야!").
-   * Threshold is a fraction of max hp (bosses will use a stricter one). */
-  isCapturable(cellIndex: number, threshold: number): boolean {
-    const enemy = this.listFor(cellIndex)[0]
-    return !!enemy && enemy.hp / enemy.maxHp <= threshold
+  /** Capture threshold for a specific enemy — bosses need the stricter cut. */
+  private captureThreshold(enemy: EnemyToken): number {
+    return enemy.isBoss ? BOSS_CAPTURE_THRESHOLD : CAPTURE_THRESHOLD
   }
 
-  /** Capture the front enemy of a cell if it's at/below the hp threshold —
-   * it's claimed whole (no corpse, no coin) and its creatureId returned so
-   * Game can hand over a guaranteed card. Returns null if not capturable. */
-  captureFrontEnemy(cellIndex: number, threshold: number): { creatureId: string } | null {
+  /** Whether a cell's front enemy is weak enough to capture ("넌 내꺼야!") —
+   * ≤25% hp for a normal enemy, ≤10% for a boss. */
+  isCapturable(cellIndex: number): boolean {
+    const enemy = this.listFor(cellIndex)[0]
+    return !!enemy && enemy.hp / enemy.maxHp <= this.captureThreshold(enemy)
+  }
+
+  /** Capture the front enemy of a cell if it's at/below its capture cut — it's
+   * claimed whole (no corpse, no coin) and its creatureId returned so Game can
+   * hand over a guaranteed card. Returns null if not capturable. */
+  captureFrontEnemy(cellIndex: number): { creatureId: string } | null {
     const list = this.listFor(cellIndex)
     const enemy = list[0]
-    if (!enemy || enemy.hp / enemy.maxHp > threshold) return null
+    if (!enemy || enemy.hp / enemy.maxHp > this.captureThreshold(enemy)) return null
     list.shift()
     this.emitChange()
     this.triggerInstantPushIfClear()
@@ -505,7 +522,7 @@ export class WaveSystem {
       // necromancer directly. Game routes this into PlayerSystem; defeat
       // handling lives there. Grid cells without defenders stay peaceful.
       if (cellIndex === BOSS_CELL_INDEX) {
-        this.emitPlayerHit({ damage: ENEMY_ATTACK_DAMAGE })
+        this.emitPlayerHit({ damage: enemy.attack ?? ENEMY_ATTACK_DAMAGE })
         this.emitClash({ cellIndex })
       }
       return
@@ -514,7 +531,7 @@ export class WaveSystem {
     // Placed defenders and summons alike report their own attack — a weak
     // summon should hit lighter than a placed card, a strong one harder.
     const allyAttack = this.defenders?.getAttack(cellIndex) ?? ALLY_COUNTER_DAMAGE
-    this.defenders?.damage(cellIndex, ENEMY_ATTACK_DAMAGE)
+    this.defenders?.damage(cellIndex, enemy.attack ?? ENEMY_ATTACK_DAMAGE)
     this.damageEnemy(enemyList, cellIndex, enemy, allyAttack, cellIndex === BOSS_CELL_INDEX)
     this.emitClash({ cellIndex })
   }
@@ -554,6 +571,8 @@ export class WaveSystem {
     // Previous wave's arrivals have long fired — drop the stale ids.
     this.spawnTimeoutIds = []
     const wave = this.waveNumber
+    // The climax wave leads with the elite boss, its escort trickling in after.
+    if (wave === BOSS_WAVE) this.spawnBoss()
     const count = this.enemyCountForWave(wave)
     const startLane = Math.floor(Math.random() * ROWS)
     const hp = this.enemyHpForWave(wave)
@@ -582,6 +601,25 @@ export class WaveSystem {
       delay += 340 + Math.random() * 520
       this.spawnTimeoutIds.push(window.setTimeout(spawn, delay))
     }
+  }
+
+  /** The elite boss enters in the middle lane at the entry column, marching the
+   * same path as any enemy — just far tougher and hard-hitting. */
+  private spawnBoss(): void {
+    const lane = Math.floor(ROWS / 2)
+    this.cells[lane * COLS + ENTRY_COL].push({
+      id: `boss-${this.waveNumber}`,
+      creatureId: BOSS_CREATURE_ID,
+      label: BOSS_LABEL,
+      row: lane,
+      col: ENTRY_COL,
+      hp: BOSS_HP,
+      maxHp: BOSS_HP,
+      attack: BOSS_ATTACK,
+      isBoss: true,
+      guaranteedCard: true,
+    })
+    this.emitChange()
   }
 
   private emitChange(): void {

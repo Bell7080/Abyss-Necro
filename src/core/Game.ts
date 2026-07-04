@@ -2,6 +2,7 @@ import { AbyssAmbience } from '@ui/AbyssAmbience'
 import { BoardRenderer } from '@ui/BoardRenderer'
 import { CardHand } from '@ui/CardHand'
 import { CardInspector, type InspectorData } from '@ui/CardInspector'
+import { CodexOverlay } from '@ui/CodexOverlay'
 import { CoinPanel } from '@ui/CoinPanel'
 import { CosmosLayer } from '@ui/CosmosLayer'
 import { DefeatOverlay } from '@ui/DefeatOverlay'
@@ -44,10 +45,6 @@ import type { Relic } from '@entities/Relic'
 
 const BASIC_ATTACK_DAMAGE = 4
 const RELIC_CHOICE_COUNT = 3
-// Capture ("넌 내꺼야!") only claims enemies at or below this fraction of
-// max hp — a stricter cut for bosses.
-const CAPTURE_THRESHOLD = 0.25
-const BOSS_CAPTURE_THRESHOLD = 0.1
 // While a hand card is held or a skill is armed the whole game clock crawls,
 // giving the player a slow-motion beat to read the board and aim.
 const AIM_TIME_SCALE = 0.3
@@ -140,6 +137,7 @@ export class Game {
       onLeave: () => this.resumeRun(),
     })
     new AbyssAmbience(shell)
+    new CodexOverlay(shell)
     this.defeatOverlay = new DefeatOverlay(shell)
     new IntroOverlay(shell, () => this.startRun())
 
@@ -259,10 +257,7 @@ export class Game {
       this.board.setCaptureMarkers([])
       return
     }
-    const marks = this.waveSystem.getAliveCellIndices().filter((idx) => {
-      const threshold = idx === BOSS_CELL_INDEX ? BOSS_CAPTURE_THRESHOLD : CAPTURE_THRESHOLD
-      return this.waveSystem.isCapturable(idx, threshold)
-    })
+    const marks = this.waveSystem.getAliveCellIndices().filter((idx) => this.waveSystem.isCapturable(idx))
     this.board.setCaptureMarkers(marks)
   }
 
@@ -302,10 +297,10 @@ export class Game {
       const creature = getCreature(enemy.creatureId)
       return {
         imageUrl: creature?.enemyArt,
-        title: creature?.label ?? '심연의 것',
-        tag: '적',
+        title: enemy.label ?? creature?.label ?? '심연의 것',
+        tag: enemy.isBoss ? '엘리트 보스' : '적',
         stats: [
-          { label: '공격', value: `${this.waveSystem.getEnemyAttack()}` },
+          { label: '공격', value: `${enemy.attack ?? this.waveSystem.getEnemyAttack()}` },
           { label: '체력', value: `${enemy.hp}/${enemy.maxHp}` },
         ],
         passive: creature?.passive,
@@ -421,8 +416,7 @@ export class Game {
   /** "넌 내꺼야!" — execute the aimed cell's front enemy if it's weak enough,
    * claiming a guaranteed necro card. No valid target = no spend. */
   private castCapture(cellIndex: number): void {
-    const threshold = cellIndex === BOSS_CELL_INDEX ? BOSS_CAPTURE_THRESHOLD : CAPTURE_THRESHOLD
-    if (!this.waveSystem.isCapturable(cellIndex, threshold)) {
+    if (!this.waveSystem.isCapturable(cellIndex)) {
       this.disarmSkill()
       return
     }
@@ -430,7 +424,7 @@ export class Game {
       this.disarmSkill()
       return
     }
-    const captured = this.waveSystem.captureFrontEnemy(cellIndex, threshold)
+    const captured = this.waveSystem.captureFrontEnemy(cellIndex)
     if (captured) {
       const creature = getCreature(captured.creatureId)
       const rect = this.board.getCellRect(cellIndex)

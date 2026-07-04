@@ -6,18 +6,20 @@ import playerArt from '@/assets/sprites/player_001.webp'
 import { Icons } from '@ui/Icons'
 import { entityCardHtml } from '@ui/EntityCard'
 
-const CELL_COUNT = 9
-const GRID_COLS = 3
-// Must match .board-grid's grid-template-columns/gap in board.css — tokens
-// are positioned by pixel math instead of CSS grid placement so their
-// movement between cells can transition smoothly.
-const CELL_SIZE = 280
-const CELL_GAP = 32
+const GRID_COLS = 4 // lane depth (matches WaveSystem COLS) — the wider horizontal axis
+const GRID_ROWS = 3 // lanes — one horizontal row per lane (matches WaveSystem ROWS)
+const CELL_COUNT = GRID_COLS * GRID_ROWS
+// Must match .board-grid's grid-template-columns/rows/gap in board.css —
+// tokens are positioned by pixel math instead of CSS grid placement so their
+// movement between cells can transition smoothly. Cells shrank when the grid
+// gained a 4th column so the wider board still fits the viewport.
+const CELL_SIZE = 210
+const CELL_GAP = 28
 // Allies sit slightly left of a cell's center, enemies slightly right, so
 // a shared cell reads as a face-off instead of a pile. Multiple occupants
 // on the same side stack with a small vertical offset.
-const GRID_ROLE_OFFSET_X = 80
-const STACK_GAP_Y = 40
+const GRID_ROLE_OFFSET_X = 62
+const STACK_GAP_Y = 34
 // In the boss/player cell: player leftmost (shifted well outside the cell,
 // see --board-figure-shift-x), allies in the middle, enemies rightmost —
 // the same "standing off against each other" composition.
@@ -42,6 +44,7 @@ interface Occupant {
   creatureId?: string
   tier?: number
   raised?: boolean
+  isBoss?: boolean
 }
 
 // Center board: left player/boss cell, flow arrow, 3x3 enemy grid on the
@@ -302,6 +305,7 @@ export class BoardRenderer {
     const imageUrl = creature ? (variant === 'ally' ? creature.allyArt : creature.enemyArt) : undefined
     const tierClass = occupant.tier === 3 ? ' is-tier3' : occupant.tier === 2 ? ' is-tier2' : ''
     const raisedClass = occupant.raised ? ' is-raised' : ''
+    if (occupant.isBoss) el.classList.add('is-boss')
     el.innerHTML = `<div class="board-figure is-arrived${tierClass}${raisedClass}">${entityCardHtml({
       variant,
       art: Icons.enemyToken(),
@@ -457,38 +461,35 @@ function starPath(cx: number, cy: number, r: number): string {
   return `M${cx} ${cy - r} L${cx + w} ${cy - w} L${cx + r} ${cy} L${cx + w} ${cy + w} L${cx} ${cy + r} L${cx - w} ${cy + w} L${cx - r} ${cy} L${cx - w} ${cy - w} Z`
 }
 
-/** The 3×3 grid's inner boundaries drawn as a "#" constellation: two
- * vertical and two horizontal starlight lines through the gap centers, big
- * stars at the four crossings, small ones where lines meet the grid edge. */
+/** The grid's inner boundaries drawn as a "#" constellation: a starlight line
+ * through each internal column/row gap, big stars where lines cross, small
+ * ones where lines meet the grid edge. Generalized over GRID_COLS×GRID_ROWS. */
 function constellationSvg(): string {
-  const size = GRID_COLS * CELL_SIZE + (GRID_COLS - 1) * CELL_GAP
-  const a = CELL_SIZE + CELL_GAP / 2
-  const b = CELL_SIZE * 2 + CELL_GAP + CELL_GAP / 2
-  const lines = [`M${a} 0 L${a} ${size}`, `M${b} 0 L${b} ${size}`, `M0 ${a} L${size} ${a}`, `M0 ${b} L${size} ${b}`]
-  const crossings: Array<[number, number]> = [
-    [a, a],
-    [a, b],
-    [b, a],
-    [b, b],
+  const width = GRID_COLS * CELL_SIZE + (GRID_COLS - 1) * CELL_GAP
+  const height = GRID_ROWS * CELL_SIZE + (GRID_ROWS - 1) * CELL_GAP
+  // Internal gap centers — vertical lines sit at column gaps, horizontal at row gaps.
+  const gapAt = (i: number): number => i * (CELL_SIZE + CELL_GAP) - CELL_GAP / 2
+  const xs = Array.from({ length: GRID_COLS - 1 }, (_, i) => gapAt(i + 1))
+  const ys = Array.from({ length: GRID_ROWS - 1 }, (_, i) => gapAt(i + 1))
+
+  const lines = [
+    ...xs.map((x) => `M${x} 0 L${x} ${height}`),
+    ...ys.map((y) => `M0 ${y} L${width} ${y}`),
   ]
+  const crossings: Array<[number, number]> = []
+  for (const x of xs) for (const y of ys) crossings.push([x, y])
   const edges: Array<[number, number]> = [
-    [a, 0],
-    [b, 0],
-    [a, size],
-    [b, size],
-    [0, a],
-    [0, b],
-    [size, a],
-    [size, b],
+    ...xs.flatMap((x): Array<[number, number]> => [[x, 0], [x, height]]),
+    ...ys.flatMap((y): Array<[number, number]> => [[0, y], [width, y]]),
   ]
 
   const linesHtml = lines.map((d) => `<path class="board-constellation-line" d="${d}"/>`).join('')
   const bigStars = crossings
-    .map(([x, y], i) => `<path class="board-star board-star--big board-star--p${i}" d="${starPath(x, y, 11)}"/>`)
+    .map(([x, y], i) => `<path class="board-star board-star--big board-star--p${i % 4}" d="${starPath(x, y, 11)}"/>`)
     .join('')
   const smallStars = edges
     .map(([x, y], i) => `<path class="board-star board-star--p${i % 4}" d="${starPath(x, y, 5.5)}"/>`)
     .join('')
 
-  return `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${linesHtml}${bigStars}${smallStars}</svg>`
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${linesHtml}${bigStars}${smallStars}</svg>`
 }

@@ -54,6 +54,28 @@ export const Icons = {
       <path d="M12 2.8 14.1 9.9 21.2 12 14.1 14.1 12 21.2 9.9 14.1 2.8 12 9.9 9.9 12 2.8Z" fill="currentColor"/>
     </svg>`
   },
+  /** Open book — the 도감(codex) launcher glyph, flat-iconic per the Unmelting
+   * compendium convention (color/glow come from CSS). */
+  book(): string {
+    return `<svg viewBox="0 0 24 24" width="46" height="46" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3.4 5.4c2.8-.4 5.6-.2 7.6 1.2v12c-2-1.4-4.8-1.6-7.6-1.2V5.4Z" fill="currentColor"/>
+      <path d="M20.6 5.4c-2.8-.4-5.6-.2-7.6 1.2v12c2-1.4 4.8-1.6 7.6-1.2V5.4Z" fill="currentColor"/>
+      <path d="M12 6.6v12" stroke="#0a0716" stroke-width="1" stroke-linecap="round"/>
+    </svg>`
+  },
+  /** Close X for overlays. */
+  closeMark(): string {
+    return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    </svg>`
+  },
+  /** Sacral transformation arrow — cold(before) → warm(after) sweep for the
+   * codex before/after pairing (gradient applied via CSS currentColor). */
+  necroArrow(): string {
+    return `<svg viewBox="0 0 44 16" width="44" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 8h34M30 3l7 5-7 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`
+  },
   itemVial(): string {
     return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M10 2h4M10 2v5.6L5.8 16a2.8 2.8 0 0 0 2.5 4h7.4a2.8 2.8 0 0 0 2.5-4L14 7.6V2" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="currentColor" fill-opacity="0.18"/>

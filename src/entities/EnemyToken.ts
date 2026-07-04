@@ -9,6 +9,13 @@ export interface EnemyToken {
   col: number
   hp: number
   maxHp: number
+  /** Per-tick damage this enemy deals in a clash / to the player. Defaults to
+   * the shared enemy value; a boss hits much harder. */
+  attack?: number
+  /** Elite boss token — bigger card, purple glow, stricter capture cut. */
+  isBoss?: boolean
+  /** Display name override (e.g. "엘리트 해파리"); falls back to the creature label. */
+  label?: string
   /** Cell it most recently left, and when — an attack landing on that cell
    * shortly after the move still hits (generous "it was just there"
    * judgement, see WaveSystem.applyDamage). */
