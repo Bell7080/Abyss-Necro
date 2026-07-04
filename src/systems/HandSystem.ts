@@ -33,6 +33,13 @@ export class HandSystem {
     this.emit()
   }
 
+  /** Drops any placement selection (e.g. when a skill is armed instead). */
+  clearSelection(): void {
+    if (this.selectedId === null) return
+    this.selectedId = null
+    this.emit()
+  }
+
   /** Removes a card once it's been placed on the board as a defender. */
   removeCard(cardId: string): void {
     this.cards = this.cards.filter((card) => card.id !== cardId)

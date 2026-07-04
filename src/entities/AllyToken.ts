@@ -15,4 +15,8 @@ export interface AllyToken {
   movesLeft?: number
   /** 2 = a 2-star ally made by merging three of the same in one cell. */
   tier?: number
+  /** A hasty undead raised from a corpse ("얘들아…! 막아!"): weak, no
+   * passive, and purged at the round-end lull. A full necro (placed hand
+   * card) has this undefined/false. */
+  raised?: boolean
 }

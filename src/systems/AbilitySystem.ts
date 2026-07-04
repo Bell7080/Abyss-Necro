@@ -1,22 +1,36 @@
 import type { TickManager } from '@core/TickManager'
 
-const MAX_COST = 10
-const REGEN_TICK_MS = 1200
-export const BASIC_ATTACK_COST = 2
-export const ULTIMATE_COST = 10
+const MAX_GAUGE = 10
+// A slow passive trickle so the necromancer is never fully stuck with an
+// empty gauge and no way to act. The primary source is kills (chargeFromKill)
+// — this only guarantees a floor and keeps the gauge fill creeping visibly.
+const REGEN_TICK_MS = 2500
+// Gauge granted per enemy slain. Landing the killing blow yourself adds a
+// bonus on top (see Game.castBasicAttack) — aggression fuels sorcery.
+export const KILL_CHARGE = 2
 
-// Owns the player's cost pool. Basic attack fires unconditionally on cell
-// click (no arming step) as long as it's affordable; the ultimate only
-// fires from its own skill-orb click. This system only decides whether a
-// cast is affordable — combat resolution lives in WaveSystem.
+// The necromancer's four gauge abilities. Basic fires on a bare cell click;
+// the other three are toggle skills armed from the hive, then aimed.
+export type AbilityId = 'basic' | 'raise' | 'raise-all' | 'capture'
+
+export const ABILITY_COST: Record<AbilityId, number> = {
+  basic: 1, // "이거나 먹어라!" — single-cell bubble blast
+  raise: 2, // "얘들아…! 막아!" — raise every corpse in a cell
+  'raise-all': 10, // "모두 일어나!" — raise every corpse on the field
+  capture: 10, // "넌 내꺼야!" — execute a low-hp enemy for a guaranteed card
+}
+
+// Owns the sacral gauge — one shared pool every necromantic act draws from,
+// so attacking, raising the dead, and capturing all compete for it. Kills
+// refill it; a slow trickle keeps it from ever fully starving. This system
+// only decides whether a cast is affordable — the effects live in Game.
 export class AbilitySystem {
-  private cost = MAX_COST
+  private gauge = MAX_GAUGE
   private lastRegenAt = Date.now()
   private readonly listeners: Array<() => void> = []
 
-  /** Registers cost regen on the shared TickManager — held off until the
-   * player dismisses the intro veil, so the pool isn't quietly ticking up
-   * before the run begins. */
+  /** Registers the trickle on the shared TickManager — held off until the
+   * player dismisses the intro veil. */
   start(tickManager: TickManager): void {
     this.lastRegenAt = Date.now()
     tickManager.register(() => this.regen(), REGEN_TICK_MS)
@@ -26,51 +40,50 @@ export class AbilitySystem {
     this.listeners.push(fn)
   }
 
-  getCost(): number {
-    return this.cost
+  getGauge(): number {
+    return this.gauge
   }
 
-  getMaxCost(): number {
-    return MAX_COST
+  getMaxGauge(): number {
+    return MAX_GAUGE
   }
 
-  /** Fractional cost including live progress toward the next regen tick —
-   * read every frame by the cost gauge so the fill visibly creeps up in
-   * real time instead of jumping once per tick. Whole-number rules (can I
-   * cast?) must keep using getCost(). */
-  getSmoothCost(): number {
-    if (this.cost >= MAX_COST) return MAX_COST
+  costOf(ability: AbilityId): number {
+    return ABILITY_COST[ability]
+  }
+
+  /** Fractional gauge including live progress toward the next trickle tick —
+   * read every frame by the gauge fill so it visibly creeps up in real time.
+   * Whole-number rules (can I cast?) use getGauge(). */
+  getSmoothGauge(): number {
+    if (this.gauge >= MAX_GAUGE) return MAX_GAUGE
     const t = Math.min(1, (Date.now() - this.lastRegenAt) / REGEN_TICK_MS)
-    return Math.min(MAX_COST, this.cost + t)
+    return Math.min(MAX_GAUGE, this.gauge + t)
   }
 
-  canCastBasic(): boolean {
-    return this.cost >= BASIC_ATTACK_COST
+  canCast(ability: AbilityId): boolean {
+    return this.gauge >= ABILITY_COST[ability]
   }
 
-  canCastUltimate(): boolean {
-    return this.cost >= ULTIMATE_COST
-  }
-
-  /** Spends the cost for a direct cell-click basic attack. */
-  tryCastBasic(): boolean {
-    if (!this.canCastBasic()) return false
-    this.cost -= BASIC_ATTACK_COST
+  /** Spends an ability's cost if affordable. */
+  tryCast(ability: AbilityId): boolean {
+    if (!this.canCast(ability)) return false
+    this.gauge = Math.max(0, this.gauge - ABILITY_COST[ability])
     this.emit()
     return true
   }
 
-  tryCastUltimate(): boolean {
-    if (!this.canCastUltimate()) return false
-    this.cost -= ULTIMATE_COST
+  /** A kill feeds the gauge — the necromancer grows stronger by slaying. */
+  chargeFromKill(amount = KILL_CHARGE): void {
+    if (this.gauge >= MAX_GAUGE) return
+    this.gauge = Math.min(MAX_GAUGE, this.gauge + amount)
     this.emit()
-    return true
   }
 
   private regen(): void {
     this.lastRegenAt = Date.now()
-    if (this.cost >= MAX_COST) return
-    this.cost = Math.min(MAX_COST, this.cost + 1)
+    if (this.gauge >= MAX_GAUGE) return
+    this.gauge = Math.min(MAX_GAUGE, this.gauge + 1)
     this.emit()
   }
 

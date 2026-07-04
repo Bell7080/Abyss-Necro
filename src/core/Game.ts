@@ -11,13 +11,14 @@ import { MergeButton } from '@ui/MergeButton'
 import { RelicInventory } from '@ui/RelicInventory'
 import { RewardOverlay } from '@ui/RewardOverlay'
 import { ShopOverlay, type ShopOffer } from '@ui/ShopOverlay'
-import { SkillBar } from '@ui/SkillBar'
+import { SkillHive } from '@ui/SkillHive'
 import { WaveHud } from '@ui/WaveHud'
 import { BlastManager } from '@ui/effects/BlastManager'
 import { CurseMortar } from '@ui/effects/CurseMortar'
 import { showDamageNumber } from '@ui/effects/FloatingDamage'
-import { AbilitySystem } from '@systems/AbilitySystem'
+import { AbilitySystem, type AbilityId } from '@systems/AbilitySystem'
 import { CoinSystem } from '@systems/CoinSystem'
+import { CorpseSystem, type Corpse } from '@systems/CorpseSystem'
 import { DefenderSystem, type AllyDeath } from '@systems/DefenderSystem'
 import { GraveyardSystem } from '@systems/GraveyardSystem'
 import { HandSystem } from '@systems/HandSystem'
@@ -35,17 +36,19 @@ import { TickManager } from '@core/TickManager'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import playerArtUrl from '@/assets/sprites/player_001.webp'
 import { getCreature } from '@data/CreatureDefinitions'
-import { getEpicCard, randomEpicCard } from '@data/EpicCardDefinitions'
-import { getItemCard, randomItemCard } from '@data/ItemCardDefinitions'
+import { getEpicCard } from '@data/EpicCardDefinitions'
+import { getItemCard } from '@data/ItemCardDefinitions'
 import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
 import type { Relic } from '@entities/Relic'
 
 const BASIC_ATTACK_DAMAGE = 2
-const ULTIMATE_DAMAGE = 4
 const RELIC_CHOICE_COUNT = 3
-// While a hand card is held (selected for placement) the whole game clock
-// crawls, giving the player a slow-motion beat to read the board.
+// Capture ("넌 내꺼야!") only claims enemies at or below this fraction of
+// max hp (bosses will use a stricter one later).
+const CAPTURE_THRESHOLD = 0.25
+// While a hand card is held or a skill is armed the whole game clock crawls,
+// giving the player a slow-motion beat to read the board and aim.
 const AIM_TIME_SCALE = 0.3
 
 export class Game {
@@ -55,6 +58,7 @@ export class Game {
   private readonly playerSystem = new PlayerSystem()
   private readonly defenderSystem = new DefenderSystem()
   private readonly graveyardSystem = new GraveyardSystem()
+  private readonly corpseSystem = new CorpseSystem()
   private readonly waveSystem = new WaveSystem(this.defenderSystem)
   private readonly abilitySystem = new AbilitySystem()
   private readonly tickManager = new TickManager()
@@ -63,7 +67,7 @@ export class Game {
   private readonly hand: CardHand
   private readonly relics: RelicInventory
   private readonly coins: CoinPanel
-  private readonly skillBar: SkillBar
+  private readonly hive: SkillHive
   private readonly rewardOverlay: RewardOverlay
   private readonly shopOverlay: ShopOverlay
   private readonly defeatOverlay: DefeatOverlay
@@ -77,6 +81,9 @@ export class Game {
   private readonly shellEl: HTMLElement
   private mergeInProgress = false
   private aiming = false
+  // Which toggle skill is armed (raise/capture aim at a cell; null/basic =
+  // plain click-to-attack). raise-all fires immediately and never stays armed.
+  private armedAbility: AbilityId | null = null
   private hoverHideTimer: number | null = null
   // The intro overlay is pointer-transparent outside its button, so board/
   // orb clicks physically arrive before the run starts — gate them here.
@@ -121,8 +128,8 @@ export class Game {
       (cellIndex) => this.handleCellClick(cellIndex),
       (cellIndex) => this.handleCellHover(cellIndex)
     )
-    this.skillBar = new SkillBar(shell, this.abilitySystem, {
-      onUltimateClick: () => this.castUltimate(),
+    this.hive = new SkillHive(shell, this.abilitySystem, {
+      onSkill: (id) => this.handleSkill(id),
     })
     this.rewardOverlay = new RewardOverlay({
       onChoose: (relic, cardEl) => this.resolveRelicChoice(relic, cardEl),
@@ -152,33 +159,50 @@ export class Game {
     })
     this.defenderSystem.onAllyDeath((e) => this.handleAllyDeath(e))
     this.graveyardSystem.onChange(() => this.graveyard.render(this.graveyardSystem.getStars()))
+    this.corpseSystem.onChange(() => this.board.syncCorpses(this.corpseSystem.getCorpses()))
+    this.corpseSystem.onDecayShard((c) => this.handleCorpseShard(c))
     this.handSystem.onChange(() => this.handleHandChange())
     this.relicSystem.onChange((relics) => this.relics.render(relics))
     this.coinSystem.onChange((coins) => this.coins.render(coins))
-    this.abilitySystem.onChange(() => this.skillBar.render())
+    this.abilitySystem.onChange(() => this.hive.render())
 
     this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
     this.relics.render(this.relicSystem.getRelics())
     this.coins.render(this.coinSystem.getCoins())
     this.graveyard.render(this.graveyardSystem.getStars())
-    this.skillBar.render()
+    this.hive.render()
   }
 
   /** Selection drives everything aim-related: the fan re-render, placement
    * targeting, the inspector panel, the backdrop dim, and slow motion. */
   private handleHandChange(): void {
     const selected = this.handSystem.getSelectedCard()
+    // Selecting a card and arming a skill are mutually exclusive modes.
+    if (selected && this.armedAbility) this.disarmSkill()
     this.hand.render(this.handSystem.getCards(), this.handSystem.getSelectedId())
-    this.board.setPlacementTargeting(!!selected)
     this.mergeButton.setVisible(!this.mergeInProgress && !!this.handSystem.findTriple())
 
     if (selected) this.inspector.show(selected)
     else this.inspector.hide()
-    this.setAiming(!!selected)
+    this.updateAimState()
+  }
+
+  /** Whether either targeting mode is active — a held hand card or an armed
+   * raise/capture skill. raise-all fires instantly and never arms. */
+  private isTargeting(): boolean {
+    return !!this.handSystem.getSelectedCard() || this.armedAbility === 'raise' || this.armedAbility === 'capture'
+  }
+
+  /** Recomputes aim mode from the current card/skill selection: darken all
+   * but the board, crawl the clock, light the target cells. */
+  private updateAimState(): void {
+    const active = this.isTargeting()
+    this.board.setPlacementTargeting(active)
+    this.setAiming(active)
   }
 
   /** Aim mode: darken everything but the board and crawl the game clock —
-   * a held breath while choosing where the card goes. */
+   * a held breath while choosing where to aim. */
   private setAiming(active: boolean): void {
     if (this.aiming === active) return
     this.aiming = active
@@ -187,6 +211,36 @@ export class Game {
     this.tickManager.setRate(scale)
     this.waveSystem.setTimeScale(scale)
     this.refreshCellMerge()
+  }
+
+  /** A hex was pressed. Basic disarms to plain attack, raise/capture toggle
+   * their armed aim mode, raise-all fires at once. */
+  private handleSkill(id: AbilityId): void {
+    if (!this.runStarted) return
+    if (id === 'basic') {
+      this.disarmSkill()
+      return
+    }
+    if (id === 'raise-all') {
+      this.castRaiseAll()
+      return
+    }
+    // raise / capture — toggle arm.
+    if (this.armedAbility === id) {
+      this.disarmSkill()
+      return
+    }
+    if (this.handSystem.getSelectedId()) this.handSystem.clearSelection()
+    this.armedAbility = id
+    this.hive.setArmed(id)
+    this.updateAimState()
+  }
+
+  private disarmSkill(): void {
+    if (this.armedAbility === null) return
+    this.armedAbility = null
+    this.hive.setArmed(null)
+    this.updateAimState()
   }
 
   boot(): void {
@@ -260,10 +314,9 @@ export class Game {
         tag: '사령술사',
         stats: [
           { label: '기본', value: `${BASIC_ATTACK_DAMAGE + this.basicDamageBonus}` },
-          { label: '강화', value: `${ULTIMATE_DAMAGE + this.ultimateDamageBonus}` },
           { label: '체력', value: `${this.playerSystem.getHp()}/${this.playerSystem.getMaxHp()}` },
         ],
-        desc: '심연의 사령술사. 기본 공격은 단일 칸, 강화 공격은 생존한 적 전체를 저주한다.',
+        desc: '심연의 사령술사. 사령 게이지로 급조 부활·전체 부활·포획을 시전한다.',
       }
     }
 
@@ -291,13 +344,83 @@ export class Game {
       return
     }
 
-    // Basic attack fires unconditionally on click — no arming step. Only
-    // the ultimate needs its own skill-orb click (see onUltimateClick).
-    // Neither fires during a checkpoint lull — leftover enemies just stand
-    // there unharmed until the player proceeds.
+    // An armed toggle skill consumes the click at the aimed cell.
+    if (this.armedAbility === 'raise') {
+      this.castRaise(cellIndex)
+      return
+    }
+    if (this.armedAbility === 'capture') {
+      this.castCapture(cellIndex)
+      return
+    }
+
+    // Plain basic attack — no arming. Nothing fires during a checkpoint lull;
+    // leftover enemies just stand there until the player proceeds.
     if (this.waveSystem.isPaused()) return
-    if (!this.abilitySystem.tryCastBasic()) return
+    if (!this.abilitySystem.tryCast('basic')) return
     this.castBasicAttack(cellIndex)
+  }
+
+  /** "얘들아…! 막아!" — raise every corpse on the aimed cell (up to its free
+   * slots) as hasty undead. No corpses / no room / no gauge = no spend. */
+  private castRaise(cellIndex: number): void {
+    const capacity = this.defenderSystem.freeSlots(cellIndex)
+    const available = this.corpseSystem.corpsesInCell(cellIndex).length
+    if (available === 0 || capacity === 0) {
+      this.disarmSkill()
+      return
+    }
+    if (!this.abilitySystem.tryCast('raise')) {
+      this.disarmSkill()
+      return
+    }
+    for (const corpse of this.corpseSystem.takeCell(cellIndex, capacity)) {
+      this.defenderSystem.placeRaised(cellIndex, getCreature(corpse.creatureId)?.label ?? corpse.label, corpse.creatureId)
+    }
+    const rect = this.board.getCellRect(cellIndex)
+    if (rect) this.blast.passiveBurst(rect, 'shield')
+    this.disarmSkill()
+  }
+
+  /** "모두 일어나!" — raise every corpse on the field at once. */
+  private castRaiseAll(): void {
+    if (!this.runStarted || this.waveSystem.isPaused()) return
+    if (!this.corpseSystem.hasAny()) return
+    if (!this.abilitySystem.tryCast('raise-all')) return
+    for (const corpse of this.corpseSystem.takeAll()) {
+      if (this.defenderSystem.freeSlots(corpse.cellIndex) <= 0) continue
+      this.defenderSystem.placeRaised(corpse.cellIndex, getCreature(corpse.creatureId)?.label ?? corpse.label, corpse.creatureId)
+      const rect = this.board.getCellRect(corpse.cellIndex)
+      if (rect) this.blast.passiveBurst(rect, 'shield')
+    }
+  }
+
+  /** "넌 내꺼야!" — execute the aimed cell's front enemy if it's weak enough,
+   * claiming a guaranteed necro card. No valid target = no spend. */
+  private castCapture(cellIndex: number): void {
+    if (!this.waveSystem.isCapturable(cellIndex, CAPTURE_THRESHOLD)) {
+      this.disarmSkill()
+      return
+    }
+    if (!this.abilitySystem.tryCast('capture')) {
+      this.disarmSkill()
+      return
+    }
+    const captured = this.waveSystem.captureFrontEnemy(cellIndex, CAPTURE_THRESHOLD)
+    if (captured) {
+      const creature = getCreature(captured.creatureId)
+      const rect = this.board.getCellRect(cellIndex)
+      const from = rect ? centerOf(rect) : this.hand.getNextSlotPoint(1)
+      const target = this.hand.getNextSlotPoint(this.handSystem.getCards().length + 1)
+      this.blast.starFly(from, target, () =>
+        this.handSystem.addCard({
+          id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          label: creature?.label ?? '심연의 것',
+          creatureId: captured.creatureId,
+        })
+      )
+    }
+    this.disarmSkill()
   }
 
   private tryPlaceCard(cellIndex: number, card: HandCard): void {
@@ -384,73 +507,26 @@ export class Game {
     showDamageNumber(point.x, point.y, amount)
   }
 
-  private castUltimate(): void {
-    if (!this.runStarted) return
-    if (this.waveSystem.isPaused()) return
-    if (!this.abilitySystem.tryCastUltimate()) return
-    const originRect = this.board.getPlayerRect()
-    if (!originRect) return
-    const origin = centerOf(originRect)
-
-    for (const cellIndex of this.waveSystem.getAliveCellIndices()) {
-      const targetRect = this.board.getCellRect(cellIndex)
-      if (!targetRect) continue
-      const target = centerOf(targetRect)
-
-      CurseMortar.fire(origin.x, origin.y, target.x, target.y, {
-        delay: Math.random() * 140,
-        onImpact: () => {
-          const result = this.waveSystem.applyDamage(cellIndex, ULTIMATE_DAMAGE + this.ultimateDamageBonus)
-          if (result) this.showHitNumber(result.cellIndex, result.amount, target)
-        },
-      })
-    }
-  }
-
   private handleEncounter(result: EncounterResult): void {
     const rect = this.board.getCellRect(result.cellIndex)
     this.board.playDefeatFx(result.cellIndex)
     if (result.viaBossRoom) this.board.pulseBossRoom()
+    // Slaying feeds the sacral gauge.
+    this.abilitySystem.chargeFromKill()
 
-    // Every kill hands over exactly one card — necro (places a defender)
-    // or item (one-shot usable), 50/50 with a wave-1 necro pity.
-    if (rect) {
+    // 25% of kills hand over the creature's whole card; the rest leave a
+    // corpse on the cell to raise ("얘들아…! 막아!") or let rot into a shard.
+    if (rect && result.outcome === 'card') {
+      const creature = getCreature(result.creatureId)
       const nextCount = this.handSystem.getCards().length + 1
       const target = this.hand.getNextSlotPoint(nextCount)
       const id = `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-
-      if (result.drop === 'necro') {
-        const creature = getCreature(result.creatureId)
-        this.blast.travelDrop(rect, target, () => {
-          this.handSystem.addCard({
-            id,
-            label: creature?.label ?? '심연의 것',
-            creatureId: result.creatureId,
-          })
-        })
-      } else if (result.drop === 'item') {
-        const item = randomItemCard()
-        this.blast.travelDrop(rect, target, () => {
-          this.handSystem.addCard({
-            id,
-            label: item.label,
-            creatureId: '',
-            kind: 'item',
-            itemId: item.id,
-          })
-        })
-      } else {
-        const epic = randomEpicCard()
-        this.blast.travelDrop(rect, target, () => {
-          this.handSystem.addCard({
-            id,
-            label: epic.label,
-            creatureId: '',
-            kind: 'epic',
-            itemId: epic.id,
-          })
-        })
-      }
+      this.blast.travelDrop(rect, target, () => {
+        this.handSystem.addCard({ id, label: creature?.label ?? '심연의 것', creatureId: result.creatureId })
+      })
+    } else if (result.outcome === 'corpse') {
+      const creature = getCreature(result.creatureId)
+      this.corpseSystem.add(result.cellIndex, result.creatureId, creature?.label ?? '심연의 것')
     }
 
     // Every kill drops a coin: it lands on the ground in a short lobbed arc,
@@ -568,14 +644,26 @@ export class Game {
     this.defeatOverlay.show(this.waveSystem.getWaveNumber())
   }
 
-  /** Each 3-wave round ends in a lull: the sparkling center shop unfolds,
-   * except every 3rd checkpoint, which offers a relic pick instead. */
+  /** Each 3-wave round ends in a lull: hasty undead crumble to shards, any
+   * armed skill disarms, then the sparkling center shop unfolds — except
+   * every 3rd checkpoint, which offers a relic pick instead. */
   private handleCheckpoint(info: CheckpointInfo): void {
+    this.disarmSkill()
+    this.defenderSystem.purgeRaised()
     if (info.isRelicCheckpoint) {
       this.rewardOverlay.show(drawRelicOptions(RELIC_CHOICE_COUNT))
     } else {
       this.shopOverlay.show()
     }
+  }
+
+  /** A neglected corpse sank and left a shard — fly it to the graveyard. */
+  private handleCorpseShard(c: Corpse): void {
+    const rect = this.board.getCellRect(c.cellIndex)
+    const from = rect ? centerOf(rect) : this.graveyard.getDropPoint()
+    this.blast.starFly(from, this.graveyard.getDropPoint(), () =>
+      this.graveyardSystem.addStar(c.creatureId, c.label)
+    )
   }
 
   /** Shop purchase: pay 별빛, then the bought card bubbles into the hand. */

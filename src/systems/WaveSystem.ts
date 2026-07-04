@@ -12,11 +12,10 @@ const ENEMY_ATTACK_DAMAGE = 1
 // Fallback only, used if DefenderHooks isn't wired — DefenderSystem's own
 // getAttack() (placed card default or summon's own value) wins normally.
 const ALLY_COUNTER_DAMAGE = 2
-// Every kill drops exactly one card: a slim epic roll first, then 50/50
-// necro vs item (wave-1 enemies are pity-rigged to necro so the very first
-// kill always teaches the loop).
-const EPIC_DROP_CHANCE = 0.06
-const NECRO_DROP_CHANCE = 0.5
+// A kill either hands over the creature's whole card (25%) or leaves a corpse
+// to raise/harvest (75%). Wave-1 enemies are pity-rigged to a card so the
+// very first kill always teaches the capture loop.
+const CARD_DROP_CHANCE = 0.25
 const MOVE_TICK_MS = 1300
 // A new wave forces its way in every 30 seconds regardless of clear state —
 // this is the actual pacing mechanism, not just a display countdown. If the
@@ -37,10 +36,11 @@ const HIT_GRACE_MS = 950
 export interface EncounterResult {
   /** Grid cell (or BOSS_CELL_INDEX) the enemy was standing in when it died. */
   cellIndex: number
-  /** Which creature died — a necro drop carries this. */
+  /** Which creature died — both card and corpse carry this. */
   creatureId: string
-  /** Every kill drops exactly one card — this says which flavor. */
-  drop: 'necro' | 'item' | 'epic'
+  /** 'card' hands the whole necro card to hand; 'corpse' leaves a raisable
+   * body on the cell. */
+  outcome: 'card' | 'corpse'
   /** Always true — every kill drops exactly one coin. */
   dropCoin: boolean
   viaBossRoom: boolean
@@ -279,6 +279,26 @@ export class WaveSystem {
     return results
   }
 
+  /** Whether a cell's front enemy is weak enough to capture ("넌 내꺼야!").
+   * Threshold is a fraction of max hp (bosses will use a stricter one). */
+  isCapturable(cellIndex: number, threshold: number): boolean {
+    const enemy = this.listFor(cellIndex)[0]
+    return !!enemy && enemy.hp / enemy.maxHp <= threshold
+  }
+
+  /** Capture the front enemy of a cell if it's at/below the hp threshold —
+   * it's claimed whole (no corpse, no coin) and its creatureId returned so
+   * Game can hand over a guaranteed card. Returns null if not capturable. */
+  captureFrontEnemy(cellIndex: number, threshold: number): { creatureId: string } | null {
+    const list = this.listFor(cellIndex)
+    const enemy = list[0]
+    if (!enemy || enemy.hp / enemy.maxHp > threshold) return null
+    list.shift()
+    this.emitChange()
+    this.triggerInstantPushIfClear()
+    return { creatureId: enemy.creatureId }
+  }
+
   /** The clicked cell is empty — find the most recent enemy to have left it
    * inside the grace window and hit that one where it now stands. */
   private applyGraceDamage(clickedIndex: number, amount: number): DamageResult | null {
@@ -324,15 +344,10 @@ export class WaveSystem {
     if (enemy.hp <= 0) {
       const i = list.indexOf(enemy)
       if (i >= 0) list.splice(i, 1)
-      const drop: 'necro' | 'item' | 'epic' = enemy.guaranteedCard
-        ? 'necro'
-        : Math.random() < EPIC_DROP_CHANCE
-          ? 'epic'
-          : Math.random() < NECRO_DROP_CHANCE
-            ? 'necro'
-            : 'item'
+      const outcome: 'card' | 'corpse' =
+        enemy.guaranteedCard || Math.random() < CARD_DROP_CHANCE ? 'card' : 'corpse'
       this.emitChange()
-      this.emitEncounter({ cellIndex, creatureId: enemy.creatureId, drop, dropCoin: true, viaBossRoom })
+      this.emitEncounter({ cellIndex, creatureId: enemy.creatureId, outcome, dropCoin: true, viaBossRoom })
       this.triggerInstantPushIfClear()
       return { cellIndex, amount: total, defeated: true }
     }

@@ -41,6 +41,7 @@ interface Occupant {
   label?: string
   creatureId?: string
   tier?: number
+  raised?: boolean
 }
 
 // Center board: left player/boss cell, flow arrow, 3x3 enemy grid on the
@@ -65,6 +66,7 @@ export class BoardRenderer {
   private readonly allyTokens = new Map<string, HTMLElement>()
   private readonly bossEnemyTokens = new Map<string, HTMLElement>()
   private readonly bossAllyTokens = new Map<string, HTMLElement>()
+  private readonly corpseTokens = new Map<string, HTMLElement>()
 
   constructor(
     private readonly root: HTMLElement,
@@ -80,6 +82,7 @@ export class BoardRenderer {
     this.allyTokens.clear()
     this.bossEnemyTokens.clear()
     this.bossAllyTokens.clear()
+    this.corpseTokens.clear()
 
     const layout = document.createElement('div')
     layout.className = 'board-layout'
@@ -153,6 +156,53 @@ export class BoardRenderer {
     this.syncGridRole(this.allyTokens, allyCells, 'ally')
     this.syncBossRole(this.bossEnemyTokens, this.waveSystem.getBossEnemies(), 'enemy')
     this.syncBossRole(this.bossAllyTokens, this.defenderSystem.getBossAllies(), 'ally')
+  }
+
+  /** Faint raisable corpse markers, one per corpse, stacked per cell. Purely
+   * positional — a dim purple-shadowed ghost of the creature's art. */
+  syncCorpses(
+    corpses: readonly { id: string; creatureId: string; cellIndex: number; label: string }[]
+  ): void {
+    const seen = new Set<string>()
+    const stackCount = new Map<number, number>()
+    for (const c of corpses) {
+      seen.add(c.id)
+      const stackIndex = stackCount.get(c.cellIndex) ?? 0
+      stackCount.set(c.cellIndex, stackIndex + 1)
+
+      let el = this.corpseTokens.get(c.id)
+      if (!el) {
+        el = document.createElement('div')
+        el.className = 'board-token board-corpse'
+        const creature = c.creatureId ? getCreature(c.creatureId) : undefined
+        const img = creature ? `<img src="${creature.allyArt}" alt="" />` : ''
+        el.innerHTML = `<div class="board-figure board-corpse-figure">${img}</div>`
+        const container = c.cellIndex === BOSS_CELL_INDEX ? this.playerCellEl : this.gridEl
+        container.appendChild(el)
+        this.corpseTokens.set(c.id, el)
+      }
+
+      let x: number
+      let y: number
+      if (c.cellIndex === BOSS_CELL_INDEX) {
+        x = BOSS_ENEMY_OFFSET_X
+        y = stackIndex * STACK_GAP_Y
+      } else {
+        const row = Math.floor(c.cellIndex / GRID_COLS)
+        const col = c.cellIndex % GRID_COLS
+        x = col * (CELL_SIZE + CELL_GAP)
+        y = row * (CELL_SIZE + CELL_GAP) + stackIndex * STACK_GAP_Y
+      }
+      el.style.setProperty('--token-x', `${x}px`)
+      el.style.setProperty('--token-y', `${y}px`)
+    }
+
+    for (const [id, el] of this.corpseTokens) {
+      if (!seen.has(id)) {
+        el.remove()
+        this.corpseTokens.delete(id)
+      }
+    }
   }
 
   // Persistent per-cell effects tint the tile with a slow shimmer; when two
@@ -251,7 +301,8 @@ export class BoardRenderer {
     const creature = occupant.creatureId ? getCreature(occupant.creatureId) : undefined
     const imageUrl = creature ? (variant === 'ally' ? creature.allyArt : creature.enemyArt) : undefined
     const tierClass = occupant.tier === 2 ? ' is-tier2' : ''
-    el.innerHTML = `<div class="board-figure is-arrived${tierClass}">${entityCardHtml({
+    const raisedClass = occupant.raised ? ' is-raised' : ''
+    el.innerHTML = `<div class="board-figure is-arrived${tierClass}${raisedClass}">${entityCardHtml({
       variant,
       art: Icons.enemyToken(),
       imageUrl,

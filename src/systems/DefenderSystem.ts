@@ -11,6 +11,10 @@ const ALLY_BASE_HP = 3
 // Fallback attack for allies that don't carry their own value (placed hand
 // cards) — summons always set an explicit attack instead.
 const DEFAULT_ALLY_ATTACK = 2
+// Hasty undead raised from a corpse: a cheap, disposable wall (해파리 기준
+// 체2/공1). No passive, purged at the lull.
+const RAISED_ALLY_HP = 2
+const RAISED_ALLY_ATTACK = 1
 // Sea-rabbit death-heal amount to adjacent allies.
 const RABBIT_HEAL = 2
 // Crab's hard-shell life pool on placement (vs the ALLY_BASE_HP default).
@@ -66,6 +70,11 @@ export class DefenderSystem {
     return this.listFor(cellIndex).length < MAX_ALLIES_PER_CELL
   }
 
+  /** Remaining ally slots in a cell — how many corpses a raise can fill. */
+  freeSlots(cellIndex: number): number {
+    return MAX_ALLIES_PER_CELL - this.listFor(cellIndex).length
+  }
+
   place(cellIndex: number, label: string, creatureId: string): boolean {
     if (!this.canPlace(cellIndex)) return false
     // 단단한 등껍질: a crab enters with a bigger life pool (and a shield blast).
@@ -81,6 +90,42 @@ export class DefenderSystem {
     this.emit()
     if (guarded) this.emitPassive({ passiveId: 'crab-guard', cellIndex })
     return true
+  }
+
+  /** Raises a corpse in place as a hasty undead wall — weak (체2/공1), no
+   * passive, marked so the lull can purge it. Returns false if the cell is
+   * full. */
+  placeRaised(cellIndex: number, label: string, creatureId: string): boolean {
+    if (!this.canPlace(cellIndex)) return false
+    this.listFor(cellIndex).push({
+      id: `raised-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      label,
+      creatureId,
+      hp: RAISED_ALLY_HP,
+      maxHp: RAISED_ALLY_HP,
+      attack: RAISED_ALLY_ATTACK,
+      raised: true,
+    })
+    this.emit()
+    return true
+  }
+
+  /** Round-end lull: every hasty undead crumbles. Each fires its death event
+   * so it flies to the graveyard as a shard like any fallen raised ally. */
+  purgeRaised(): void {
+    let changed = false
+    const sweep = (list: AllyToken[], cellIndex: number): void => {
+      for (const ally of [...list]) {
+        if (!ally.raised) continue
+        const i = list.indexOf(ally)
+        if (i >= 0) list.splice(i, 1)
+        changed = true
+        if (ally.creatureId) this.emitDeath({ creatureId: ally.creatureId, label: ally.label, cellIndex })
+      }
+    }
+    this.cells.forEach((list, index) => sweep(list, index))
+    sweep(this.bossAllies, BOSS_CELL_INDEX)
+    if (changed) this.emit()
   }
 
   getHp(cellIndex: number): number | null {
@@ -116,6 +161,7 @@ export class DefenderSystem {
   getDamageAmp(cellIndex: number): number {
     let amp = 0
     for (const ally of this.listFor(cellIndex)) {
+      if (ally.raised) continue // hasty undead carry no passive
       if (ally.creatureId && getCreature(ally.creatureId)?.passiveId === 'jelly-amp') amp += 1
     }
     return amp
@@ -131,7 +177,7 @@ export class DefenderSystem {
     const died = ally.hp <= 0
     if (died) {
       list.shift()
-      if (ally.creatureId && getCreature(ally.creatureId)?.passiveId === 'rabbit-heal') {
+      if (!ally.raised && ally.creatureId && getCreature(ally.creatureId)?.passiveId === 'rabbit-heal') {
         this.triggerRabbitHeal(cellIndex)
       }
       // Only captured creatures (not abstract summons) leave a star.
@@ -181,7 +227,8 @@ export class DefenderSystem {
     if (list.length !== 3) return false
     const id = list[0].creatureId
     if (!id) return false
-    return list.every((a) => a.creatureId === id && a.tier === undefined)
+    // Only full (non-raised) base allies fuse — hasty undead don't count.
+    return list.every((a) => a.creatureId === id && a.tier === undefined && !a.raised)
   }
 
   /** Fuses a same-creature trio in one cell into a single 2-star ally
