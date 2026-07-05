@@ -2878,6 +2878,26 @@ body {
 
 /* The creature masked into a tall, curved, four-pointed diamond (SVG mask —
    concave edges + sharp cardinal points; the taller box stretches it long). */
+/* Elliptical contact shadow pooled under the corpse — grounds the floating
+   diamond on the floor. */
+.corpse-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 74%;
+  height: 26px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.68),
+    rgba(0, 0, 0, 0.32) 52%,
+    transparent 74%
+  );
+  filter: blur(3px);
+  z-index: -3;
+  pointer-events: none;
+}
+
 .board-corpse-figure img {
   width: 116px;
   height: 158px;
