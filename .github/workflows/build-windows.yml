@@ -1,0 +1,29 @@
+# Windows exe 패키징 — 로컬 Windows 머신 없이도 Actions 탭에서 수동 실행
+# (Run workflow)하면 windows-latest 러너가 NSIS 설치본 + 포터블 exe를 만들어
+# 아티팩트로 올려준다. 코드서명은 없으므로 받은 exe는 SmartScreen 경고를
+# "추가 정보 → 실행"으로 넘겨 실행한다.
+name: Build Windows exe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AbyssNecro-windows
+          path: release/*.exe
+          if-no-files-found: error
