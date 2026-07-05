@@ -1676,122 +1676,100 @@ body {
   color: rgba(255, 160, 175, 0.95);
 }
 
-/* ---------- Intro veil (boot screen, once per session) ---------- */
+/* ---------- Intro title scene (boot screen, once per session) ---------- */
+/* A dedicated splash (not a veil over the live board): bg_002 title art,
+   rippling caustics + a heavy vignette for a deep-sea mood, all hidden behind
+   a pure black layer that fades away exactly once to reveal it. Only once
+   that reveal completes does the blinking click-to-start prompt appear (and
+   Game starts the OST — see IntroOverlay's onRevealed). */
 
 .intro-overlay {
   position: fixed;
   inset: 0;
   z-index: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  cursor: default;
+  transition: opacity 0.6s ease-in;
+}
+
+.intro-overlay.is-revealed {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.intro-overlay.is-dismissed {
+  opacity: 0;
   pointer-events: none;
 }
 
-.intro-veil {
+.intro-title-bg {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at 50% 45%, rgba(10, 6, 18, 0.7) 0%, rgba(2, 1, 5, 0.99) 78%),
-    #010005;
-  opacity: 1;
-  transition: opacity 2.4s ease-out;
+  z-index: 0;
+  background: url('../../assets/sprites/backgrounds/bg_002.webp') center/cover no-repeat;
 }
 
-.intro-overlay.is-lit .intro-veil {
+/* Heavier than the in-game ambience vignette — a title card reads darker at
+   its edges than gameplay HUD legibility would allow. */
+.intro-title-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: radial-gradient(
+    ellipse 105% 88% at 50% 46%,
+    rgba(2, 1, 6, 0) 20%,
+    rgba(2, 1, 6, 0.58) 56%,
+    rgba(0, 0, 3, 0.97) 100%
+  );
+}
+
+.intro-black-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: #000;
+  opacity: 1;
+  transition: opacity 2.8s ease-out;
+  pointer-events: none;
+}
+
+.intro-overlay.is-revealed .intro-black-veil {
   opacity: 0;
 }
 
-.intro-overlay.is-dismissed .intro-veil {
-  transition: opacity 0.5s ease-out;
-}
-
-/* Caption + button rise together as one centerpiece. */
-.intro-invite {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 26px;
+.intro-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  z-index: 3;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.38em;
+  /* Re-center: tracking pads the right edge of the last glyph. */
+  padding-left: 0.38em;
+  color: var(--abyss-lavender-bright);
+  text-shadow: 0 0 16px rgba(180, 150, 255, 0.55);
   opacity: 0;
   pointer-events: none;
-  transform: translateY(14px);
-  transition:
-    opacity 0.9s ease,
-    transform 0.9s ease;
 }
 
-.intro-overlay.is-button-visible .intro-invite {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
+.intro-overlay.is-prompt-visible .intro-prompt {
+  animation: intro-prompt-blink 1.6s ease-in-out infinite;
 }
 
-.intro-overlay.is-dismissed .intro-invite {
-  opacity: 0;
-  transform: translateY(-8px);
-  transition:
-    opacity 0.4s ease,
-    transform 0.4s ease;
-}
-
-.intro-caption {
-  font-size: 15px;
-  letter-spacing: 0.44em;
-  /* Re-center: tracking pads the right edge of the last glyph. */
-  padding-left: 0.44em;
-  color: rgba(182, 166, 232, 0.75);
-  text-shadow: 0 0 14px rgba(150, 130, 220, 0.4);
-}
-
-/* Ringless threshold button: no border, no inset line — a soft dark pool
-   with one subtle drop shadow, the glowing type itself is the actor. Hover
-   answers by growing the type and brightening its glow instead of a ring. */
-.intro-start-button {
-  padding: 26px 92px;
-  border-radius: 999px;
-  border: 0;
-  background: radial-gradient(
-    ellipse at 50% 50%,
-    rgba(64, 42, 106, 0.62),
-    rgba(12, 8, 22, 0.55) 74%,
-    rgba(12, 8, 22, 0.28)
-  );
-  color: var(--abyss-lavender-bright);
-  font-size: 25px;
-  letter-spacing: 0.34em;
-  padding-left: calc(92px + 0.34em);
-  cursor: pointer;
-  text-shadow: 0 0 16px rgba(180, 150, 255, 0.45);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
-  transition:
-    font-size 0.26s ease,
-    text-shadow 0.26s ease;
-}
-
-.intro-overlay.is-button-visible .intro-start-button {
-  animation: intro-breathe 2.6s ease-in-out infinite;
-}
-
-.intro-start-button:hover {
-  font-size: 29px;
-  text-shadow:
-    0 0 20px rgba(210, 190, 255, 0.85),
-    0 0 44px rgba(150, 205, 255, 0.5);
-}
-
-/* Slower, deeper swell than the checkpoint proceed-pulse — a held breath
-   at the threshold, carried by the text glow rather than a ring. */
-@keyframes intro-breathe {
+@keyframes intro-prompt-blink {
   0%,
   100% {
-    text-shadow: 0 0 16px rgba(180, 150, 255, 0.45);
+    opacity: 1;
+    text-shadow:
+      0 0 16px rgba(180, 150, 255, 0.55),
+      0 0 34px rgba(150, 205, 255, 0.3);
   }
   50% {
-    text-shadow:
-      0 0 22px rgba(200, 175, 255, 0.75),
-      0 0 40px rgba(150, 205, 255, 0.35);
+    opacity: 0.3;
+    text-shadow: 0 0 10px rgba(180, 150, 255, 0.3);
   }
 }
 
