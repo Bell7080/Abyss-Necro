@@ -25,7 +25,15 @@ export interface SkillHiveHandlers {
 // gauge on their inner edge. The gauge fill reads getSmoothGauge() every
 // frame (display only) so it creeps between kills/trickle ticks; render()
 // updates the whole-number affordable/armed states.
+// Offset of the hive's top-left from the player CARD's top-left (measured from
+// the tuned layout). The hive is anchored to the live card rect with this delta
+// so the cluster stays welded to the card's right flank at any window size —
+// rather than a fixed viewport offset that drifts as the board re-centers.
+const HIVE_DX = 161
+const HIVE_DY = 59
+
 export class SkillHive {
+  private readonly wrap: HTMLElement
   private readonly hexes = new Map<AbilityId, HTMLButtonElement>()
   private readonly gaugeFill: HTMLElement
 
@@ -40,6 +48,7 @@ export class SkillHive {
     // the plane — so the gauge's edges run parallel to the card's (no wedge).
     const wrap = document.createElement('div')
     wrap.className = 'skill-hive'
+    this.wrap = wrap
     const plane = document.createElement('div')
     plane.className = 'hive-plane'
 
@@ -76,6 +85,15 @@ export class SkillHive {
       requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
+  }
+
+  /** Welds the hive to the player card's current screen position (its right
+   * flank). Call after layout and on resize; skip during cast animations so it
+   * anchors to the card at rest. */
+  anchorTo(cardRect: DOMRect | null): void {
+    if (!cardRect) return
+    this.wrap.style.left = `${Math.round(cardRect.left + HIVE_DX)}px`
+    this.wrap.style.top = `${Math.round(cardRect.top + HIVE_DY)}px`
   }
 
   /** Highlights the currently armed toggle skill (null = plain basic mode). */
