@@ -1902,14 +1902,16 @@ body {
   opacity: 0;
 }
 
-/* Line-and-star music volume, top-right of the title screen: a slim glowing
-   line as the track, a ✦ star as the thumb. Fades in with the reveal; pointer
-   events live only here so dragging never doubles as click-to-start. */
-.intro-volume {
-  position: absolute;
+/* Line-and-star music volume, fixed top-right for the WHOLE session — the
+   title screen (z 500), the tutorial dialogue (z 260), and plain in-game all
+   share this one slider, so it sits above every overlay. A slim glowing line
+   is the track, a ✦ star the thumb; pointer events stop inside it so dragging
+   never doubles as a click on whatever screen is underneath. */
+.volume-ctrl {
+  position: fixed;
   top: 30px;
   right: 40px;
-  z-index: 3;
+  z-index: 520;
   display: flex;
   align-items: center;
   gap: 13px;
@@ -1921,29 +1923,23 @@ body {
   transition: opacity 1s ease;
 }
 
-.intro-overlay.is-revealed .intro-volume {
+.volume-ctrl.is-visible {
   opacity: 1;
   pointer-events: auto;
 }
 
-.intro-overlay.is-leaving .intro-volume {
-  transition: opacity 0.2s ease;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.intro-volume-note {
+.volume-ctrl-note {
   font-size: 19px;
   color: rgba(190, 230, 255, 0.85);
   text-shadow: 0 0 10px rgba(130, 205, 255, 0.6);
   transition: opacity 0.25s ease;
 }
 
-.intro-volume.is-muted .intro-volume-note {
+.volume-ctrl.is-muted .volume-ctrl-note {
   opacity: 0.35;
 }
 
-.intro-volume-track {
+.volume-ctrl-track {
   position: relative;
   width: 150px;
   height: 2px;
@@ -1951,7 +1947,7 @@ body {
   background: rgba(150, 210, 255, 0.22);
 }
 
-.intro-volume-fill {
+.volume-ctrl-fill {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: 999px;
@@ -1959,7 +1955,7 @@ body {
   box-shadow: 0 0 9px rgba(127, 232, 255, 0.7);
 }
 
-.intro-volume-star {
+.volume-ctrl-star {
   position: absolute;
   top: 50%;
   left: 100%;
@@ -1973,8 +1969,8 @@ body {
   transition: font-size 0.15s ease;
 }
 
-.intro-volume:hover .intro-volume-star,
-.intro-volume.is-dragging .intro-volume-star {
+.volume-ctrl:hover .volume-ctrl-star,
+.volume-ctrl.is-dragging .volume-ctrl-star {
   font-size: 21px;
 }
 
