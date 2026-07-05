@@ -2385,6 +2385,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: 300;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2396,23 +2397,78 @@ body {
     opacity 0.4s ease;
 }
 
-/* Just a gentle edge-darkening vignette — the board stays visible through
-   it; the shop reads as a state the field enters, not a popup dropped on
-   top of it. */
+/* A faint uniform floor under the fog banks below, so even the thin seam
+   where they meet reads as dimmed, not a bright gap. */
 .shop-overlay.is-visible {
-  background: radial-gradient(
-    ellipse 90% 80% at 50% 50%,
-    rgba(3, 2, 9, 0.28) 0%,
-    rgba(2, 1, 7, 0.62) 100%
-  );
+  background: rgba(2, 1, 7, 0.3);
   opacity: 1;
   pointer-events: auto;
+}
+
+/* Dark water fog rolling in from both edges to swallow the field — the shop
+   reads as a state the field sinks into, not a popup dropped on top of it.
+   Two banks wide enough to overlap at center so there's no bright seam. */
+.shop-fog {
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  width: 62%;
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(36px);
+  opacity: 0;
+  transition:
+    opacity 0.6s ease,
+    transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.shop-fog--left {
+  left: -8%;
+  transform: translateX(-70%);
+}
+.shop-fog--right {
+  right: -8%;
+  transform: translateX(70%);
+}
+.shop-overlay.is-visible .shop-fog {
+  opacity: 1;
+  transform: translateX(0);
+}
+.shop-fog-inner {
+  position: absolute;
+  inset: 0;
+  animation: shop-fog-sway 9s ease-in-out infinite;
+}
+.shop-fog--left .shop-fog-inner {
+  background: linear-gradient(
+    90deg,
+    rgba(6, 16, 22, 0.95) 0%,
+    rgba(6, 16, 22, 0.65) 58%,
+    rgba(6, 16, 22, 0) 100%
+  );
+}
+.shop-fog--right .shop-fog-inner {
+  background: linear-gradient(
+    270deg,
+    rgba(6, 16, 22, 0.95) 0%,
+    rgba(6, 16, 22, 0.65) 58%,
+    rgba(6, 16, 22, 0) 100%
+  );
+}
+@keyframes shop-fog-sway {
+  0%,
+  100% {
+    transform: translateX(0) scaleY(1);
+  }
+  50% {
+    transform: translateX(3%) scaleY(1.04);
+  }
 }
 
 /* No plate: the panel is a wide, borderless, transparent region spanning
    the board — only the sparkle, title and cards carry any pixels. */
 .shop-panel {
   position: relative;
+  z-index: 1;
   width: min(1180px, 94vw);
   display: flex;
   flex-direction: column;
