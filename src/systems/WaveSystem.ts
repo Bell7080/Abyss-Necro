@@ -66,6 +66,12 @@ const BOSS_ATK_BONUS = 2
 // Pacing: a shop-lull every SHOP_EVERY waves, a boss leading every BOSS_EVERY.
 const SHOP_EVERY = 10
 const BOSS_EVERY = 30
+// The opening stretch, before the first checkpoint, is a deliberately pure
+// jellyfish tide — no mixing at all — so corpses/hand cards stack up enough
+// for a first triple-merge before any variety shows up. A sea-rabbit or two
+// starts trickling in only from this wave on (still mostly jellyfish for a
+// few more waves after, via the normal focus-level mix).
+const PURE_OPENING_WAVES = 7
 // Capture ("넌 내꺼야!") cuts: an ordinary enemy is claimable at ≤25% hp, an
 // elite only at ≤10% — the harder execute that makes sacrificing it a payoff.
 const CAPTURE_THRESHOLD = 0.25
@@ -673,10 +679,15 @@ export class WaveSystem {
   }
 
   /** The "focus" creature level for a wave — the deepest regular creature the
-   * tide has reached. Climbs one step every 3 waves so each creature lingers
-   * long enough to collect a trio and merge it. */
+   * tide has reached. Level 1 (jellyfish) gets a deliberately long opening
+   * run through PURE_OPENING_WAVES (see waveRoster) before the ladder starts
+   * climbing one step every 3 waves, same cadence as before from there on. */
   private focusLevel(wave: number): number {
-    return Math.max(1, Math.min(MAX_REGULAR_LEVEL, 1 + Math.floor((wave - 1) / 3)))
+    if (wave <= PURE_OPENING_WAVES) return 1
+    return Math.max(
+      1,
+      Math.min(MAX_REGULAR_LEVEL, 2 + Math.floor((wave - PURE_OPENING_WAVES - 1) / 3))
+    )
   }
 
   /** How many regular enemies a wave sends — grows slowly, capped so lanes stay
@@ -687,10 +698,13 @@ export class WaveSystem {
 
   /** The wave's regular roster: mostly the focus creature (so trios accumulate)
    * with a few recent ones mixed in and the occasional next-tier preview — a
-   * gradual climb, no sudden jump to a much stronger mob. */
+   * gradual climb, no sudden jump to a much stronger mob. The very opening
+   * waves skip the mix entirely — pure jellyfish, so a first triple-merge is
+   * ready before any other creature shows up at all. */
   private waveRoster(wave: number): string[] {
-    const focus = this.focusLevel(wave)
     const count = this.waveCount(wave)
+    if (wave <= PURE_OPENING_WAVES) return Array(count).fill(REGULAR_LADDER[0])
+    const focus = this.focusLevel(wave)
     const ids: string[] = []
     for (let i = 0; i < count; i += 1) {
       const r = Math.random()
