@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "몽글몽글 심연 디펜스 - a top-down abyss defense prototype",
   "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
