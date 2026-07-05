@@ -66,6 +66,10 @@ body {
   position: relative;
   width: 100vw;
   height: 100vh;
+  /* Aim-mode slow motion multiplier (1 = normal, 0.3 while aiming) — set by
+     Game.setAiming(). CSS durations that should feel the slow-mo divide by
+     this instead of racing at full speed while the game clock crawls. */
+  --time-scale: 1;
 }
 
 /* ---------- Ambience (vignette + water shimmer) ---------- */
@@ -343,7 +347,11 @@ body {
   pointer-events: none;
   transform-style: preserve-3d;
   transform: translate(var(--token-x), var(--token-y));
-  transition: transform 0.85s ease-in-out;
+  /* Stretches with the game's aim-mode slow motion (--time-scale set on
+     .abyss-shell — 1 = normal, 0.3 while aiming): the move itself slides
+     proportionally slower instead of just the gap between moves growing,
+     so it reads as one uniform slow-mo rather than pause-then-snap. */
+  transition: transform calc(0.85s / var(--time-scale, 1)) ease-in-out;
 }
 
 /* A clash tick — front-of-queue enemy/ally dash a short step toward each
@@ -1268,7 +1276,7 @@ body {
 
 .entity-card-hp {
   position: relative;
-  height: 14px;
+  height: 16px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.55);
   border: 0;
@@ -1278,13 +1286,40 @@ body {
     inset 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
-/* Deep-sea water fill: no numeric label, just a calm, static blue gradient. */
+/* Deep-sea water fill — a calm, static blue gradient. */
 .entity-card-hp-fill {
   position: absolute;
   inset: 0;
   border-radius: 999px;
   background: linear-gradient(90deg, #144a63, #2f89ab);
   transition: width 0.28s ease;
+}
+
+/* Numeric readout ("20/20") centered over the bar, above the fill. */
+.entity-card-hp-text {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #eaf6ff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95);
+  pointer-events: none;
+}
+
+/* Tier rank stars — deployed board allies, sitting just above the name. */
+.entity-card-stars {
+  font-size: 13px;
+  letter-spacing: 2px;
+  line-height: 1;
+  color: #ffd66b;
+  text-shadow:
+    0 0 6px rgba(255, 190, 90, 0.85),
+    0 1px 2px rgba(0, 0, 0, 0.95);
 }
 
 /* ---------- Merge button (central pulsing diamond, above the hand fan) ---------- */
@@ -2653,6 +2688,23 @@ body {
     box-shadow 0.2s ease;
 }
 
+/* When skill_00N art exists (has-art), it fills the hex as a cover background
+   (clip-path already cuts it to the hexagon), with a bottom-heavy scrim under
+   the label/cost so text stays legible over the illustration. */
+.skill-hex.has-art {
+  background-image: var(--hex-art), radial-gradient(circle at 50% 32%, rgba(58, 46, 96, 0.94), rgba(15, 11, 26, 0.97));
+  background-size: cover;
+  background-position: center 30%;
+}
+
+.hex-art-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(10, 7, 20, 0.1) 0%, rgba(8, 5, 16, 0.35) 55%, rgba(6, 4, 12, 0.88) 100%);
+}
+
 /* The three press-to-use skills read as the stars of the hive: a live cyan
    ready-ring while affordable so they invite the click. */
 .skill-hex--raise:not(.is-disabled):not(.is-armed),
@@ -2675,6 +2727,11 @@ body {
     inset 0 5px 10px rgba(0, 0, 0, 0.62),
     inset 0 -2px 5px rgba(180, 210, 255, 0.08),
     inset 0 0 0 1px rgba(140, 125, 190, 0.3);
+}
+.skill-hex--basic.has-art {
+  background-image: var(--hex-art), radial-gradient(circle at 50% 34%, rgba(64, 55, 96, 0.9), rgba(17, 13, 28, 0.96));
+  background-size: cover;
+  background-position: center 30%;
 }
 .skill-hex--basic .hex-name {
   font-size: 13px;
@@ -2820,6 +2877,11 @@ body {
 .board-corpse-figure {
   position: relative;
   opacity: 0.82;
+  /* Re-enables hit-testing for just this figure — its .board-token wrapper is
+     pointer-events:none (like every other token), so a click here is a clean,
+     separate hit from the cell button underneath (raise this corpse directly). */
+  pointer-events: auto;
+  cursor: pointer;
   animation: corpse-waver 2.4s ease-in-out infinite;
 }
 
@@ -3107,38 +3169,36 @@ body {
   }
 }
 
-/* ---------- 급조 targeting (여기서 일으켜 — cells with raisable corpses) ---------- */
-/* Rings the FLOOR tile (the actual click target), since the corpse standee
-   floats above it and would otherwise be an ambiguous target. */
-.board-cell.is-raise-target {
-  box-shadow:
-    inset 0 0 0 2px rgba(150, 245, 190, 0.6),
-    inset 0 6px 22px rgba(0, 0, 0, 0.3),
-    0 0 34px rgba(120, 240, 175, 0.35);
-  animation: raise-target-pulse 1.3s ease-in-out infinite;
+/* ---------- 급조 targeting (여기서 일으켜 — the corpse ITSELF, not the tile) ---------- */
+/* Emphasis rides on the corpse's own halo (::before — generated content, no
+   3D transform of its own, so this never clips): tints it green and pulses it
+   while a raisable corpse is a live target. */
+.board-corpse.is-raise-target .board-corpse-figure::before {
+  background: radial-gradient(
+    circle,
+    rgba(160, 250, 200, 0.85) 0%,
+    rgba(120, 240, 175, 0.42) 46%,
+    transparent 70%
+  );
+  animation: raise-target-glow-pulse 1.3s ease-in-out infinite;
 }
 
-@keyframes raise-target-pulse {
+@keyframes raise-target-glow-pulse {
   0%,
   100% {
-    box-shadow:
-      inset 0 0 0 2px rgba(150, 245, 190, 0.5),
-      inset 0 6px 22px rgba(0, 0, 0, 0.3),
-      0 0 26px rgba(120, 240, 175, 0.28);
+    opacity: 0.68;
   }
   50% {
-    box-shadow:
-      inset 0 0 0 2.5px rgba(180, 255, 210, 0.85),
-      inset 0 6px 22px rgba(0, 0, 0, 0.3),
-      0 0 46px rgba(120, 240, 175, 0.5);
+    opacity: 1;
   }
 }
 
+/* Up-chevron badge floating above the targeted corpse. */
 .raise-marker {
   position: absolute;
-  top: 50%;
+  top: -30px;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: 6;
   color: #b6ffd4;
   pointer-events: none;
@@ -3149,11 +3209,11 @@ body {
 @keyframes raise-marker-bob {
   0%,
   100% {
-    transform: translate(-50%, -40%);
+    transform: translateX(-50%) translateY(0);
     opacity: 0.85;
   }
   50% {
-    transform: translate(-50%, -60%);
+    transform: translateX(-50%) translateY(-8px);
     opacity: 1;
   }
 }

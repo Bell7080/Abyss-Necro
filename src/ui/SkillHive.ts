@@ -1,19 +1,10 @@
 import type { AbilitySystem, AbilityId } from '@systems/AbilitySystem'
-
-interface HexDef {
-  id: AbilityId
-  name: string
-  hint: string
-}
+import { SKILL_FACES, getSkillArt } from '@ui/SkillArt'
 
 // Basic first (always-on default), then the three toggle skills — laid out
-// as a honeycomb column beside the player card.
-const HEXES: HexDef[] = [
-  { id: 'basic', name: '공격', hint: '이거나 먹어라!' },
-  { id: 'raise', name: '급조', hint: '얘들아…! 막아!' },
-  { id: 'raise-all', name: '기상', hint: '모두 일어나!' },
-  { id: 'capture', name: '포획', hint: '넌 내꺼야!' },
-]
+// as a honeycomb column beside the player card. Order/names/hints come from
+// the shared SKILL_FACES map (same source the cast cut-in panel reads).
+const HEX_ORDER: AbilityId[] = ['basic', 'raise', 'raise-all', 'capture']
 
 export interface SkillHiveHandlers {
   /** A hex was pressed. Game decides: basic disarms, raise/capture arm,
@@ -53,15 +44,19 @@ export class SkillHive {
 
     const hexes = document.createElement('div')
     hexes.className = 'hive-hexes'
-    for (const def of HEXES) {
+    for (const id of HEX_ORDER) {
+      const face = SKILL_FACES[id]
+      const art = getSkillArt(id)
       const btn = document.createElement('button')
       btn.type = 'button'
-      btn.className = `skill-hex skill-hex--${def.id}`
-      btn.title = def.hint
-      btn.innerHTML = `<span class="hex-name">${def.name}</span><span class="hex-cost">${this.ability.costOf(def.id)}</span>`
-      btn.addEventListener('click', () => handlers.onSkill(def.id))
+      btn.className = `skill-hex skill-hex--${id}${art ? ' has-art' : ''}`
+      btn.title = face.hint
+      btn.style.setProperty('--hex-tone', face.tone)
+      if (art) btn.style.setProperty('--hex-art', `url('${art}')`)
+      btn.innerHTML = `<span class="hex-art-scrim" aria-hidden="true"></span><span class="hex-name">${face.name}</span><span class="hex-cost">${this.ability.costOf(id)}</span>`
+      btn.addEventListener('click', () => handlers.onSkill(id))
       hexes.appendChild(btn)
-      this.hexes.set(def.id, btn)
+      this.hexes.set(id, btn)
     }
 
     const gauge = document.createElement('div')
