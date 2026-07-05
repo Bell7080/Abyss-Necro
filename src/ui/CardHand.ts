@@ -46,9 +46,26 @@ export class CardHand {
   }
 
   render(cards: readonly HandCard[], selectedId: string | null, affordFn?: (card: HandCard) => boolean): void {
+    if (affordFn) this.affordFn = affordFn
+    // Same cards, same order (a selection toggle, not an add/remove/merge) —
+    // update classes on the EXISTING elements instead of rebuilding. A full
+    // rebuild throws away every node and recreates fresh ones with no prior
+    // frame to transition from, so the is-selected lift/glow (a CSS
+    // transition) just snaps instead of animating — this keeps it alive.
+    const sameSet =
+      cards.length === this.cards.length && cards.every((c, i) => c.id === this.cards[i]?.id)
+    if (sameSet) {
+      this.cards = cards
+      for (const card of cards) {
+        const el = this.container.querySelector<HTMLElement>(`[data-card-id="${card.id}"]`)
+        if (!el) continue
+        el.classList.toggle('is-selected', card.id === selectedId)
+        el.classList.toggle('is-unaffordable', !this.affordFn(card))
+      }
+      return
+    }
     this.container.innerHTML = ''
     this.cards = cards
-    if (affordFn) this.affordFn = affordFn
     const total = cards.length
     cards.forEach((card, i) => {
       const el = document.createElement('button')
@@ -124,6 +141,13 @@ export class CardHand {
     const rect = this.container.getBoundingClientRect()
     const { x, y } = fanTransform(nextCount - 1, nextCount)
     return { x: rect.left + rect.width / 2 + x, y: rect.bottom + y }
+  }
+
+  /** Live viewport rect of a specific hand card — aims a travel effect FROM
+   * it (e.g. flying onto the board when placed). Null if it's not currently
+   * rendered. */
+  getCardRect(cardId: string): DOMRect | null {
+    return this.container.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`)?.getBoundingClientRect() ?? null
   }
 
   /** Unmelting-style jelly merge: the outer two cards magnetize onto the

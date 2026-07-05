@@ -567,9 +567,22 @@ export class Game {
     // hand card is dimmed until affordable, but re-check on the cast too.
     const cost = summonCost(card.tier ?? 1)
     if (!this.abilitySystem.canAfford(cost)) return
-    if (!this.defenderSystem.place(cellIndex, card.label, card.creatureId, card.tier ?? 1)) return
+    if (!this.defenderSystem.canPlace(cellIndex)) return
+    const cellRect = this.board.getCellRect(cellIndex)
+    const cardRect = this.hand.getCardRect(card.id)
     this.abilitySystem.spend(cost)
     this.handSystem.removeCard(card.id)
+    if (!cardRect || !cellRect) {
+      // No rect to travel from/to (shouldn't normally happen) — place plainly.
+      this.defenderSystem.place(cellIndex, card.label, card.creatureId, card.tier ?? 1)
+      return
+    }
+    // The card bubbles from its hand slot to the cell; the ally actually
+    // lands (and the pop burst fires) right as the bubbles arrive.
+    this.blast.travelDrop(cardRect, centerOf(cellRect), () => {
+      this.defenderSystem.place(cellIndex, card.label, card.creatureId, card.tier ?? 1)
+      this.blast.clashBurst(cellRect)
+    })
   }
 
   /** Whether a hand card can be played now: item/epic are always usable, a

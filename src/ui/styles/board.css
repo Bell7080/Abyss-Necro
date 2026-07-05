@@ -1744,8 +1744,8 @@ body {
 }
 
 /* Leaving: cuts back to black quickly (synced with the OST's stutter-cut in
-   AudioManager.duckTitleOst). Entering: once the run has quietly started
-   behind that black, it fades back out onto the live board. */
+   AudioManager.duckTitleOst). Entering: fades back out onto the (still idle)
+   board, after which the 시작하기 button below fades in. */
 .intro-overlay.is-leaving .intro-black-veil {
   transition: opacity 0.7s ease-in;
   opacity: 1;
@@ -1761,20 +1761,93 @@ body {
   opacity: 0;
 }
 
+/* The board is visible but not yet running — one more deliberate click actually
+   starts it. Sits centered over the now-revealed (idle) board. */
+.intro-start-invite {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+.intro-overlay.is-awaiting-start .intro-start-invite {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Ringless threshold button: no border, no inset line — a soft dark pool
+   with one subtle drop shadow, the glowing type itself is the actor. Hover
+   answers by growing the type and brightening its glow instead of a ring. */
+.intro-start-button {
+  padding: 26px 92px;
+  border-radius: 999px;
+  border: 0;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(64, 42, 106, 0.62),
+    rgba(12, 8, 22, 0.55) 74%,
+    rgba(12, 8, 22, 0.28)
+  );
+  color: var(--abyss-lavender-bright);
+  font-size: 25px;
+  letter-spacing: 0.34em;
+  padding-left: calc(92px + 0.34em);
+  cursor: pointer;
+  text-shadow: 0 0 16px rgba(180, 150, 255, 0.45);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  transition:
+    font-size 0.26s ease,
+    text-shadow 0.26s ease;
+  animation: intro-breathe 2.6s ease-in-out infinite;
+}
+
+.intro-start-button:hover {
+  font-size: 29px;
+  text-shadow:
+    0 0 20px rgba(210, 190, 255, 0.85),
+    0 0 44px rgba(150, 205, 255, 0.5);
+}
+
+/* A held breath at the threshold, carried by the text glow rather than a ring. */
+@keyframes intro-breathe {
+  0%,
+  100% {
+    text-shadow: 0 0 16px rgba(180, 150, 255, 0.45);
+  }
+  50% {
+    text-shadow:
+      0 0 22px rgba(200, 175, 255, 0.75),
+      0 0 40px rgba(150, 205, 255, 0.35);
+  }
+}
+
+.intro-overlay.is-dismissed {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
 .intro-prompt {
   position: absolute;
   left: 50%;
-  bottom: 64px;
+  bottom: 108px;
   transform: translateX(-50%);
   z-index: 3;
   width: max-content;
   max-width: 90vw;
   text-align: center;
-  font-size: 18px;
+  font-size: 23px;
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--abyss-lavender-bright);
-  text-shadow: 0 0 16px rgba(180, 150, 255, 0.55);
+  text-shadow:
+    0 0 16px rgba(180, 150, 255, 0.55),
+    0 3px 8px rgba(0, 0, 0, 0.75);
   opacity: 0;
   pointer-events: none;
 }
@@ -1789,11 +1862,14 @@ body {
     opacity: 1;
     text-shadow:
       0 0 16px rgba(180, 150, 255, 0.55),
-      0 0 34px rgba(150, 205, 255, 0.3);
+      0 0 34px rgba(150, 205, 255, 0.3),
+      0 3px 8px rgba(0, 0, 0, 0.75);
   }
   50% {
     opacity: 0.3;
-    text-shadow: 0 0 10px rgba(180, 150, 255, 0.3);
+    text-shadow:
+      0 0 10px rgba(180, 150, 255, 0.3),
+      0 3px 8px rgba(0, 0, 0, 0.75);
   }
 }
 
@@ -3016,11 +3092,23 @@ body {
   animation: corpse-waver 2.4s ease-in-out infinite;
 }
 
-/* Soft glow halo behind the body. */
-.board-corpse-figure::before {
+/* Soft glow halo behind the body. The DOM element carries both
+   `.board-figure` (for the standee tilt/rise) and `.board-corpse-figure`
+   classes, and `.board-figure::before` is already spoken for (the ground
+   contact-shadow ellipse, `left/bottom/width/height/transform/filter`).
+   Since both rules target the SAME single ::before, a plain
+   `.board-corpse-figure::before` selector ties on specificity and only
+   partially overrides it — the shadow's fixed width/height/transform/filter
+   leak through, squashing this halo into the wrong size and position.
+   Chaining both classes here wins outright instead. */
+.board-figure.board-corpse-figure::before {
   content: '';
   position: absolute;
   inset: -22%;
+  width: auto;
+  height: auto;
+  transform: none;
+  filter: none;
   background: radial-gradient(
     circle,
     rgba(196, 140, 255, 0.72) 0%,
