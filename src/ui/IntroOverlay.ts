@@ -44,7 +44,8 @@ export class IntroOverlay {
     root: HTMLElement,
     onBoardRevealed: () => void,
     onRevealed: () => void,
-    onDismiss: () => void
+    onDismiss: () => void,
+    volume?: { initial: number; onChange: (v: number) => void }
   ) {
     this.overlay = document.createElement('div')
     this.overlay.className = 'intro-overlay'
@@ -56,8 +57,16 @@ export class IntroOverlay {
       <div class="intro-title-vignette"></div>
       <div class="intro-fireflies" aria-hidden="true">${firefliesHtml()}</div>
       <div class="intro-black-veil"></div>
+      <div class="intro-volume" role="slider" aria-label="음악 볼륨">
+        <span class="intro-volume-note" aria-hidden="true">♪</span>
+        <div class="intro-volume-track">
+          <div class="intro-volume-fill"></div>
+          <span class="intro-volume-star" aria-hidden="true">✦</span>
+        </div>
+      </div>
       <div class="intro-prompt">화면을 눌러 심해의 친구들을 사귀러 떠나기!</div>`
     root.appendChild(this.overlay)
+    if (volume) this.wireVolume(volume.initial, volume.onChange)
 
     const dismissTitle = (): void => {
       this.overlay.removeEventListener('click', dismissTitle)
@@ -86,5 +95,46 @@ export class IntroOverlay {
         }, REVEAL_DELAY_MS + REVEAL_DURATION_MS)
       })
     })
+  }
+
+  /** Line-and-star volume slider (top-right): drag or click anywhere on the
+   * line to set the music volume — the star thumb and glowing fill follow.
+   * Pointer events stop here so the slider never doubles as the title's
+   * click-to-start. */
+  private wireVolume(initial: number, onChange: (v: number) => void): void {
+    const box = this.overlay.querySelector('.intro-volume') as HTMLElement
+    const track = box.querySelector('.intro-volume-track') as HTMLElement
+    const fill = box.querySelector('.intro-volume-fill') as HTMLElement
+    const star = box.querySelector('.intro-volume-star') as HTMLElement
+
+    const render = (v: number): void => {
+      const pct = Math.round(v * 100)
+      fill.style.width = `${pct}%`
+      star.style.left = `${pct}%`
+      box.classList.toggle('is-muted', v <= 0.001)
+      box.setAttribute('aria-valuenow', `${pct}`)
+    }
+    render(initial)
+
+    const setFromX = (clientX: number): void => {
+      const rect = track.getBoundingClientRect()
+      const v = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+      render(v)
+      onChange(v)
+    }
+
+    box.addEventListener('click', (e) => e.stopPropagation())
+    box.addEventListener('pointerdown', (e) => {
+      e.stopPropagation()
+      box.setPointerCapture(e.pointerId)
+      box.classList.add('is-dragging')
+      setFromX(e.clientX)
+    })
+    box.addEventListener('pointermove', (e) => {
+      if (box.classList.contains('is-dragging')) setFromX(e.clientX)
+    })
+    const release = (): void => box.classList.remove('is-dragging')
+    box.addEventListener('pointerup', release)
+    box.addEventListener('pointercancel', release)
   }
 }

@@ -41,14 +41,28 @@ const OST_STUTTER_STEPS: ReadonlyArray<readonly [number, number]> = [
 
 type Mode = 'idle' | 'ost' | 'battle'
 
+// Master volume persists across sessions (title-screen slider sets it).
+const VOLUME_STORAGE_KEY = 'abyss-necro-volume'
+
+function loadStoredVolume(): number {
+  const raw = window.localStorage.getItem(VOLUME_STORAGE_KEY)
+  const v = raw === null ? NaN : Number(raw)
+  return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1
+}
+
 // One owner for all music. Handles browser autoplay (defers the first play to
 // the first user gesture if the browser blocks it), fades every transition, and
-// re-randomizes battle tracks forever until stopped.
+// re-randomizes battle tracks forever until stopped. All internal fades work in
+// LOGICAL volume (0..OST/BGM_VOLUME); the element volume actually set is
+// logical × master, so the master slider scales everything uniformly without
+// the fade math having to know about it.
 export class AudioManager {
   private readonly ost: HTMLAudioElement | null
   private readonly battle: HTMLAudioElement | null
   private mode: Mode = 'idle'
   private readonly fadeTimers = new WeakMap<HTMLAudioElement, number>()
+  private readonly logicalVolume = new WeakMap<HTMLAudioElement, number>()
+  private master = loadStoredVolume()
   // Set while a gesture-deferred play is pending, so we don't stack listeners.
   private pendingGesture: (() => void) | null = null
 
@@ -73,6 +87,26 @@ export class AudioManager {
     }
   }
 
+  /** Title-screen slider: 0..1, scales every current and future track. */
+  setMasterVolume(v: number): void {
+    this.master = Math.min(1, Math.max(0, v))
+    window.localStorage.setItem(VOLUME_STORAGE_KEY, `${this.master}`)
+    for (const el of [this.ost, this.battle]) {
+      if (el) this.applyVolume(el, this.logicalVolume.get(el) ?? 0)
+    }
+  }
+
+  getMasterVolume(): number {
+    return this.master
+  }
+
+  /** The one place element volume is written — logical level × master. */
+  private applyVolume(el: HTMLAudioElement, logical: number): void {
+    const clamped = Math.min(1, Math.max(0, logical))
+    this.logicalVolume.set(el, clamped)
+    el.volume = Math.min(1, Math.max(0, clamped * this.master))
+  }
+
   private hasBattleTracks(): boolean {
     return !!(audioByName['bgm_001'] || audioByName['bgm_002'])
   }
@@ -91,7 +125,7 @@ export class AudioManager {
     const el = this.ost
     el.currentTime = 0
     this.tryPlay(el, () => {
-      el.volume = 0
+      this.applyVolume(el, 0)
       this.fade(el, OST_VOLUME, OST_FADE_IN_MS)
     })
   }
@@ -103,10 +137,10 @@ export class AudioManager {
     if (!el || el.paused) return
     const prev = this.fadeTimers.get(el)
     if (prev !== undefined) window.clearInterval(prev)
-    const start = el.volume
+    const start = this.logicalVolume.get(el) ?? el.volume
     for (const [ms, mult] of OST_STUTTER_STEPS) {
       window.setTimeout(() => {
-        el.volume = Math.max(0, Math.min(1, start * mult))
+        this.applyVolume(el, start * mult)
       }, ms)
     }
     const lastMs = OST_STUTTER_STEPS[OST_STUTTER_STEPS.length - 1][0]
@@ -140,7 +174,7 @@ export class AudioManager {
     el.src = src
     this.tryPlay(el, () => {
       el.currentTime = 0
-      el.volume = 0
+      this.applyVolume(el, 0)
       this.fade(el, BGM_VOLUME, FADE_IN_MS)
     })
   }
@@ -149,7 +183,8 @@ export class AudioManager {
     const el = this.battle
     if (!el || this.mode !== 'battle' || !el.duration || !isFinite(el.duration)) return
     const remaining = (el.duration - el.currentTime) * 1000
-    if (remaining <= TRACK_TAIL_FADE_MS && el.volume > 0.02 && this.fadeTimers.get(el) === undefined) {
+    const logical = this.logicalVolume.get(el) ?? 0
+    if (remaining <= TRACK_TAIL_FADE_MS && logical > 0.02 && this.fadeTimers.get(el) === undefined) {
       this.fade(el, 0, Math.max(300, remaining))
     }
   }
@@ -186,17 +221,18 @@ export class AudioManager {
   }
 
   /** Linear volume ramp on rAF-less timers (works even when the tab throttles
-   * rAF). Cancels any in-flight fade on the same element first. */
+   * rAF). Operates in LOGICAL volume (master-scaled on write). Cancels any
+   * in-flight fade on the same element first. */
   private fade(el: HTMLAudioElement, target: number, ms: number, done?: () => void): void {
     const prev = this.fadeTimers.get(el)
     if (prev !== undefined) window.clearInterval(prev)
-    const start = el.volume
+    const start = this.logicalVolume.get(el) ?? el.volume
     const steps = Math.max(1, Math.round(ms / 40))
     let i = 0
     const timer = window.setInterval(() => {
       i += 1
       const t = i / steps
-      el.volume = Math.min(1, Math.max(0, start + (target - start) * t))
+      this.applyVolume(el, start + (target - start) * t)
       if (i >= steps) {
         window.clearInterval(timer)
         this.fadeTimers.delete(el)

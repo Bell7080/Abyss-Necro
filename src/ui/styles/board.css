@@ -1902,6 +1902,82 @@ body {
   opacity: 0;
 }
 
+/* Line-and-star music volume, top-right of the title screen: a slim glowing
+   line as the track, a ✦ star as the thumb. Fades in with the reveal; pointer
+   events live only here so dragging never doubles as click-to-start. */
+.intro-volume {
+  position: absolute;
+  top: 30px;
+  right: 40px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 8px;
+  cursor: pointer;
+  touch-action: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1s ease;
+}
+
+.intro-overlay.is-revealed .intro-volume {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.intro-overlay.is-leaving .intro-volume {
+  transition: opacity 0.2s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intro-volume-note {
+  font-size: 19px;
+  color: rgba(190, 230, 255, 0.85);
+  text-shadow: 0 0 10px rgba(130, 205, 255, 0.6);
+  transition: opacity 0.25s ease;
+}
+
+.intro-volume.is-muted .intro-volume-note {
+  opacity: 0.35;
+}
+
+.intro-volume-track {
+  position: relative;
+  width: 150px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(150, 210, 255, 0.22);
+}
+
+.intro-volume-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: linear-gradient(to right, rgba(127, 232, 255, 0.55), #a8e2ff);
+  box-shadow: 0 0 9px rgba(127, 232, 255, 0.7);
+}
+
+.intro-volume-star {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  transform: translate(-50%, -50%);
+  font-size: 17px;
+  line-height: 1;
+  color: #dbf3ff;
+  text-shadow:
+    0 0 10px rgba(140, 215, 255, 0.95),
+    0 0 24px rgba(140, 215, 255, 0.5);
+  transition: font-size 0.15s ease;
+}
+
+.intro-volume:hover .intro-volume-star,
+.intro-volume.is-dragging .intro-volume-star {
+  font-size: 21px;
+}
+
 .intro-prompt {
   position: absolute;
   left: 50%;
