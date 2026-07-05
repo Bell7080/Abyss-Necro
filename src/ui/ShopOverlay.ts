@@ -26,9 +26,10 @@ const PRICE_EPIC = 6
 const SHOP_EXCLUDED = new Set(['shark'])
 const MAX_CREATURE_LEVEL = Math.max(...CREATURES.map((c) => c.level))
 
-// Checkpoint shop — unfolds sparkling from the screen center during the
-// lull and offers three random cards (minions / usables / a rare facility).
-// Display + offer rolling only; payment and hand delivery live in Game.
+// Checkpoint shop — dark water fog rolls in from both edges to swallow the
+// field, then the panel unfolds sparkling from the screen center and offers
+// three random cards (minions / usables / a rare facility). Display + offer
+// rolling only; payment and hand delivery live in Game.
 export class ShopOverlay {
   private readonly overlay: HTMLElement
   private readonly cardsEl: HTMLElement
@@ -40,6 +41,8 @@ export class ShopOverlay {
     this.overlay = document.createElement('div')
     this.overlay.className = 'shop-overlay'
     this.overlay.innerHTML = `
+      <div class="shop-fog shop-fog--left"><div class="shop-fog-inner"></div></div>
+      <div class="shop-fog shop-fog--right"><div class="shop-fog-inner"></div></div>
       <div class="shop-panel">
         <div class="shop-title">심연 상점</div>
         <div class="shop-cards"></div>

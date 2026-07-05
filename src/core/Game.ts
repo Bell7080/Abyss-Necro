@@ -125,6 +125,9 @@ export class Game {
     shell.appendChild(relicDock)
     this.relics = new RelicInventory(relicDock)
     this.hand = new CardHand(shell, (cardId) => {
+      // Hand cards are placement, not shopping — locked out during the
+      // checkpoint lull (only merge/purchase are allowed there).
+      if (this.waveSystem.isPaused()) return
       this.handSystem.toggleSelect(cardId)
     })
     this.mergeButton = new MergeButton(shell, () => this.performActiveMerge())
@@ -253,9 +256,10 @@ export class Game {
   }
 
   /** A hex was pressed. Basic disarms to plain attack, raise/capture toggle
-   * their armed aim mode, raise-all fires at once. */
+   * their armed aim mode, raise-all fires at once. Locked out entirely during
+   * the checkpoint lull — only merge/purchase are allowed there. */
   private handleSkill(id: AbilityId): void {
-    if (!this.runStarted) return
+    if (!this.runStarted || this.waveSystem.isPaused()) return
     if (id === 'basic') {
       this.disarmSkill()
       return
