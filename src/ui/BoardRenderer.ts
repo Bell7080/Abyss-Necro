@@ -181,7 +181,7 @@ export class BoardRenderer {
       if (!cell) return
       cell.classList.toggle('has-trap', count > 0)
       cell.dataset.traps = count > 0 ? `${count}` : ''
-      this.syncCellEffect(cell, i, count)
+      this.syncCellEffect(cell, count)
     })
 
     // A unit crossing from the grid into the boss room switches DOM parents
@@ -306,17 +306,14 @@ export class BoardRenderer {
     void el.offsetWidth // commit start pos so the following set transitions from here
   }
 
-  // Persistent per-cell effects tint the tile with a slow shimmer; when two
-  // are present (e.g. a trap-star + a jelly-amp aura) they layer into one
-  // mixed wave. Trap = crimson, jelly-amp aura = cyan.
-  private syncCellEffect(cell: HTMLElement, cellIndex: number, trapCount: number): void {
-    const tints: string[] = []
-    if (trapCount > 0) tints.push('rgba(255, 110, 135, 0.5)')
-    if (this.defenderSystem.getDamageAmp(cellIndex) > 0) tints.push('rgba(120, 225, 255, 0.5)')
-
-    cell.classList.toggle('has-effect', tints.length > 0)
-    cell.style.setProperty('--cell-tint-a', tints[0] ?? 'transparent')
-    cell.style.setProperty('--cell-tint-b', tints[1] ?? tints[0] ?? 'transparent')
+  // Persistent per-cell effects tint the tile with a slow crimson shimmer —
+  // trap-stars only. (A jelly-amp cyan wash used to layer in here too, but it
+  // read as a murky puddle under the jellyfish rather than a buff cue.)
+  private syncCellEffect(cell: HTMLElement, trapCount: number): void {
+    const tint = trapCount > 0 ? 'rgba(255, 110, 135, 0.5)' : 'transparent'
+    cell.classList.toggle('has-effect', trapCount > 0)
+    cell.style.setProperty('--cell-tint-a', tint)
+    cell.style.setProperty('--cell-tint-b', tint)
   }
 
   private syncGridRole(

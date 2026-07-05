@@ -2215,14 +2215,17 @@ body {
   width: 215px;
 }
 
+/* Tier glow in the dialogue stays in the ally sky-blue family (the board's
+   gold aura read as off-tone against the cutscene's cool palette) — higher
+   tier = brighter, icier ring. */
 .intro-card .entity-card--ally.is-tier2 {
-  --card-ring: rgba(255, 224, 150, 0.65);
-  --card-glow: rgba(255, 200, 110, 0.45);
+  --card-ring: rgba(150, 228, 255, 0.75);
+  --card-glow: rgba(110, 205, 255, 0.5);
 }
 
 .intro-card .entity-card--ally.is-tier3 {
-  --card-ring: rgba(255, 236, 176, 0.9);
-  --card-glow: rgba(255, 210, 120, 0.65);
+  --card-ring: rgba(196, 240, 255, 0.95);
+  --card-glow: rgba(145, 220, 255, 0.7);
 }
 
 .intro-card-shadow {

@@ -161,14 +161,14 @@ export class IntroDialogue {
       {
         portrait: 2,
         text: '그래도 괜찮아! 다들 날 좋아하게 만들면 되는 거니까!',
-        after: () => this.transformCards((id) => getAllyArt(id, 1)),
+        after: () => this.transformCards((id) => getAllyArt(id, 1), 1),
       },
       { portrait: 3, text: '적을 잡아서 아군으로 사령할 수 있어!' },
       { portrait: 4, text: '그리고 중요한 부분이야!' },
       {
         portrait: 3,
         text: '바로 바로... 같은 적 카드를 3장 모으면  더 강해진다는 것!',
-        after: () => this.transformCards((id) => getAllyArt(id, 2), 'is-tier2'),
+        after: () => this.transformCards((id) => getAllyArt(id, 2), 2, 'is-tier2'),
       },
       {
         portrait: 2,
@@ -279,7 +279,8 @@ export class IntroDialogue {
     ids: string[],
     artFor: (id: string) => string | undefined,
     variant: 'enemy' | 'ally' = 'enemy',
-    tierClass?: string
+    tierClass?: string,
+    stars?: number
   ): void {
     this.cardsLayer.innerHTML = ''
     this.cardEls = ids.map((id, i) => {
@@ -295,6 +296,7 @@ export class IntroDialogue {
         variant,
         imageUrl: artFor(id),
         name: creature?.label,
+        stars,
       })}`
       if (tierClass) el.querySelector('.entity-card')?.classList.add(tierClass)
       this.cardsLayer.appendChild(el)
@@ -306,8 +308,13 @@ export class IntroDialogue {
   }
 
   /** Bubble-blast each current card, then swap its art/variant in place —
-   * used both for the enemy→ally reveal and the tier-1→tier-2 upgrade. */
-  private async transformCards(artFor: (id: string) => string | undefined, tierClass?: string): Promise<void> {
+   * used both for the enemy→ally reveal and the tier-1→tier-2 upgrade. Ally
+   * forms carry their tier's ★ rank, same badge as hand/board cards. */
+  private async transformCards(
+    artFor: (id: string) => string | undefined,
+    stars: number,
+    tierClass?: string
+  ): Promise<void> {
     for (const el of this.cardEls) {
       const burst = document.createElement('div')
       burst.className = 'intro-card-burst'
@@ -326,6 +333,17 @@ export class IntroDialogue {
       card?.classList.remove('entity-card--enemy')
       card?.classList.add('entity-card--ally')
       if (tierClass) card?.classList.add(tierClass)
+      const content = card?.querySelector('.entity-card-content')
+      if (content) {
+        let starsEl = content.querySelector('.entity-card-stars')
+        if (!starsEl) {
+          starsEl = document.createElement('div')
+          starsEl.className = 'entity-card-stars'
+          content.prepend(starsEl)
+        }
+        starsEl.textContent = '★'.repeat(stars)
+        starsEl.setAttribute('aria-label', `${stars}성`)
+      }
     }
     await wait(420)
   }
@@ -341,7 +359,7 @@ export class IntroDialogue {
   /** A dramatic, brief cameo for the 3성 "cutest" trio — pops in, holds, then
    * fades away before the next line. */
   private async flashCuteTrio(): Promise<void> {
-    this.spawnCards(CUTE_TRIO, (id) => getAllyArt(id, 3), 'ally', 'is-tier3')
+    this.spawnCards(CUTE_TRIO, (id) => getAllyArt(id, 3), 'ally', 'is-tier3', 3)
     await wait(1700)
     await this.hideCards()
   }
