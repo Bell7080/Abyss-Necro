@@ -455,9 +455,10 @@ function flashCard(card: Element | null): void {
   window.setTimeout(() => card.classList.remove('is-hit'), HIT_FLASH_MS)
 }
 
-// Four-point star path for the constellation crossings.
+// Four-point star for the constellation crossings — a crisp diamond core with
+// short sparkle points (higher `w` = fuller, more gem-like than a thin cross).
 function starPath(cx: number, cy: number, r: number): string {
-  const w = r * 0.26
+  const w = r * 0.42
   return `M${cx} ${cy - r} L${cx + w} ${cy - w} L${cx + r} ${cy} L${cx + w} ${cy + w} L${cx} ${cy + r} L${cx - w} ${cy + w} L${cx - r} ${cy} L${cx - w} ${cy - w} Z`
 }
 
