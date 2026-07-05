@@ -2578,32 +2578,27 @@ body {
    gauge on their inner edge, hugging the left of the board where the
    necromancer stands. Basic is the resting default; raise/capture light
    amber when armed. */
-/* No backdrop panel — the hexes + gauge hug the left flank of the player card
-   directly, vertically centered on it (card spans ~y233–524 at 1080p). The
-   whole cluster leans on the SAME plane as the board figures: net ~-15° tilt
-   (top toward viewer) + scaleY stretch, so it sits coplanar with the card
-   rather than reading as a flat 2D overlay. */
-/* Transparent perspective frame sharing the board's eye: board-mount uses
-   perspective:1900px with its origin at screen (960, -147); with the frame at
-   (158, 216) that eye is (960-158, -147-216) = (802px, -363px) relative to the
-   frame. Sharing the eye makes the plane's vertical edges converge exactly
-   like the card's, so the wedge-shaped gap disappears. */
+/* No backdrop panel — the hexes + gauge column hug the right flank of the
+   player card. Its position is welded to the live card rect in JS (SkillHive
+   .anchorTo), so it tracks the card at any window size. The initial left/top is
+   just a first-paint fallback before the JS anchor runs. */
 .skill-hive {
   position: absolute;
   left: 158px;
   top: 216px;
-  perspective: 1900px;
-  perspective-origin: 802px -363px;
-  z-index: 40;
+  /* Above the aim-mode board (board-mount rises to 72 while aiming): otherwise
+     the player card overlaps and swallows clicks on the hexes it covers — which
+     is why 급조 (tucked against the card) couldn't be pressed. Below the hand (75). */
+  z-index: 74;
 }
 
-/* The content plane, tilted on the same plane as the board figures. */
+/* The content plane. Kept FLAT (no rotateX tilt): the 3D projection was
+   displacing each hex's hit-area off its rendered shape, so the 급조 hex — tucked
+   against the card — became impossible to click. Flat = hit-area matches visual. */
 .hive-plane {
   display: flex;
   align-items: center;
   gap: 9px;
-  transform: rotateX(-15deg) scaleY(1.16);
-  transform-style: preserve-3d;
 }
 
 .hive-hexes {
@@ -2616,7 +2611,7 @@ body {
    the two ends lean in (margin-left), the middle bulges out — a bracket that
    cups the necromancer. margin (not transform) keeps hover/pop free. */
 .hive-hexes .skill-hex {
-  margin-top: 7px;
+  margin-top: 12px;
 }
 .hive-hexes .skill-hex:first-child {
   margin-top: 0;
