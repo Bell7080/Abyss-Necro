@@ -26,7 +26,12 @@ export interface EnemyToken {
   lastMovedAt?: number
   /** Wave-1 tutorial pity: this kill always drops a necro card. */
   guaranteedCard?: boolean
-  /** When this token spawned — while its crawl-in from the fog is still
-   * playing (SPAWN_APPROACH_MS) it neither marches nor fights. */
+  /** When this token spawned, on WaveSystem's EFFECTIVE clock (stretched by
+   * aim-mode slow motion) — while its crawl-in from the fog is still playing
+   * (SPAWN_APPROACH_MS) it neither marches nor fights. */
   spawnedAt?: number
+  /** When this token crossed from the grid into the necromancer's room, on
+   * the effective clock — held out of combat until its diagonal entry glide
+   * lands (ROOM_CROSS_MS). */
+  roomEnteredAt?: number
 }

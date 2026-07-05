@@ -1,6 +1,6 @@
 import type { WaveSystem } from '@systems/WaveSystem'
 import type { DefenderSystem } from '@systems/DefenderSystem'
-import { BOSS_CELL_INDEX, SPAWN_APPROACH_MS } from '@systems/BoardConstants'
+import { BOSS_CELL_INDEX, ROOM_CROSS_MS, SPAWN_APPROACH_MS } from '@systems/BoardConstants'
 import { getCreature, getAllyArt } from '@data/CreatureDefinitions'
 import playerArt from '@/assets/sprites/player_001.webp'
 import { Icons } from '@ui/Icons'
@@ -45,11 +45,11 @@ const CORPSE_LEAVE_MS = 880
 // one-shot spawn fx elements are cleared out.
 const CORPSE_SPAWN_FX_MS = 780
 // A wave's first-ever spawn on a lane starts this many phantom columns past
-// the visible entry column — off in the fog beyond the rail — and the
-// .is-spawning-approach class (see board.css) stretches its slide transition
-// to SPAWN_APPROACH_MS (shared via BoardConstants — WaveSystem holds the
-// token out of movement/combat for the same window) so it reads as one
-// long, even creep the player can see coming and react to.
+// the visible entry column — off in the fog beyond the rail — and glideToken
+// drives the long crawl over SPAWN_APPROACH_MS on WaveSystem's effective
+// clock (shared via BoardConstants — WaveSystem holds the token out of
+// movement/combat for the same window) so it reads as one long, even creep
+// the player can see coming and react to, aim-mode slow motion included.
 const SPAWN_APPROACH_COLUMNS = 3
 
 interface Occupant {
@@ -188,20 +188,44 @@ export class BoardRenderer {
     // (gridEl → playerCellEl) and token Maps, so its old element is about to
     // be pruned and a brand-new one created — with no shared element, a plain
     // CSS transition can't carry it across, which read as a teleport. Capture
-    // its last on-screen rect here, BEFORE syncGridRole prunes that old
-    // token, so syncBossRole can seed the new token at that exact spot
-    // instead of a phantom column local to the room.
-    const enemyCrossRects = new Map(
-      bossEnemies.map((o) => [o.id, this.enemyTokens.get(o.id)?.getBoundingClientRect()] as const)
-    )
-    const allyCrossRects = new Map(
-      bossAllies.map((o) => [o.id, this.allyTokens.get(o.id)?.getBoundingClientRect()] as const)
-    )
+    // its last grid position here, BEFORE syncGridRole prunes that old token,
+    // re-based into the room's local space in LAYOUT coordinates — a
+    // getBoundingClientRect seed is post-3D-projection, so under the board
+    // tilt it landed the new token visibly off the marching line and the
+    // entry still read as a jump.
+    const enemyCrossSeeds = this.captureCrossSeeds(bossEnemies, this.enemyTokens)
+    const allyCrossSeeds = this.captureCrossSeeds(bossAllies, this.allyTokens)
 
     this.syncGridRole(this.enemyTokens, enemyCells, 'enemy')
     this.syncGridRole(this.allyTokens, allyCells, 'ally')
-    this.syncBossRole(this.bossEnemyTokens, bossEnemies, 'enemy', enemyCrossRects)
-    this.syncBossRole(this.bossAllyTokens, bossAllies, 'ally', allyCrossRects)
+    this.syncBossRole(this.bossEnemyTokens, bossEnemies, 'enemy', enemyCrossSeeds)
+    this.syncBossRole(this.bossAllyTokens, bossAllies, 'ally', allyCrossSeeds)
+  }
+
+  /** Each crossing occupant's committed grid position (--token-x/y target —
+   * the previous 1.15s slide has settled well inside the 1.3s tick), shifted
+   * by the layout offset between the two containers. offsetLeft/Top ignore
+   * transforms, so the player cell's own translateY nudge is compensated via
+   * its transform matrix — the seed lands exactly where the grid token stood. */
+  private captureCrossSeeds(
+    occupants: readonly Occupant[],
+    gridTokens: Map<string, HTMLElement>
+  ): Map<string, { x: number; y: number }> {
+    const seeds = new Map<string, { x: number; y: number }>()
+    const pending = occupants.filter((o) => gridTokens.has(o.id))
+    if (pending.length === 0) return seeds
+    const cellShift = new DOMMatrixReadOnly(getComputedStyle(this.playerCellEl).transform)
+    const dx = this.gridEl.offsetLeft - this.playerCellEl.offsetLeft - cellShift.m41
+    const dy = this.gridEl.offsetTop - this.playerCellEl.offsetTop - cellShift.m42
+    for (const o of pending) {
+      const el = gridTokens.get(o.id)
+      if (!el) continue
+      seeds.set(o.id, {
+        x: parseFloat(el.style.getPropertyValue('--token-x')) + dx,
+        y: parseFloat(el.style.getPropertyValue('--token-y')) + dy,
+      })
+    }
+    return seeds
   }
 
   /** Faint raisable corpse markers, one per corpse, stacked per cell. Purely
@@ -358,7 +382,7 @@ export class BoardRenderer {
     tokens: Map<string, HTMLElement>,
     rawList: readonly Occupant[],
     role: 'enemy' | 'ally',
-    crossRects?: ReadonlyMap<string, DOMRect | undefined>
+    crossSeeds?: ReadonlyMap<string, { x: number; y: number }>
   ): void {
     const seen = new Set<string>()
     const x = role === 'ally' ? BOSS_ALLY_OFFSET_X : BOSS_ENEMY_OFFSET_X
@@ -371,24 +395,36 @@ export class BoardRenderer {
       const y = (i - (list.length - 1) / 2) * STACK_GAP_Y
       let spawnFromX: number | undefined
       let spawnFromY: number | undefined
+      let isRoomCross = false
       if (!tokens.has(occupant.id)) {
-        // Crossing over from the grid: seed at the exact spot its old grid
-        // token was actually rendered (captured in syncCells, before that
-        // token got pruned), converted into this room's own local space —
-        // a real continuation of its march, not a phantom column.
-        const rect = crossRects?.get(occupant.id)
-        if (rect) {
-          const hostRect = this.playerCellEl.getBoundingClientRect()
-          spawnFromX = rect.left - hostRect.left
-          spawnFromY = rect.top - hostRect.top
+        // Crossing over from the grid: seed at the exact layout-space spot
+        // its old grid token stood (captured in syncCells, before that token
+        // got pruned) and glide diagonally into the room — a real, slow
+        // continuation of its march, not a phantom column.
+        const seed = crossSeeds?.get(occupant.id)
+        if (seed) {
+          spawnFromX = seed.x
+          spawnFromY = seed.y
+          isRoomCross = true
         } else if (role === 'enemy') {
-          // First-ever appearance in the boss room with no captured rect
+          // First-ever appearance in the boss room with no captured seed
           // (e.g. spawned directly here) — fall back to the old phantom
           // column just past the room's edge.
           spawnFromX = x + CELL_SIZE + CELL_GAP
         }
       }
-      this.upsertToken(tokens, this.playerCellEl, occupant, role, x, y, spawnFromX, false, spawnFromY)
+      this.upsertToken(
+        tokens,
+        this.playerCellEl,
+        occupant,
+        role,
+        x,
+        y,
+        spawnFromX,
+        false,
+        spawnFromY,
+        isRoomCross
+      )
     })
 
     this.pruneTokens(tokens, seen)
@@ -403,19 +439,29 @@ export class BoardRenderer {
     y: number,
     spawnFromX?: number,
     isLongApproach?: boolean,
-    spawnFromY?: number
+    spawnFromY?: number,
+    isRoomCross?: boolean
   ): void {
     const existing = tokens.get(occupant.id)
     if (existing) {
-      // Stamp actual position changes so lunge fx can skip tokens whose
-      // slide transition is still in flight (see playClashFx).
-      const prevX = existing.style.getPropertyValue('--token-x')
-      const prevY = existing.style.getPropertyValue('--token-y')
-      if (prevX !== `${x}px` || prevY !== `${y}px`) {
-        existing.dataset.movedAt = `${Date.now()}`
+      // A glide (spawn approach / room crossing) owns --token-x/y frame by
+      // frame — writing the destination here would snap the token forward
+      // for a frame before the lerp reclaims it. Position resumes syncing
+      // the moment the hold class drops.
+      const gliding =
+        existing.classList.contains('is-spawning-approach') ||
+        existing.classList.contains('is-room-crossing')
+      if (!gliding) {
+        // Stamp actual position changes so lunge fx can skip tokens whose
+        // slide transition is still in flight (see playClashFx).
+        const prevX = existing.style.getPropertyValue('--token-x')
+        const prevY = existing.style.getPropertyValue('--token-y')
+        if (prevX !== `${x}px` || prevY !== `${y}px`) {
+          existing.dataset.movedAt = `${Date.now()}`
+        }
+        existing.style.setProperty('--token-x', `${x}px`)
+        existing.style.setProperty('--token-y', `${y}px`)
       }
-      existing.style.setProperty('--token-x', `${x}px`)
-      existing.style.setProperty('--token-y', `${y}px`)
       const fill = existing.querySelector<HTMLElement>('.entity-card-hp-fill')
       if (fill) fill.style.width = `${Math.round((occupant.hp / occupant.maxHp) * 100)}%`
       const hpText = existing.querySelector<HTMLElement>('.entity-card-hp-text')
@@ -463,18 +509,59 @@ export class BoardRenderer {
     }, ARRIVE_FX_MS)
 
     if (spawnFromX !== undefined) {
-      // Land on the phantom column first, then let the transition slide it
-      // in to its real cell position on the next frame.
       el.dataset.movedAt = `${Date.now()}`
       if (isLongApproach) {
-        el.classList.add('is-spawning-approach')
-        window.setTimeout(() => el.classList.remove('is-spawning-approach'), SPAWN_APPROACH_MS)
+        // Long, even crawl in from the fog — hand-driven on the effective
+        // clock so aim-mode slow motion stretches even an in-flight approach
+        // in step with WaveSystem's hold gate on that same clock.
+        this.glideToken(el, 'is-spawning-approach', spawnFromX, spawnFromY ?? y, x, y, SPAWN_APPROACH_MS, (t) => t)
+      } else if (isRoomCross) {
+        // Diagonal push from the grid into the necromancer's room — slower
+        // than a lane step, eased out so it looms in rather than lunges.
+        this.glideToken(el, 'is-room-crossing', spawnFromX, spawnFromY ?? y, x, y, ROOM_CROSS_MS, easeOutCubic)
+      } else {
+        // Land on the phantom column first, then let the transition slide it
+        // in to its real cell position on the next frame.
+        requestAnimationFrame(() => {
+          el.style.setProperty('--token-x', `${x}px`)
+          el.style.setProperty('--token-y', `${y}px`)
+        })
       }
-      requestAnimationFrame(() => {
-        el.style.setProperty('--token-x', `${x}px`)
-        el.style.setProperty('--token-y', `${y}px`)
-      })
     }
+  }
+
+  /** Drives a token's long entrance slide by hand on WaveSystem's effective
+   * clock instead of a CSS transition — slow motion engaging mid-flight slows
+   * the remaining glide in step with the model's hold gate, with none of the
+   * retroactive re-timing a duration recalculation would cause. The hold
+   * class mutes the normal transform transition while the lerp owns the
+   * position (see board.css), and syncs are skipped for the same window
+   * (see upsertToken's `gliding` guard). */
+  private glideToken(
+    el: HTMLElement,
+    holdClass: string,
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    durationMs: number,
+    ease: (t: number) => number
+  ): void {
+    el.classList.add(holdClass)
+    const startEff = this.waveSystem.getEffectiveNow()
+    const frame = (): void => {
+      if (!el.isConnected) return // died or was pruned mid-glide
+      const raw = Math.min(1, (this.waveSystem.getEffectiveNow() - startEff) / durationMs)
+      const t = ease(raw)
+      el.style.setProperty('--token-x', `${fromX + (toX - fromX) * t}px`)
+      el.style.setProperty('--token-y', `${fromY + (toY - fromY) * t}px`)
+      if (raw >= 1) {
+        el.classList.remove(holdClass)
+        return
+      }
+      requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
   }
 
   private pruneTokens(tokens: Map<string, HTMLElement>, seen: Set<string>): void {
@@ -623,6 +710,11 @@ export class BoardRenderer {
 
   private lungeToken(el: HTMLElement | undefined, distance: number): void {
     if (!el) return
+    // Mid-glide (spawn approach / room crossing) the lunge keyframe would
+    // snap the token to its destination — the model holds these tokens out
+    // of combat for the same window anyway, so just skip.
+    if (el.classList.contains('is-spawning-approach') || el.classList.contains('is-room-crossing'))
+      return
     // A token whose slide transition is still in flight would visually
     // teleport to its destination for the lunge keyframe, then appear to
     // retreat when the keyframe releases — skip the lunge (the damage/burst
@@ -636,6 +728,11 @@ export class BoardRenderer {
 }
 
 const HIT_FLASH_MS = 260
+
+/** Decelerating ease for the room-crossing glide — pushes in, then settles. */
+function easeOutCubic(t: number): number {
+  return 1 - (1 - t) ** 3
+}
 
 /** Quick red blink on an entity card that just took damage. */
 function flashCard(card: Element | null): void {

@@ -2,6 +2,13 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-05 (50) — 유물 팬 UI 이식 + 접근/방 진입 이동 폴리시
+- **유물 독 hover 팬**: Unmelting 보유 유물 팬을 `RelicInventory`로 이식 — 유물이 겹친 부채꼴 미니 카드로 쉬다가 마우스를 올리면 커서 아래 카드가 pivot으로 떠오르며 펼쳐진다(커서 추적 `--relic-extra-*`, 뒤판 없는 글라스 카드, 빈 상태는 희미한 소켓 1칸). 기존 3×2 슬롯 그리드 폐기.
+- **접근 구간 슬로모 적용**: 스폰 크롤인이 더 이상 실시간 고정이 아님 — `WaveSystem`에 유효 시간 누적 시계(`getEffectiveNow`)를 추가해 모델 게이트(`isApproaching`)와 `BoardRenderer.glideToken`(CSS 트랜지션 대신 rAF 러프)이 같은 시계를 공유한다. 조준 중 접근 적이 제속도로 달려와 입구에서 쌓이던 문제와, 과거 소급 팽창 버그(실경과÷현재 배속) 둘 다 해소. 실측 0.3배 확인.
+- **플레이어 방 진입 대각선 글라이드**: grid→room 크로스 시드를 화면 좌표(`getBoundingClientRect`, 3D 투영 왜곡) 대신 레이아웃 좌표(`captureCrossSeeds`, offsetLeft/Top + 본진 transform 보정)로 캡처하고, 2.4초 ease-out 대각선 글라이드(`is-room-crossing`/`ROOM_CROSS_MS`)로 천천히 밀고 들어온다. 글라이드 동안 모델도 교전·플레이어 타격 보류(`isCrossingRoom`) — 순간이동처럼 보이던 진입 제거, 궤적 실측 확인.
+- **급조 언데드 15% 축소**: `is-raised` 카드 109px(정규 아군 128px 대비) — 얼기설기 세운 느낌 강화.
+- 검증: type-check/build 통과, Playwright 스모크(팬 hover 펼침·접근 크롤·방 진입 글라이드 궤적·조준 슬로모 속도비 0.27≈0.3) 콘솔 에러 0.
+
 ## 2026-07-04 (49) — 특수 패시브(여러명 공격·포식) + 패시브 다양화
 - **cleave(여러명 공격)** 신규: 공격이 그 칸의 모든 대상을 함께 때림. 아군은 `resolveClashAt`에서 전열 외 적들에게 splash, 적은 `DefenderHooks.cleaveDamage`로 칸 내 모든 아군 타격. 문어·오징어·청새치에 적/사령 양면 배정. 흰 광역 버스트.
 - **devour(포식)** 신규: 처치(잡아먹음) 시 공격력 +1 영구. 아군은 `buffFrontAllyAttack`, 적은 `enemy.attack += DEVOUR_GAIN`. 피라냐·상어에 배정. **크림슨 촘프 버스트 + "포식! +1" 플로팅 라벨**(`showFloatingLabel`)로 공격력 증가 연출.

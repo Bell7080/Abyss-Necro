@@ -1,6 +1,6 @@
 import type { TickManager } from '@core/TickManager'
 import type { EnemyToken } from '@entities/EnemyToken'
-import { BOSS_CELL_INDEX, SPAWN_APPROACH_MS } from '@systems/BoardConstants'
+import { BOSS_CELL_INDEX, ROOM_CROSS_MS, SPAWN_APPROACH_MS } from '@systems/BoardConstants'
 import type { PassiveEvent } from '@systems/PassiveEvent'
 import { getCreature } from '@data/CreatureDefinitions'
 import { enemyStatsForLevel } from '@data/Tiers'
@@ -197,6 +197,13 @@ export class WaveSystem {
   private timeScale = 1
   private pushEffElapsedMs = 0
   private pushMarkAt = Date.now()
+  // Global effective-time clock: ms accumulated at `timeScale` speed. Spawn
+  // approach / room-entry windows are measured on THIS clock, so aim-mode
+  // slow motion stretches them in flight — an accumulator (marked on every
+  // scale change) instead of dividing real elapsed by the CURRENT scale,
+  // which is what used to retroactively balloon in-flight approaches.
+  private effClockMs = 0
+  private effMarkAt = Date.now()
   private readonly changeListeners: Array<() => void> = []
   private readonly encounterListeners: Array<(result: EncounterResult) => void> = []
   private readonly checkpointListeners: Array<(info: CheckpointInfo) => void> = []
@@ -227,11 +234,20 @@ export class WaveSystem {
     const now = Date.now()
     this.pushEffElapsedMs += (now - this.pushMarkAt) * this.timeScale
     this.pushMarkAt = now
+    this.effClockMs += (now - this.effMarkAt) * this.timeScale
+    this.effMarkAt = now
     this.timeScale = scale
     if (this.pushTimeoutId !== null) {
       window.clearTimeout(this.pushTimeoutId)
       this.armPushTimeout()
     }
+  }
+
+  /** Now on the effective clock — real time stretched by aim-mode slow
+   * motion. BoardRenderer drives its long entrance glides off this same
+   * clock, so the visuals and the hold gates below can never disagree. */
+  getEffectiveNow(): number {
+    return this.effClockMs + (Date.now() - this.effMarkAt) * this.timeScale
   }
 
   onChange(fn: () => void): void {
@@ -572,15 +588,24 @@ export class WaveSystem {
 
   /** Still visually crawling in from the fog — the token is logically parked
    * at the entry cell but shouldn't move or fight until it has arrived on
-   * screen (see SPAWN_APPROACH_MS in BoardConstants). Deliberately REAL time,
-   * not scaled by aim-mode slow motion: an approaching enemy can't move or
-   * fight anyway, and scaling this window by the CURRENT timeScale
-   * retroactively ballooned in-flight approaches (3.8s → 12.6s) whenever the
-   * player aimed a card — enemies hung in the fog, waves stacked up behind
-   * them, and everything arrived in one clump when the gate finally opened. */
+   * screen (see SPAWN_APPROACH_MS in BoardConstants). Measured on the
+   * EFFECTIVE clock so aim-mode slow motion stretches an in-flight approach
+   * exactly as much as everything already on the board — enemies used to
+   * keep crawling at real speed while the board slowed, then pile up at the
+   * entry cell the moment they arrived. (The accumulator clock avoids the
+   * old retroactive-ballooning bug that dividing real elapsed by the current
+   * scale caused.) */
   private isApproaching(enemy: EnemyToken): boolean {
     if (enemy.spawnedAt === undefined) return false
-    return Date.now() - enemy.spawnedAt < SPAWN_APPROACH_MS
+    return this.getEffectiveNow() - enemy.spawnedAt < SPAWN_APPROACH_MS
+  }
+
+  /** Still gliding diagonally from the grid into the necromancer's room —
+   * held out of combat (no ally trade, no player strike) until the entry
+   * slide visibly lands, mirroring the spawn-approach gate. */
+  private isCrossingRoom(enemy: EnemyToken): boolean {
+    if (enemy.roomEnteredAt === undefined) return false
+    return this.getEffectiveNow() - enemy.roomEnteredAt < ROOM_CROSS_MS
   }
 
   private stepEnemy(index: number, enemy: EnemyToken): void {
@@ -608,6 +633,9 @@ export class WaveSystem {
       enemy.lastCellIndex = index
       enemy.lastMovedAt = Date.now()
       enemy.col = targetCol
+      // Entering the room is a slow diagonal glide — hold its blows until
+      // it has visibly arrived (see isCrossingRoom / ROOM_CROSS_MS).
+      enemy.roomEnteredAt = this.getEffectiveNow()
       this.bossEnemies.push(enemy)
       return
     }
@@ -637,10 +665,10 @@ export class WaveSystem {
   }
 
   private resolveClashAt(cellIndex: number, enemyList: EnemyToken[]): void {
-    // Skip tokens still crawling in from the fog — an entry-cell defender
-    // shouldn't trade invisible blows with an enemy that hasn't visibly
-    // arrived yet. The next occupant that HAS arrived fronts the clash.
-    const enemy = enemyList.find((e) => !this.isApproaching(e))
+    // Skip tokens still crawling in from the fog or gliding into the room —
+    // a defender shouldn't trade invisible blows with an enemy that hasn't
+    // visibly arrived yet. The next occupant that HAS arrived fronts the clash.
+    const enemy = enemyList.find((e) => !this.isApproaching(e) && !this.isCrossingRoom(e))
     if (!enemy) return
     const defenderHp = this.defenders?.getHp(cellIndex)
     const enemyPass = getCreature(enemy.creatureId)?.enemyPassiveId
@@ -689,7 +717,9 @@ export class WaveSystem {
     // Snapshot the rest of the stack before the front hit can splice it —
     // leaving out any token still crawling in from the fog.
     const splash =
-      allyPass === 'cleave' ? enemyList.filter((e) => e !== enemy && !this.isApproaching(e)) : []
+      allyPass === 'cleave'
+        ? enemyList.filter((e) => e !== enemy && !this.isApproaching(e) && !this.isCrossingRoom(e))
+        : []
     const res = this.damageEnemy(enemyList, cellIndex, enemy, allyAttack, isBossCell)
     if (splash.length > 0) {
       for (const other of splash) this.damageEnemy(enemyList, cellIndex, other, allyAttack, isBossCell)
@@ -827,7 +857,7 @@ export class WaveSystem {
           attack: stats.attack,
           // The very first kill must hand the player a necro card.
           guaranteedCard: wave === 1,
-          spawnedAt: Date.now(),
+          spawnedAt: this.getEffectiveNow(),
         })
         this.emitChange()
       }
@@ -857,7 +887,7 @@ export class WaveSystem {
       isBoss: true,
       isFinal: def.isFinal,
       guaranteedCard: true,
-      spawnedAt: Date.now(),
+      spawnedAt: this.getEffectiveNow(),
     })
     this.emitChange()
   }
