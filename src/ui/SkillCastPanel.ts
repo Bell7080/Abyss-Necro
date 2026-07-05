@@ -1,9 +1,9 @@
 import type { AbilityId } from '@systems/AbilitySystem'
 
-// Skill cut-in art auto-wiring: drop `src/assets/sprites/skills/skill_00N.webp`
-// and it lights up by id (missing files fall back to a tinted name card, so the
-// build never breaks while the art trickles in).
-const skillArtGlob = import.meta.glob('../assets/sprites/skills/*.webp', {
+// Skill cut-in art auto-wiring: drop `src/assets/sprites/skill_00N.webp` and it
+// lights up by id (missing files fall back to a tinted name card, so the build
+// never breaks while the art trickles in).
+const skillArtGlob = import.meta.glob('../assets/sprites/skill_*.webp', {
   eager: true,
   import: 'default',
 }) as Record<string, string>

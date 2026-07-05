@@ -1,9 +1,9 @@
-// Audio auto-wiring: drop mp3s into `src/assets/audio/` and they light up by
-// name (missing files just no-op, so the build never breaks while audio is
-// still being added). Expected names:
+// Audio auto-wiring: drop mp3s into `src/assets/` and they light up by name
+// (missing files just no-op, so the build never breaks while audio is still
+// being added). Expected names:
 //   ost.mp3   — title / victory theme (played from the 40s mark)
-//   bgm1.mp3, bgm2.mp3 — in-battle loops (random pick, re-random on end)
-const audioGlob = import.meta.glob('../assets/audio/*.mp3', {
+//   bgm_001.mp3, bgm_002.mp3 — in-battle loops (random pick, re-random on end)
+const audioGlob = import.meta.glob('../assets/*.mp3', {
   eager: true,
   import: 'default',
 }) as Record<string, string>
@@ -52,11 +52,11 @@ export class AudioManager {
   }
 
   private hasBattleTracks(): boolean {
-    return !!(audioByName['bgm1'] || audioByName['bgm2'])
+    return !!(audioByName['bgm_001'] || audioByName['bgm_002'])
   }
 
   private battleTracks(): string[] {
-    return ['bgm1', 'bgm2'].map((n) => audioByName[n]).filter(Boolean) as string[]
+    return ['bgm_001', 'bgm_002'].map((n) => audioByName[n]).filter(Boolean) as string[]
   }
 
   /** Title/victory theme. Plays IMMEDIATELY but seeks into the track to its
