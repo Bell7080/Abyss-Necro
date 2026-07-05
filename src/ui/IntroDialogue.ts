@@ -89,7 +89,11 @@ export class IntroDialogue {
   private cardEls: HTMLElement[] = []
   private skipTyping: (() => void) | null = null
   private advanceNow: (() => void) | null = null
+  private advanceForce: (() => void) | null = null
   private currentPortrait: Portrait | null = null
+  // SKIP pressed — the script loop bails out and jumps straight to finish().
+  private skipped = false
+  private finishStarted = false
 
   constructor(root: HTMLElement, private readonly handlers: IntroDialogueHandlers) {
     this.root = document.createElement('div')
@@ -108,7 +112,8 @@ export class IntroDialogue {
           <div class="intro-dlg-divider" aria-hidden="true"></div>
           <div class="intro-dlg-text"></div>
         </div>
-      </div>`
+      </div>
+      <button type="button" class="intro-dlg-skip">SKIP ▸</button>`
     root.appendChild(this.root)
 
     this.cardsLayer = this.root.querySelector('.intro-dlg-cards') as HTMLElement
@@ -119,8 +124,22 @@ export class IntroDialogue {
     this.textEl = this.root.querySelector('.intro-dlg-text') as HTMLElement
 
     this.root.addEventListener('click', () => this.handleClick())
+    const skipBtn = this.root.querySelector('.intro-dlg-skip') as HTMLButtonElement
+    skipBtn.addEventListener('click', (e) => {
+      e.stopPropagation() // must not double as a line-advance click
+      this.handleSkip()
+    })
 
     void this.play()
+  }
+
+  /** SKIP: aborts the remaining script — the current line resolves at once,
+   * the play loop bails, and finish() (dim clear → countdown) takes over. */
+  private handleSkip(): void {
+    if (this.skipped || this.finishStarted) return
+    this.skipped = true
+    this.skipTyping?.()
+    this.advanceForce?.()
   }
 
   private handleClick(): void {
@@ -138,10 +157,14 @@ export class IntroDialogue {
     await wait(250)
 
     for (const line of this.buildScript()) {
+      if (this.skipped) break
       if (line.before) await line.before()
       await this.showLine(line)
+      if (this.skipped) break
       if (line.after) await line.after()
     }
+    // SKIP path — the last line's own after() never ran, so close out here.
+    if (this.skipped) await this.finish()
   }
 
   private buildScript(): ScriptLine[] {
@@ -256,12 +279,16 @@ export class IntroDialogue {
       }, TYPE_MS)
     })
 
+    // SKIP landed mid-typing — don't sit out the advance gate.
+    if (this.skipped) return
+
     await new Promise<void>((resolve) => {
       let locked = true
       const finish = (): void => {
         window.clearTimeout(unlockTimer)
         window.clearTimeout(autoTimer)
         this.advanceNow = null
+        this.advanceForce = null
         resolve()
       }
       const unlockTimer = window.setTimeout(() => {
@@ -271,6 +298,8 @@ export class IntroDialogue {
       this.advanceNow = () => {
         if (!locked) finish()
       }
+      // SKIP bypasses the lock entirely.
+      this.advanceForce = finish
     })
   }
 
@@ -369,6 +398,11 @@ export class IntroDialogue {
    * last number into the wave HUD's timer — which is when the run actually
    * starts (see onComplete). */
   private async finish(): Promise<void> {
+    // Runs once — reachable from both the last line's after() and SKIP.
+    if (this.finishStarted) return
+    this.finishStarted = true
+    // A skip mid-card-show would otherwise strand the prop cards on screen.
+    void this.hideCards()
     this.root.classList.add('is-dim-clearing')
     await wait(1000)
     this.root.classList.add('is-gone')
