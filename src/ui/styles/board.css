@@ -1312,12 +1312,16 @@ body {
   pointer-events: none;
 }
 
-/* Tier rank stars — deployed board allies, sitting just above the name. */
+/* Tier rank stars — deployed board allies, sitting just above the name.
+   margin-top would do nothing here: as the flex column's FIRST item under
+   justify-content:flex-end, the block re-anchors to the bottom and cancels any
+   top margin out. margin-bottom is what actually pulls it down toward the name
+   (it shrinks the gap to the NEXT sibling, which the anchored block can't undo). */
 .entity-card-stars {
   font-size: 20px;
   letter-spacing: 2px;
   line-height: 1;
-  margin-top: 24px;
+  margin-bottom: -8px;
   text-align: center;
   color: #ffd66b;
   text-shadow:
