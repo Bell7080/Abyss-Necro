@@ -1,7 +1,7 @@
 // Audio auto-wiring: drop mp3s into `src/assets/` and they light up by name
 // (missing files just no-op, so the build never breaks while audio is still
 // being added). Expected names:
-//   ost.mp3   — title / victory theme (played from the 40s mark)
+//   ost.mp3   — title / victory theme (played from the start)
 //   bgm_001.mp3, bgm_002.mp3 — in-battle loops (random pick, re-random on end)
 const audioGlob = import.meta.glob('../assets/*.mp3', {
   eager: true,
@@ -14,11 +14,8 @@ for (const [path, url] of Object.entries(audioGlob)) {
   audioByName[base] = url
 }
 
-// Where the OST's "good part" starts — the title/victory theme skips the intro
-// and fades in from here. The fade covers the 5s right after that mark (quiet
-// → full), and looping back to this same mark (not 0) keeps every replay
-// starting from the good part.
-const OST_START_SEC = 36.3
+// The title/victory theme fades in from the very start of the track (quiet →
+// full over this many ms), and simply loops back to 0 on end.
 const OST_FADE_IN_MS = 5000
 const FADE_IN_MS = 1600
 const FADE_OUT_MS = 1200
@@ -44,8 +41,8 @@ export class AudioManager {
     this.ost = audioByName['ost'] ? new Audio(audioByName['ost']) : null
     if (this.ost) {
       this.ost.preload = 'auto'
-      // Loop back to the 35s mark (not 0) — every replay re-enters at the good
-      // part with the same quiet-to-full fade-in.
+      // Loop back to the start — every replay re-enters at 0 with the same
+      // quiet-to-full fade-in.
       this.ost.addEventListener('ended', () => {
         if (this.mode === 'ost') this.playOst()
       })
@@ -69,37 +66,19 @@ export class AudioManager {
     return ['bgm_001', 'bgm_002'].map((n) => audioByName[n]).filter(Boolean) as string[]
   }
 
-  /** Title/victory theme. Plays IMMEDIATELY but seeks into the track to its
-   * 40s mark (the intro of the song is skipped, not delayed). Faded in. Used
-   * both when the game first opens (intro veil) and on the 1st-ending victory. */
+  /** Title/victory theme. Plays from the very start of the track, faded in.
+   * Used both when the game first opens (intro title scene) and on the 1st-
+   * ending victory. */
   playOst(): void {
     if (!this.ost) return
     this.mode = 'ost'
     this.stopBattle(true)
     const el = this.ost
-    this.seekTo(el, OST_START_SEC)
+    el.currentTime = 0
     this.tryPlay(el, () => {
-      this.seekTo(el, OST_START_SEC)
       el.volume = 0
       this.fade(el, OST_VOLUME, OST_FADE_IN_MS)
     })
-  }
-
-  /** Jump to a track position robustly: seek now if the metadata is already
-   * loaded, otherwise queue the seek for when it arrives (a bare currentTime
-   * set before load is silently dropped, leaving the song at 0s). */
-  private seekTo(el: HTMLAudioElement, seconds: number): void {
-    if (el.readyState >= 1 /* HAVE_METADATA */) {
-      if (Math.abs(el.currentTime - seconds) > 0.5) el.currentTime = seconds
-      return
-    }
-    el.addEventListener(
-      'loadedmetadata',
-      () => {
-        if (this.mode === 'ost' && el.currentTime < seconds) el.currentTime = seconds
-      },
-      { once: true }
-    )
   }
 
   /** Enter combat: stop the OST and start a random battle loop, faded in. */
