@@ -4,7 +4,7 @@ const BASE_MAX_GAUGE = 10
 // A slow passive trickle so the necromancer is never fully stuck with an
 // empty gauge and no way to act. The primary source is kills (chargeFromKill)
 // — this only guarantees a floor and keeps the gauge fill creeping visibly.
-const REGEN_TICK_MS = 2500
+const REGEN_TICK_MS = 2000
 // Gauge granted per enemy slain. Landing the killing blow yourself adds a
 // bonus on top (see Game.castBasicAttack) — aggression fuels sorcery.
 export const KILL_CHARGE = 2

@@ -99,6 +99,12 @@ export class Game {
   // plain click-to-attack). raise-all fires immediately and never stays armed.
   private armedAbility: AbilityId | null = null
   private hoverHideTimer: number | null = null
+  // Last cell handleCellHover actually rendered for — a corpse figure's
+  // pointer-events:auto hit-area sitting on top of its cell button can toggle
+  // that button's mouseenter/mouseleave rapidly as the cursor crosses its
+  // (irregular, masked) shape, so without this guard the inspector data got
+  // torn down and rebuilt on every one of those, flickering its glow.
+  private lastHoveredCell: number | null = null
   // The intro overlay is pointer-transparent outside its button, so board/
   // orb clicks physically arrive before the run starts — gate them here.
   private runStarted = false
@@ -337,6 +343,8 @@ export class Game {
    * steady while the cursor slides between adjacent cells. */
   private handleCellHover(cellIndex: number | null): void {
     if (this.handSystem.getSelectedId()) return
+    if (cellIndex === this.lastHoveredCell) return
+    this.lastHoveredCell = cellIndex
     if (this.hoverHideTimer !== null) {
       window.clearTimeout(this.hoverHideTimer)
       this.hoverHideTimer = null
@@ -457,6 +465,7 @@ export class Game {
     this.defenderSystem.placeRaised(corpse.cellIndex, getCreature(corpse.creatureId)?.label ?? corpse.label, corpse.creatureId)
     this.board.playerCast('hop')
     this.skillCast.show('raise')
+    this.hive.flashCast('raise')
     const rect = this.board.getCellRect(corpse.cellIndex)
     if (rect) this.blast.passiveBurst(rect, 'shield')
   }
@@ -648,6 +657,7 @@ export class Game {
 
     this.board.playerCast('recoil')
     this.skillCast.show('basic')
+    this.hive.flashCast('basic')
     BubbleBolt.fire(origin.x, origin.y, target.x, target.y, {
       onImpact: () => {
         const result = this.waveSystem.applyDamage(cellIndex, BASIC_ATTACK_DAMAGE + this.basicDamageBonus)

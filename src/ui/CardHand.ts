@@ -1,4 +1,4 @@
-import { getCreature } from '@data/CreatureDefinitions'
+import { getCreature, getAllyArt } from '@data/CreatureDefinitions'
 import { summonCost } from '@data/Tiers'
 import type { HandCard } from '@entities/Card'
 import { Icons } from '@ui/Icons'
@@ -101,10 +101,11 @@ export class CardHand {
       el.style.setProperty('--hand-y', `${y}px`)
       el.style.setProperty('--hand-rot', `${rot}deg`)
       el.style.setProperty('--hand-i', `${i}`)
-      // Necro cards preview the necromanced (after) form — the ally you'll
-      // get on placement. Items show a vial, epics a sparkle facility star.
+      // Necro cards preview the necromanced (after) form at the card's own
+      // tier — the ally you'll get on placement. Items show a vial, epics a
+      // sparkle facility star.
       const artHtml = creature
-        ? `<img class="hand-card-image" src="${creature.allyArt}" alt="" />`
+        ? `<img class="hand-card-image" src="${getAllyArt(creature.id, card.tier ?? 1)}" alt="" />`
         : card.kind === 'item'
           ? Icons.itemVial()
           : card.kind === 'epic'

@@ -98,6 +98,23 @@ body {
   );
 }
 
+/* Deep-sea fog banked against the very right edge of the whole screen — full
+   viewport height (no top/bottom clipping, unlike a board-scoped patch) so it
+   reads as one continuous natural gloom the entrance lane emerges out of,
+   rather than a rectangle glued to the board. Lives in the ambience layer so
+   it sits above the board/hand but below the inspector/relic dock/codex
+   (z-index 90, see .abyss-ambience). */
+.abyss-ambience-rightfog {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    transparent 70%,
+    rgba(2, 3, 10, 0.35) 86%,
+    rgba(0, 1, 4, 0.86) 100%
+  );
+}
+
 /* Tileable soft light blobs; the layer is oversized so the drift never
    exposes an edge. `screen` blend over the dark scene reads as light through
    water rather than a gray film. Brighter and faster now for a more present
@@ -216,7 +233,7 @@ body {
   --floor-depth: -72px;
   display: grid;
   grid-template-columns: 320px 128px auto;
-  grid-template-rows: repeat(3, 180px);
+  grid-template-rows: repeat(3, 200px);
   align-items: center;
   gap: 40px;
   transform-style: preserve-3d;
@@ -361,30 +378,10 @@ body {
   grid-column: 3;
   grid-row: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(5, 180px);
-  grid-template-rows: repeat(3, 180px);
-  gap: 28px;
+  grid-template-columns: repeat(5, 200px);
+  grid-template-rows: repeat(3, 200px);
+  gap: 34px;
   transform-style: preserve-3d;
-}
-
-/* The map's outer edge (entrance column, opposite the boss room) sinks into a
-   deep-sea black beyond the last cell — enemies read as surfacing out of that
-   dark instead of just popping in at a lit tile. Bleeds well past the grid's
-   own right boundary so the darkness feels like it's outside the visible map. */
-.board-grid::after {
-  content: '';
-  position: absolute;
-  top: -60px;
-  bottom: -60px;
-  right: -220px;
-  width: 50%;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    rgba(2, 3, 10, 0.5) 50%,
-    rgba(0, 1, 4, 0.94) 100%
-  );
-  pointer-events: none;
 }
 
 /* Persistent per-entity token, absolutely positioned over the grid so
@@ -397,8 +394,8 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  width: 180px;
-  height: 180px;
+  width: 200px;
+  height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -413,6 +410,14 @@ body {
      no dead pause between steps — reads as a continuous creep the player can
      track and react to, instead of a quick snap-then-freeze-then-snap. */
   transition: transform calc(1.15s / var(--time-scale, 1)) ease-in-out;
+}
+
+/* A wave's first-ever spawn on a lane: stretches the slide transition way out
+   so the long walk in from off past the entry rail (see SPAWN_APPROACH_COLUMNS
+   in BoardRenderer.ts) reads as a slow, visible creep the player can react to,
+   not a fast dash covering the extra distance in the same normal-tick time. */
+.board-token.is-spawning-approach {
+  transition-duration: calc(2.6s / var(--time-scale, 1));
 }
 
 /* A clash tick — front-of-queue enemy/ally dash a short step toward each
@@ -437,8 +442,8 @@ body {
    seeing a box. States still speak through glow. */
 .board-cell {
   position: relative;
-  width: 180px;
-  height: 180px;
+  width: 200px;
+  height: 200px;
   padding: 0;
   border-radius: 34px;
   background: radial-gradient(circle at 50% 44%, rgba(8, 6, 18, 0.3), rgba(5, 4, 12, 0.12) 76%);
@@ -704,7 +709,13 @@ body {
    of the screen instead of hugging the bottom-left. */
 .board-figure--boss-player {
   --board-figure-shift-x: -160px;
-  --figure-rise: -235px;
+  --figure-rise: -228px;
+}
+
+/* Enemy standees sit a touch higher in their cell than allies — dead-center
+   read as merely "set down on the tile" rather than standing on it. */
+.board-figure:has(.entity-card--enemy) {
+  --figure-rise: -122px;
 }
 
 /* Cast feedback — animates the player CARD inside the standee (not the figure)
@@ -1327,12 +1338,13 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  gap: 11px;
-  padding: 15px;
+  gap: 5px;
+  padding: 15px 15px 9px;
 }
 
 .entity-card-name {
-  font-size: 20px;
+  font-size: 17px;
+  line-height: 1;
   letter-spacing: 0.04em;
   text-align: center;
   color: var(--abyss-lavender-bright);
@@ -1376,16 +1388,18 @@ body {
   pointer-events: none;
 }
 
-/* Tier rank stars — deployed board allies, sitting just above the name.
-   margin-top would do nothing here: as the flex column's FIRST item under
-   justify-content:flex-end, the block re-anchors to the bottom and cancels any
-   top margin out. margin-bottom is what actually pulls it down toward the name
-   (it shrinks the gap to the NEXT sibling, which the anchored block can't undo). */
+/* Tier rank stars — deployed board allies, sitting just above the name. Same
+   size/tracking as the hand card's own stars (.hand-card-stars) for a
+   consistent star style everywhere. margin-top would do nothing here: as the
+   flex column's FIRST item under justify-content:flex-end, the block
+   re-anchors to the bottom and cancels any top margin out. margin-bottom is
+   what actually pulls it down toward the name (it shrinks the gap to the
+   NEXT sibling, which the anchored block can't undo). */
 .entity-card-stars {
-  font-size: 20px;
-  letter-spacing: 2px;
+  font-size: 12px;
+  letter-spacing: 3px;
   line-height: 1;
-  margin-bottom: -8px;
+  margin-bottom: -3px;
   text-align: center;
   color: #ffd66b;
   text-shadow:
@@ -1775,6 +1789,7 @@ body {
 .intro-overlay.is-entering .intro-title-bg,
 .intro-overlay.is-entering .abyss-caustic,
 .intro-overlay.is-entering .intro-title-vignette,
+.intro-overlay.is-entering .intro-fireflies,
 .intro-overlay.is-entering .intro-prompt {
   display: none;
 }
@@ -1791,6 +1806,46 @@ body {
     rgba(2, 1, 6, 0.58) 56%,
     rgba(0, 0, 3, 0.97) 100%
   );
+}
+
+/* Tiny drifting, twinkling motes scattered across the title screen's lower
+   band — fireflies among the water, gently underscoring the caustic ripple
+   rather than competing with the title art above. */
+.intro-fireflies {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.intro-firefly {
+  position: absolute;
+  width: var(--firefly-size, 3px);
+  height: var(--firefly-size, 3px);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 246, 205, 0.95), rgba(255, 220, 140, 0.5) 60%, transparent 80%);
+  box-shadow: 0 0 6px rgba(255, 230, 160, 0.75);
+  opacity: 0;
+  animation: firefly-drift var(--firefly-duration, 8s) ease-in-out var(--firefly-delay, 0s) infinite;
+}
+
+@keyframes firefly-drift {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  15% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.3;
+    transform: translate(var(--firefly-drift, 20px), -16px);
+  }
+  85% {
+    opacity: 0.85;
+  }
 }
 
 .intro-black-veil {
@@ -2823,11 +2878,62 @@ body {
    .wave-hud above it. */
 .skill-hive {
   position: absolute;
-  top: 78px;
+  top: 100px;
   left: 50%;
   transform: translateX(-50%);
   /* Above the aim-mode board (board-mount rises to 72 while aiming). Below the hand (75). */
   z-index: 74;
+}
+
+/* Hover info panel — replaces the hex's old native title tooltip. Sits fixed
+   to the right of the whole hive (not per-hex) so it never has to reposition
+   itself as different hexes are hovered. */
+.hive-tooltip {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-left: 18px;
+  width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(8, 6, 18, 0.82);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--tooltip-tone, #9b6cff) 45%, transparent),
+    0 10px 24px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+  transform: translateY(-50%) translateX(-6px);
+}
+
+.hive-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+.hive-tooltip-name {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #f2ecff;
+}
+
+.hive-tooltip-hint {
+  font-size: 12.5px;
+  font-style: italic;
+  color: rgba(214, 224, 252, 0.82);
+}
+
+.hive-tooltip-cost {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--tooltip-tone, #8fdcff);
 }
 
 .hive-plane {
@@ -2838,10 +2944,27 @@ body {
 }
 
 .hive-hexes {
+  position: relative;
   display: flex;
   flex-direction: row;
   align-items: flex-end;
-  gap: 10px;
+  gap: 26px;
+}
+
+/* Soft dark-violet backdrop + a scattering of tiny constellation dots behind
+   the hex row — echoes the board's own starlight-dot motif instead of the
+   hexes floating on bare HUD background. The wider gap above keeps this
+   clear of each hex's own glow. */
+.hive-hexes::before {
+  content: '';
+  position: absolute;
+  inset: -18px -14px;
+  z-index: -1;
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(210, 230, 255, 0.5) 1px, transparent 1.6px) 0 0 / 17px 17px,
+    radial-gradient(circle at 65% 70%, rgba(210, 230, 255, 0.35) 1px, transparent 1.6px) 6px 9px / 23px 23px,
+    radial-gradient(ellipse 90% 100% at 50% 50%, rgba(60, 45, 100, 0.4), rgba(6, 4, 14, 0.15) 70%, transparent 100%);
 }
 
 .skill-hex {
@@ -2967,17 +3090,25 @@ body {
 .skill-hex--basic .hex-name {
   font-size: 13px;
 }
-/* The revolving loading glow — a bright cyan arc masked to a hexagon-edge
-   ring (an SVG evenodd outer-hex-minus-inner-hex mask, matching hex-face's
-   own clip-path shape), spinning slowly — a round mask here read as a
-   mismatched circle spinning inside a hexagon frame. */
+/* The revolving loading glow — a bright cyan arc masked to a FIXED
+   hexagon-edge ring (an SVG evenodd outer-hex-minus-inner-hex mask, matching
+   hex-face's own clip-path shape). The ring shape itself never rotates —
+   only the conic-gradient's own start angle (--hex-spin-angle, an animated
+   custom property) sweeps underneath it — so the highlight reads as riding
+   around a fixed rail instead of the whole hexagonal frame spinning like a
+   loose nut. */
+@property --hex-spin-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
 .skill-hex--basic .hex-face::after {
   content: '';
   position: absolute;
   inset: 0;
   /* Faint cyan ring always present + a bright arc that sweeps around it. */
   background: conic-gradient(
-    from 0deg,
+    from var(--hex-spin-angle),
     rgba(150, 225, 255, 0.16) 0deg,
     rgba(150, 225, 255, 0.16) 40deg,
     rgba(180, 240, 255, 1) 96deg,
@@ -2997,7 +3128,7 @@ body {
 }
 @keyframes hex-loading-spin {
   to {
-    transform: rotate(360deg);
+    --hex-spin-angle: 360deg;
   }
 }
 /* Keep the label/cost above the hex-face. */
@@ -3062,6 +3193,17 @@ body {
 }
 .skill-hex.is-ready-pop .hex-face {
   animation: hex-ready-pop-ring 0.55s ease-out;
+}
+
+/* Cast confirmation — 기본공격/급조 fire from a board/corpse click rather
+   than pressing the hex itself, so without this the hive gives no feedback
+   that the click actually landed as that skill. Same enlarge+glow language
+   as the ready-pop above. */
+.skill-hex.is-cast-flash {
+  animation: hex-ready-pop 0.5s ease-out;
+}
+.skill-hex.is-cast-flash .hex-face {
+  animation: hex-ready-pop-ring 0.5s ease-out;
 }
 @keyframes hex-ready-pop {
   0% {
@@ -3900,6 +4042,51 @@ body {
 .codex-figure-tag--after {
   color: #ffe0c0;
   background: rgba(150, 90, 60, 0.55);
+}
+
+/* Tier tabs (★/★★/★★★) — pinned to the top of the after-figure, switching
+   its illustration + stat chips between the 1/2/3성 necromanced forms. */
+.codex-tier-tabs {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(6, 9, 22, 0.6);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 210, 160, 0.24),
+    0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.codex-tier-btn {
+  border: none;
+  cursor: pointer;
+  padding: 5px 13px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: rgba(255, 224, 190, 0.55);
+  background: transparent;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.codex-tier-btn:hover {
+  color: rgba(255, 224, 190, 0.85);
+}
+
+.codex-tier-btn.is-active {
+  color: #2a170a;
+  background: linear-gradient(180deg, #ffe6b8, #ffb464);
+  box-shadow: 0 2px 10px rgba(255, 180, 100, 0.5);
+  transform: scale(1.06);
 }
 
 .codex-figure-name {

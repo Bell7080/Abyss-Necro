@@ -3,6 +3,13 @@
 // and `.../allies/<id>.webp` and it lights up automatically (missing files just
 // fall back to the flat watermark icon on the board, so the build never breaks
 // while the roster's art trickles in).
+//
+// Merged (2성/3성) allies get their OWN illustration the same way: drop
+// `.../allies/<id>-2.webp` (any creature) and `.../allies/<id>-3.webp`
+// (currently jellyfish/sea-rabbit/crab/hermit-crab) beside the base file —
+// getAllyArt() below resolves them, falling back down to the next tier's art
+// (and finally the base 1성 art) whenever a specific tier's file is missing,
+// so an unfinished tier never breaks the build or shows nothing.
 const enemyArtGlob = import.meta.glob('../assets/sprites/enemies/*.webp', {
   eager: true,
   import: 'default',
@@ -22,6 +29,14 @@ function byBase(glob: Record<string, string>): Record<string, string> {
 }
 const enemyArtByName = byBase(enemyArtGlob)
 const allyArtByName = byBase(allyArtGlob)
+
+/** Tiered ally illustration for a creature — `<id>-2`/`<id>-3` if present,
+ * else the closest lower tier's art, else undefined (unlit watermark). */
+export function getAllyArt(id: string, tier: number): string | undefined {
+  if (tier >= 3) return allyArtByName[`${id}-3`] ?? getAllyArt(id, 2)
+  if (tier >= 2) return allyArtByName[`${id}-2`] ?? getAllyArt(id, 1)
+  return allyArtByName[id]
+}
 
 // Each entry is the before (enemy) / after (necromanced ally) pair the whole
 // card loop revolves around. `passive` is the signature ability shown in the
