@@ -110,6 +110,9 @@ export class Game {
   private lastHoveredCell: number | null = null
   // Last wave the cosmos was settled for — cascade fires once per new wave.
   private lastCascadeWave = 1
+  // Every creature the player has ever held as a necro card this run —
+  // the checkpoint shop only stocks minions from this set.
+  private readonly capturedCreatures = new Set<string>()
   // The intro overlay is pointer-transparent outside its button, so board/
   // orb clicks physically arrive before the run starts — gate them here.
   private runStarted = false
@@ -229,6 +232,14 @@ export class Game {
   /** Selection drives everything aim-related: the fan re-render, placement
    * targeting, the inspector panel, the backdrop dim, and slow motion. */
   private handleHandChange(): void {
+    // Every necro card passes through the hand at least once (kill drop,
+    // capture, cascade, death-return) — union them here so the shop knows
+    // which creatures the player has actually claimed.
+    for (const c of this.handSystem.getCards()) {
+      if (c.creatureId && c.kind !== 'item' && c.kind !== 'epic') {
+        this.capturedCreatures.add(c.creatureId)
+      }
+    }
     const selected = this.handSystem.getSelectedCard()
     // Selecting a card and arming a skill are mutually exclusive modes.
     if (selected && this.armedAbility) this.disarmSkill()
@@ -930,8 +941,9 @@ export class Game {
     if (info.isRelicCheckpoint) {
       this.rewardOverlay.show(drawRelicOptions(RELIC_CHOICE_COUNT))
     } else {
-      // Deeper waves roll better shop offers (stronger minions, more epics).
-      this.shopOverlay.show(info.wave)
+      // Deeper waves roll better shop offers (stronger minions, more epics);
+      // minions come only from creatures the player has necro'd before.
+      this.shopOverlay.show(info.wave, this.capturedCreatures)
     }
   }
 

@@ -22,20 +22,27 @@ export interface ShopHandlers {
 
 const PRICE_ITEM = 2
 const PRICE_EPIC = 6
+// A minion's price scales directly with how strong it is.
+const PRICE_PER_CREATURE_LEVEL = 2
 // The final boss (상어) is never sold as a minion.
 const SHOP_EXCLUDED = new Set(['shark'])
 const MAX_CREATURE_LEVEL = Math.max(...CREATURES.map((c) => c.level))
+// Two rows of four.
+const SLOT_COUNT = 8
 
 // Checkpoint shop — dark water fog rolls in from both edges to swallow the
 // field, then the panel unfolds sparkling from the screen center and offers
-// three random cards (minions / usables / a rare facility). Display + offer
-// rolling only; payment and hand delivery live in Game.
+// eight random cards (4×2): mostly facility epics/usables, plus minions drawn
+// only from creatures the player has actually necro'd at least once. Display +
+// offer rolling only; payment and hand delivery live in Game.
 export class ShopOverlay {
   private readonly overlay: HTMLElement
   private readonly cardsEl: HTMLElement
   private offers: ShopOffer[] = []
   // How deep the run is (the wave just cleared) — scales offer quality.
   private depth = 0
+  // Creatures the player has ever held as a card — the only minions stocked.
+  private captured: ReadonlySet<string> = new Set()
 
   constructor(private readonly handlers: ShopHandlers) {
     this.overlay = document.createElement('div')
@@ -59,10 +66,12 @@ export class ShopOverlay {
   }
 
   /** `depth` is the wave just cleared — deeper shops roll stronger minions and
-   * more epics. */
-  show(depth = 0): void {
+   * more epics. `captured` limits the minion pool to creatures the player has
+   * actually necro'd at least once this run. */
+  show(depth = 0, captured: ReadonlySet<string> = new Set()): void {
     this.depth = depth
-    this.offers = [0, 1, 2].map((slot) => this.rollOffer(slot))
+    this.captured = captured
+    this.offers = Array.from({ length: SLOT_COUNT }, (_, slot) => this.rollOffer(slot))
     this.renderOffers()
     this.overlay.classList.add('is-visible')
   }
@@ -78,32 +87,40 @@ export class ShopOverlay {
   }
 
   private rollOffer(slot: number): ShopOffer {
-    // Epic chance climbs with depth (0.12 → ~0.35); items fill a fixed band.
-    const epicChance = Math.min(0.35, 0.12 + this.depth * 0.01)
+    // The shop leads with facility upgrades: mostly epics, a band of usable
+    // items, and a minority of minions (deeper runs tilt epic even harder).
+    const epicChance = Math.min(0.6, 0.45 + this.depth * 0.005)
+    const itemChance = 0.2
     const roll = Math.random()
-    if (roll < epicChance) {
-      return { slot, price: PRICE_EPIC, kind: 'epic', epic: EPIC_CARDS[Math.floor(Math.random() * EPIC_CARDS.length)] }
+    if (roll >= epicChance + itemChance) {
+      const creature = this.rollCreature()
+      if (creature) {
+        return {
+          slot,
+          // Price scales 1:1 with strength — a level-N minion costs ✦ N×2.
+          price: creature.level * PRICE_PER_CREATURE_LEVEL,
+          kind: 'necro',
+          creature,
+        }
+      }
+      // Nothing necro'd yet at this depth — the slot falls back to an epic.
     }
-    if (roll < epicChance + 0.33) {
+    if (roll >= epicChance && roll < epicChance + itemChance) {
       return { slot, price: PRICE_ITEM, kind: 'item', item: ITEM_CARDS[Math.floor(Math.random() * ITEM_CARDS.length)] }
     }
-    const creature = this.rollCreature()
-    return {
-      slot,
-      // Stronger minions cost a touch more (level 1–5 → ✦2, 6–10 → ✦3, 11+ → ✦4).
-      price: 2 + Math.floor((creature.level - 1) / 5),
-      kind: 'necro',
-      creature,
-    }
+    return { slot, price: PRICE_EPIC, kind: 'epic', epic: EPIC_CARDS[Math.floor(Math.random() * EPIC_CARDS.length)] }
   }
 
-  /** A minion from the pool eligible at this depth, weighted toward the deepest
-   * available levels so late shops favour the strong ones while still sometimes
-   * offering a cheap low body to complete a trio. */
-  private rollCreature(): CreatureDefinition {
+  /** A minion from the pool eligible at this depth — only creatures the player
+   * has already necro'd once — weighted toward the deepest available levels so
+   * late shops favour the strong ones while still sometimes offering a cheap
+   * low body to complete a trio. Null when nothing is eligible yet. */
+  private rollCreature(): CreatureDefinition | null {
     const cap = this.levelCap()
-    const pool = CREATURES.filter((c) => c.level <= cap && !SHOP_EXCLUDED.has(c.id))
-    if (pool.length === 0) return CREATURES[0]
+    const pool = CREATURES.filter(
+      (c) => c.level <= cap && !SHOP_EXCLUDED.has(c.id) && this.captured.has(c.id)
+    )
+    if (pool.length === 0) return null
     // Weight = level, so higher-level creatures are likelier (but not exclusive).
     const totalWeight = pool.reduce((sum, c) => sum + c.level, 0)
     let pick = Math.random() * totalWeight

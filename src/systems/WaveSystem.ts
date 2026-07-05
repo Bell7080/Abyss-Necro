@@ -562,19 +562,25 @@ export class WaveSystem {
     this.emitChange()
 
     if (this.clashTimeoutId !== null) window.clearTimeout(this.clashTimeoutId)
+    // Scaled like the slide it waits out — in aim-mode slow motion the move
+    // transition stretches, so an unscaled clash would land mid-slide.
     this.clashTimeoutId = window.setTimeout(() => {
       this.clashTimeoutId = null
       if (!this.paused) this.resolveClashes()
-    }, WaveSystem.CLASH_SETTLE_MS)
+    }, WaveSystem.CLASH_SETTLE_MS / this.timeScale)
   }
 
   /** Still visually crawling in from the fog — the token is logically parked
    * at the entry cell but shouldn't move or fight until it has arrived on
-   * screen (see SPAWN_APPROACH_MS in BoardConstants). Aim-mode slow motion
-   * stretches the visual slide, so scale the window to match. */
+   * screen (see SPAWN_APPROACH_MS in BoardConstants). Deliberately REAL time,
+   * not scaled by aim-mode slow motion: an approaching enemy can't move or
+   * fight anyway, and scaling this window by the CURRENT timeScale
+   * retroactively ballooned in-flight approaches (3.8s → 12.6s) whenever the
+   * player aimed a card — enemies hung in the fog, waves stacked up behind
+   * them, and everything arrived in one clump when the gate finally opened. */
   private isApproaching(enemy: EnemyToken): boolean {
     if (enemy.spawnedAt === undefined) return false
-    return Date.now() - enemy.spawnedAt < SPAWN_APPROACH_MS / this.timeScale
+    return Date.now() - enemy.spawnedAt < SPAWN_APPROACH_MS
   }
 
   private stepEnemy(index: number, enemy: EnemyToken): void {
