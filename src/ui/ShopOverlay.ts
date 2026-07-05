@@ -20,9 +20,11 @@ export interface ShopHandlers {
   onLeave: () => void
 }
 
-const PRICE_NECRO = 2
 const PRICE_ITEM = 2
 const PRICE_EPIC = 6
+// The final boss (상어) is never sold as a minion.
+const SHOP_EXCLUDED = new Set(['shark'])
+const MAX_CREATURE_LEVEL = Math.max(...CREATURES.map((c) => c.level))
 
 // Checkpoint shop — unfolds sparkling from the screen center during the
 // lull and offers three random cards (minions / usables / a rare facility).
@@ -31,6 +33,8 @@ export class ShopOverlay {
   private readonly overlay: HTMLElement
   private readonly cardsEl: HTMLElement
   private offers: ShopOffer[] = []
+  // How deep the run is (the wave just cleared) — scales offer quality.
+  private depth = 0
 
   constructor(private readonly handlers: ShopHandlers) {
     this.overlay = document.createElement('div')
@@ -51,7 +55,10 @@ export class ShopOverlay {
     document.body.appendChild(this.overlay)
   }
 
-  show(): void {
+  /** `depth` is the wave just cleared — deeper shops roll stronger minions and
+   * more epics. */
+  show(depth = 0): void {
+    this.depth = depth
     this.offers = [0, 1, 2].map((slot) => this.rollOffer(slot))
     this.renderOffers()
     this.overlay.classList.add('is-visible')
@@ -61,20 +68,47 @@ export class ShopOverlay {
     this.overlay.classList.remove('is-visible')
   }
 
+  /** Highest creature level the shop stocks at the current depth — climbs with
+   * the run so the pool of minions gradually upgrades. */
+  private levelCap(): number {
+    return Math.max(2, Math.min(MAX_CREATURE_LEVEL, 2 + Math.floor(this.depth / 3)))
+  }
+
   private rollOffer(slot: number): ShopOffer {
+    // Epic chance climbs with depth (0.12 → ~0.35); items fill a fixed band.
+    const epicChance = Math.min(0.35, 0.12 + this.depth * 0.01)
     const roll = Math.random()
-    if (roll < 0.2) {
+    if (roll < epicChance) {
       return { slot, price: PRICE_EPIC, kind: 'epic', epic: EPIC_CARDS[Math.floor(Math.random() * EPIC_CARDS.length)] }
     }
-    if (roll < 0.55) {
+    if (roll < epicChance + 0.33) {
       return { slot, price: PRICE_ITEM, kind: 'item', item: ITEM_CARDS[Math.floor(Math.random() * ITEM_CARDS.length)] }
     }
+    const creature = this.rollCreature()
     return {
       slot,
-      price: PRICE_NECRO,
+      // Stronger minions cost a touch more (level 1–5 → ✦2, 6–10 → ✦3, 11+ → ✦4).
+      price: 2 + Math.floor((creature.level - 1) / 5),
       kind: 'necro',
-      creature: CREATURES[Math.floor(Math.random() * CREATURES.length)],
+      creature,
     }
+  }
+
+  /** A minion from the pool eligible at this depth, weighted toward the deepest
+   * available levels so late shops favour the strong ones while still sometimes
+   * offering a cheap low body to complete a trio. */
+  private rollCreature(): CreatureDefinition {
+    const cap = this.levelCap()
+    const pool = CREATURES.filter((c) => c.level <= cap && !SHOP_EXCLUDED.has(c.id))
+    if (pool.length === 0) return CREATURES[0]
+    // Weight = level, so higher-level creatures are likelier (but not exclusive).
+    const totalWeight = pool.reduce((sum, c) => sum + c.level, 0)
+    let pick = Math.random() * totalWeight
+    for (const c of pool) {
+      pick -= c.level
+      if (pick <= 0) return c
+    }
+    return pool[pool.length - 1]
   }
 
   private renderOffers(): void {
