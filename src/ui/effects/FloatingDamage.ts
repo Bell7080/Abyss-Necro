@@ -38,6 +38,31 @@ function ensureStyles(): void {
   document.head.appendChild(style)
 }
 
+/** A themed floating label (e.g. "포식! +1" on a devour) — same rise-and-fade
+ * as damage numbers but with custom text/color. */
+export function showFloatingLabel(x: number, y: number, text: string, color = '#ffe6a2'): void {
+  ensureStyles()
+  const overlay = getOverlay()
+  const el = document.createElement('div')
+  el.className = 'floating-damage-text'
+  el.textContent = text
+  el.style.color = color
+  el.style.fontSize = '19px'
+  el.style.left = `${x - 16}px`
+  el.style.top = `${y - 16}px`
+  overlay.appendChild(el)
+  const anim = el.animate(
+    [
+      { transform: 'translateY(4px) scale(0.6)', opacity: 0 },
+      { transform: 'translateY(-16px) scale(1.15)', opacity: 1, offset: 0.25 },
+      { transform: 'translateY(-58px) scale(1)', opacity: 0 },
+    ],
+    { duration: 920, easing: 'ease-out', fill: 'forwards' }
+  )
+  anim.onfinish = () => el.remove()
+  window.setTimeout(() => el.remove(), 1000)
+}
+
 export function showDamageNumber(x: number, y: number, amount: number): void {
   ensureStyles()
   const overlay = getOverlay()

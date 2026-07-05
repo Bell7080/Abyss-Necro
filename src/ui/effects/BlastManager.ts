@@ -59,8 +59,9 @@ export class BlastManager {
   }
 
   /** Passive fx at a cell: an electric cyan spark (jelly-amp), a soft green
-   * heal bloom (rabbit-heal), or a warm amber shield pop (crab-guard). */
-  passiveBurst(cellRect: DOMRect, kind: 'spark' | 'heal' | 'shield'): void {
+   * heal bloom (rabbit-heal), a warm amber shield pop (crab-guard), a wide
+   * white splash (cleave — hitting several), or a crimson chomp (devour). */
+  passiveBurst(cellRect: DOMRect, kind: 'spark' | 'heal' | 'shield' | 'cleave' | 'devour'): void {
     const center = centerOf(cellRect)
     if (kind === 'spark') {
       BubbleBurst.burstAt(center.x, center.y, {
@@ -75,6 +76,22 @@ export class BlastManager {
         size: [6, 13],
         spread: 30,
         colors: ['#3fae74', '#67c498', '#bff5d8', '#e8fff2'],
+      })
+    } else if (kind === 'cleave') {
+      // A wide, thin splash — reads as one strike sweeping several targets.
+      BubbleBurst.burstAt(center.x, center.y, {
+        count: 12,
+        size: [5, 11],
+        spread: 68,
+        colors: ['#eaf3ff', '#c7dcff', '#ffffff', '#9db9e8'],
+      })
+    } else if (kind === 'devour') {
+      // A tight crimson chomp — the "eat" beat before the attack-up popup.
+      BubbleBurst.burstAt(center.x, center.y, {
+        count: 10,
+        size: [7, 15],
+        spread: 26,
+        colors: ['#ff5a6e', '#c8324a', '#ffb0a0', '#7a0f1e'],
       })
     } else {
       BubbleBurst.burstAt(center.x, center.y, {

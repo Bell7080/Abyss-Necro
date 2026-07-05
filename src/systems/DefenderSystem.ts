@@ -88,7 +88,7 @@ export class DefenderSystem {
       tier: tier > 1 ? tier : undefined,
     })
     this.emit()
-    if (guarded) this.emitPassive({ passiveId: 'crab-guard', cellIndex })
+    if (guarded) this.emitPassive({ kind: 'shield', cellIndex })
     return true
   }
 
@@ -167,26 +167,61 @@ export class DefenderSystem {
     return amp
   }
 
+  /** Front defender's ally-form passive (undefined for empty / hasty undead /
+   * abstract summons). WaveSystem reads this to fire cleave/devour. */
+  getFrontAllyPassive(cellIndex: number): string | undefined {
+    const ally = this.listFor(cellIndex)[0]
+    if (!ally || ally.raised || !ally.creatureId) return undefined
+    return getCreature(ally.creatureId)?.passiveId
+  }
+
+  /** Devour: the front ally grows permanently stronger after a kill. */
+  buffFrontAllyAttack(cellIndex: number, amount: number): void {
+    const ally = this.listFor(cellIndex)[0]
+    if (!ally) return
+    ally.attack = (ally.attack ?? DEFAULT_ALLY_ATTACK) + amount
+    this.emit()
+  }
+
   /** An enemy bumping into this cell calls this. Returns true if the front
    * defender died (freeing a slot). A dying sea-rabbit heals neighbors. */
   damage(cellIndex: number, amount: number): boolean {
     const list = this.listFor(cellIndex)
     const ally = list[0]
     if (!ally) return false
-    ally.hp -= amount
-    const died = ally.hp <= 0
-    if (died) {
-      list.shift()
-      if (!ally.raised && ally.creatureId && getCreature(ally.creatureId)?.passiveId === 'rabbit-heal') {
-        this.triggerRabbitHeal(cellIndex)
-      }
-      // Only captured creatures (not abstract summons) leave a soul.
-      if (ally.creatureId) {
-        this.emitDeath({ creatureId: ally.creatureId, label: ally.label, cellIndex, tier: ally.tier, raised: ally.raised })
-      }
-    }
+    const died = this.hurtAlly(list, ally, cellIndex, amount)
     this.emit()
     return died
+  }
+
+  /** Enemy cleave (여러명 공격): strike every ally sharing the cell, not just
+   * the front. Returns true if any of them died. */
+  cleaveDamage(cellIndex: number, amount: number): boolean {
+    const list = this.listFor(cellIndex)
+    if (list.length === 0) return false
+    let anyDied = false
+    for (const ally of [...list]) {
+      if (this.hurtAlly(list, ally, cellIndex, amount)) anyDied = true
+    }
+    this.emit()
+    return anyDied
+  }
+
+  /** Applies damage to one ally and resolves its death (soul/heal), removing it
+   * from the list. Returns whether it died. Shared by single + cleave damage. */
+  private hurtAlly(list: AllyToken[], ally: AllyToken, cellIndex: number, amount: number): boolean {
+    ally.hp -= amount
+    if (ally.hp > 0) return false
+    const i = list.indexOf(ally)
+    if (i >= 0) list.splice(i, 1)
+    if (!ally.raised && ally.creatureId && getCreature(ally.creatureId)?.passiveId === 'rabbit-heal') {
+      this.triggerRabbitHeal(cellIndex)
+    }
+    // Only captured creatures (not abstract summons) leave a soul.
+    if (ally.creatureId) {
+      this.emitDeath({ creatureId: ally.creatureId, label: ally.label, cellIndex, tier: ally.tier, raised: ally.raised })
+    }
+    return true
   }
 
   /** 폭신 도약: heal every ally in cells adjacent to where the sea-rabbit
@@ -196,7 +231,7 @@ export class DefenderSystem {
       const list = this.listFor(idx)
       if (list.length === 0) continue
       for (const ally of list) ally.hp = Math.min(ally.maxHp, ally.hp + RABBIT_HEAL)
-      this.emitPassive({ passiveId: 'rabbit-heal', cellIndex: idx })
+      this.emitPassive({ kind: 'heal', cellIndex: idx })
     }
   }
 

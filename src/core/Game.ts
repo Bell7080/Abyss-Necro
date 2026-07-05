@@ -16,7 +16,7 @@ import { VictoryOverlay } from '@ui/VictoryOverlay'
 import { WaveHud } from '@ui/WaveHud'
 import { BlastManager } from '@ui/effects/BlastManager'
 import { BubbleBolt } from '@ui/effects/BubbleBolt'
-import { showDamageNumber } from '@ui/effects/FloatingDamage'
+import { showDamageNumber, showFloatingLabel } from '@ui/effects/FloatingDamage'
 import { AbilitySystem, type AbilityId } from '@systems/AbilitySystem'
 import { CoinSystem } from '@systems/CoinSystem'
 import { CorpseSystem, type Corpse } from '@systems/CorpseSystem'
@@ -639,13 +639,16 @@ export class Game {
     this.blast.clashBurst(rect)
   }
 
-  /** A creature passive fired on a cell — play its themed blast there.
-   * jelly-amp: an electric spark; rabbit-heal: a green heal bloom. */
+  /** A creature passive fired on a cell — play its themed blast there. Devour
+   * additionally floats a "포식! +1" so the attack-up reads. */
   private handlePassive(e: PassiveEvent): void {
     const rect = this.board.getCellRect(e.cellIndex)
     if (!rect) return
-    const kind = e.passiveId === 'jelly-amp' ? 'spark' : e.passiveId === 'rabbit-heal' ? 'heal' : 'shield'
-    this.blast.passiveBurst(rect, kind)
+    this.blast.passiveBurst(rect, e.kind)
+    if (e.kind === 'devour') {
+      const c = centerOf(rect)
+      showFloatingLabel(c.x, c.y - 30, '포식! +1', '#ff9a8a')
+    }
   }
 
   /** Primes the central 합성 button and pulses the candidate cards/allies:

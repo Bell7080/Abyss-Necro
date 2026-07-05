@@ -2,6 +2,13 @@
 
 최신 항목이 위로 오도록 기록한다. 날짜별 요약만 남기고 장문 패치노트는 지양한다(상세 규칙 변경은 `CLAUDE.md`에 반영).
 
+## 2026-07-04 (49) — 특수 패시브(여러명 공격·포식) + 패시브 다양화
+- **cleave(여러명 공격)** 신규: 공격이 그 칸의 모든 대상을 함께 때림. 아군은 `resolveClashAt`에서 전열 외 적들에게 splash, 적은 `DefenderHooks.cleaveDamage`로 칸 내 모든 아군 타격. 문어·오징어·청새치에 적/사령 양면 배정. 흰 광역 버스트.
+- **devour(포식)** 신규: 처치(잡아먹음) 시 공격력 +1 영구. 아군은 `buffFrontAllyAttack`, 적은 `enemy.attack += DEVOUR_GAIN`. 피라냐·상어에 배정. **크림슨 촘프 버스트 + "포식! +1" 플로팅 라벨**(`showFloatingLabel`)로 공격력 증가 연출.
+- `PassiveEvent`를 `passiveId` → **효과 `kind`**(`spark|heal|shield|cleave|devour`)로 리팩터, `BlastManager.passiveBurst`에 cleave/devour 추가, `Game.handlePassive`가 kind로 분기 + devour 라벨.
+- `DefenderSystem.damage`를 `hurtAlly` 헬퍼로 분해해 `cleaveDamage`(전체 타격)와 공유, `getFrontAllyPassive`/`buffFrontAllyAttack` 훅 추가(`DefenderHooks` 확장).
+- 검증: type-check/build 통과, 전투 스모크 0 콘솔 에러(새 클래시 경로 실행), 도감에서 문어(cleave)·상어(devour) 적/사령 패시브 표기 1920×1080 확인.
+
 ## 2026-07-04 (48) — 적 패시브 + 아군 패시브(before/after 각각)
 - 크리처가 **적 형태 패시브(`enemyPassiveId`)와 아군 형태 패시브(`passiveId`)를 각각** 갖도록 데이터 확장(`CreatureDefinition`에 `enemyPassive`/`enemyPassiveId` 추가, 19종 전부 배정).
 - **적 패시브 메카닉 3종 신규 배선**(`WaveSystem`): `ferocious`(아군/플레이어 타격 시 피해 +1, `resolveClashAt`)·`armor`(받는 피해 -1 최소1, `damageEnemy`)·`regen`(교전 아닐 때 행진하며 `ENEMY_REGEN=2` 회복, `stepEnemy`). 포식자→ferocious, 갑각/거구→armor, 무리/재생형→regen으로 테마 매핑.

@@ -37,16 +37,20 @@ const allyArtByName = byBase(allyArtGlob)
 // set of wired mechanics with creature-flavored text.
 //
 // Ally-form mechanics (passiveId):
-//   jelly-amp   — 이 칸에 있는 적이 받는 피해 +1 (offensive/electric types)
-//   rabbit-heal — 처치될 때 인접 아군 회복 (soft/support/regen types)
+//   jelly-amp   — 이 칸에 있는 적이 받는 피해 +1 (electric types)
+//   rabbit-heal — 처치될 때 인접 아군 회복 (soft/support types)
 //   crab-guard  — 배치 시 더 많은 체력으로 등장 (shelled/tanky types)
-export type PassiveId = 'jelly-amp' | 'rabbit-heal' | 'crab-guard'
+//   cleave      — 공격이 그 칸의 모든 적을 함께 때린다 (여러명 공격, 다지체)
+//   devour      — 적을 처치하면 잡아먹으며 공격력이 영구 +1 (포식, 포식자)
+export type PassiveId = 'jelly-amp' | 'rabbit-heal' | 'crab-guard' | 'cleave' | 'devour'
 
 // Enemy-form mechanics (enemyPassiveId), wired in WaveSystem:
 //   ferocious — 아군/플레이어를 칠 때 피해 +1 (predators)
 //   armor     — 받는 피해 -1 (min 1) (shelled/tanky)
 //   regen     — 교전 중이 아닐 때 체력 회복 (soft/regenerating)
-export type EnemyPassiveId = 'ferocious' | 'armor' | 'regen'
+//   cleave    — 공격이 그 칸의 모든 아군을 함께 때린다 (여러명 공격, 다지체)
+//   devour    — 아군을 처치하면 잡아먹으며 공격력이 +1 (포식, 포식자)
+export type EnemyPassiveId = 'ferocious' | 'armor' | 'regen' | 'cleave' | 'devour'
 
 export interface CreatureDefinition {
   id: string
@@ -100,15 +104,15 @@ const SEEDS: CreatureSeed[] = [
   { id: 'axolotl', label: '우파루파', level: 10, tone: 'rgba(240, 150, 190, 0.45)', enemyDesc: '분홍빛 아가미를 하늘거리며 웃는 듯한 얼굴의 도롱뇽.', enemyPassive: '재생 — 교전 중이 아닐 때 체력을 조금씩 회복한다.', enemyPassiveId: 'regen', passive: '재생 — 처치될 때 인접한 아군의 체력을 회복시킨다.', passiveId: 'rabbit-heal' },
   { id: 'seahorse', label: '해마', level: 11, tone: 'rgba(220, 180, 90, 0.45)', enemyDesc: '꼬리를 말아 해초에 매달린 채 잔잔히 떠 있는 물고기.', enemyPassive: '골판 비늘 — 받는 피해가 1 감소한다.', enemyPassiveId: 'armor', passive: '잔잔한 물결 — 처치될 때 인접한 아군의 체력을 회복시킨다.', passiveId: 'rabbit-heal' },
   { id: 'crab', label: '꽃게', level: 12, tone: 'rgba(198, 92, 108, 0.46)', enemyDesc: '두꺼운 등껍질로 몸을 감싼 심연의 파수꾼. 좀처럼 무너지지 않는다.', enemyPassive: '단단한 등껍질 — 받는 피해가 1 감소한다.', enemyPassiveId: 'armor', passive: '단단한 등껍질 — 두꺼운 껍질로 더 많은 체력을 지니고 배치된다.', passiveId: 'crab-guard' },
-  { id: 'octopus', label: '문어', level: 13, tone: 'rgba(170, 110, 200, 0.5)', enemyDesc: '여덟 팔로 먹물을 흩뿌리며 그늘 속으로 스미는 지능적 포식자.', enemyPassive: '여덟 팔 — 아군을 공격할 때 피해를 1 추가로 준다.', enemyPassiveId: 'ferocious', passive: '먹물 감전 — 이 칸에 있는 적이 받는 피해가 1 증가한다.', passiveId: 'jelly-amp' },
-  { id: 'squid', label: '오징어', level: 14, tone: 'rgba(120, 120, 200, 0.5)', enemyDesc: '제트 분사로 쏘아지듯 헤엄치며 먹물 장막을 치는 두족류.', enemyPassive: '제트 돌진 — 아군을 공격할 때 피해를 1 추가로 준다.', enemyPassiveId: 'ferocious', passive: '먹물 방사 — 이 칸에 있는 적이 받는 피해가 1 증가한다.', passiveId: 'jelly-amp' },
+  { id: 'octopus', label: '문어', level: 13, tone: 'rgba(170, 110, 200, 0.5)', enemyDesc: '여덟 팔로 먹물을 흩뿌리며 그늘 속으로 스미는 지능적 포식자.', enemyPassive: '여덟 팔 — 그 칸의 모든 아군을 한꺼번에 공격한다.', enemyPassiveId: 'cleave', passive: '여덟 팔 — 그 칸의 모든 적을 한꺼번에 공격한다.', passiveId: 'cleave' },
+  { id: 'squid', label: '오징어', level: 14, tone: 'rgba(120, 120, 200, 0.5)', enemyDesc: '제트 분사로 쏘아지듯 헤엄치며 먹물 장막을 치는 두족류.', enemyPassive: '먹물 장막 — 그 칸의 모든 아군을 한꺼번에 공격한다.', enemyPassiveId: 'cleave', passive: '먹물 장막 — 그 칸의 모든 적을 한꺼번에 공격한다.', passiveId: 'cleave' },
   // ── elites (round bosses). Enemy stats come from WaveSystem.ELITE_BY_WAVE;
   //    level here only feeds their captured-ally / codex stats. ──
-  { id: 'piranha', label: '피라냐', level: 7, tone: 'rgba(210, 90, 90, 0.5)', enemyDesc: '굶주린 이빨을 드러내며 떼로 달려드는 사나운 물고기.', enemyPassive: '굶주린 이빨 — 아군을 공격할 때 피해를 1 추가로 준다.', enemyPassiveId: 'ferocious', passive: '굶주린 이빨 — 이 칸에 있는 적이 받는 피해가 1 증가한다.', passiveId: 'jelly-amp' },
+  { id: 'piranha', label: '피라냐', level: 7, tone: 'rgba(210, 90, 90, 0.5)', enemyDesc: '굶주린 이빨을 드러내며 떼로 달려드는 사나운 물고기.', enemyPassive: '굶주린 이빨 — 아군을 잡아먹으면 공격력이 오른다.', enemyPassiveId: 'devour', passive: '굶주린 이빨 — 적을 잡아먹을 때마다 공격력이 영구히 오른다.', passiveId: 'devour' },
   { id: 'pufferfish', label: '복어', level: 9, tone: 'rgba(220, 200, 110, 0.5)', enemyDesc: '위협을 느끼면 몸을 부풀려 가시를 곤두세우는 독한 물고기.', enemyPassive: '부푼 가시 — 받는 피해가 1 감소한다.', enemyPassiveId: 'armor', passive: '가시 부풀리기 — 부푼 몸으로 더 많은 체력을 지니고 배치된다.', passiveId: 'crab-guard' },
-  { id: 'marlin', label: '청새치', level: 11, tone: 'rgba(90, 140, 210, 0.5)', enemyDesc: '긴 창부리를 앞세워 바다를 가르며 돌진하는 청빛 사냥꾼.', enemyPassive: '관통 창 — 아군을 공격할 때 피해를 1 추가로 준다.', enemyPassiveId: 'ferocious', passive: '관통 창 — 이 칸에 있는 적이 받는 피해가 1 증가한다.', passiveId: 'jelly-amp' },
+  { id: 'marlin', label: '청새치', level: 11, tone: 'rgba(90, 140, 210, 0.5)', enemyDesc: '긴 창부리를 앞세워 바다를 가르며 돌진하는 청빛 사냥꾼.', enemyPassive: '관통 창 — 그 칸의 모든 아군을 한꺼번에 꿰뚫는다.', enemyPassiveId: 'cleave', passive: '관통 창 — 그 칸의 모든 적을 한꺼번에 꿰뚫는다.', passiveId: 'cleave' },
   { id: 'whale', label: '고래', level: 13, tone: 'rgba(80, 110, 180, 0.5)', enemyDesc: '심연을 가득 메우는 거구. 그 그림자만으로 물이 무겁다.', enemyPassive: '심연의 거구 — 받는 피해가 1 감소한다.', enemyPassiveId: 'armor', passive: '심연의 거구 — 압도적인 체력을 지니고 배치된다.', passiveId: 'crab-guard' },
-  { id: 'shark', label: '상어', level: 14, tone: 'rgba(120, 140, 170, 0.5)', enemyDesc: '심연의 지배자. 날카로운 이빨과 무자비한 속도로 모든 것을 삼킨다.', enemyPassive: '심연의 이빨 — 아군을 공격할 때 피해를 1 추가로 준다.', enemyPassiveId: 'ferocious', passive: '심연의 이빨 — 이 칸에 있는 적이 받는 피해가 1 증가한다.', passiveId: 'jelly-amp' },
+  { id: 'shark', label: '상어', level: 14, tone: 'rgba(120, 140, 170, 0.5)', enemyDesc: '심연의 지배자. 날카로운 이빨과 무자비한 속도로 모든 것을 삼킨다.', enemyPassive: '심연의 이빨 — 아군을 잡아먹으면 공격력이 오른다.', enemyPassiveId: 'devour', passive: '심연의 이빨 — 적을 잡아먹을 때마다 공격력이 영구히 오른다.', passiveId: 'devour' },
 ]
 
 export const CREATURES: CreatureDefinition[] = SEEDS.map((s) => ({

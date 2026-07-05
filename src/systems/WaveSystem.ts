@@ -13,6 +13,8 @@ const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss r
 const ENEMY_ATTACK_DAMAGE = 1
 // Enemy 'regen' passive: hp knit back per free (unengaged) march tick.
 const ENEMY_REGEN = 2
+// 'devour' passive: attack gained each time this unit eats a kill.
+const DEVOUR_GAIN = 1
 // The run is a bounded 5 rounds (3 waves each). Rounds 1–4 each end in a
 // checkpoint reward (shop/relic); every round is capped by an elite mini-boss,
 // and round 5 opens on the final boss (상어). Elites spawn at a fixed wave; the
@@ -127,6 +129,12 @@ export interface DefenderHooks {
   getAttack(cellIndex: number): number | null
   getDamageAmp(cellIndex: number): number
   damage(cellIndex: number, amount: number): boolean
+  /** Enemy cleave: damage every ally in the cell; true if any died. */
+  cleaveDamage(cellIndex: number, amount: number): boolean
+  /** Front ally's ally-form passive id (for cleave/devour). */
+  getFrontAllyPassive(cellIndex: number): string | undefined
+  /** Ally devour: grow the front ally's attack after a kill. */
+  buffFrontAllyAttack(cellIndex: number, amount: number): void
   stepSummons(): void
 }
 
@@ -399,7 +407,7 @@ export class WaveSystem {
     // Enemy passive 'armor': shelled/tanky foes shrug off 1 damage per hit.
     const armor = getCreature(enemy.creatureId)?.enemyPassiveId === 'armor' ? 1 : 0
     const total = Math.max(1, amount + amp - armor)
-    if (amp > 0) this.emitPassive({ passiveId: 'jelly-amp', cellIndex })
+    if (amp > 0) this.emitPassive({ kind: 'spark', cellIndex })
 
     enemy.hp -= total
     if (enemy.hp <= 0) {
@@ -570,9 +578,9 @@ export class WaveSystem {
     const enemy = enemyList[0]
     if (!enemy) return
     const defenderHp = this.defenders?.getHp(cellIndex)
+    const enemyPass = getCreature(enemy.creatureId)?.enemyPassiveId
     // Enemy passive 'ferocious': predators hit +1 on every strike (ally or player).
-    const ferocious = getCreature(enemy.creatureId)?.enemyPassiveId === 'ferocious' ? 1 : 0
-    const enemyDamage = (enemy.attack ?? ENEMY_ATTACK_DAMAGE) + ferocious
+    const enemyDamage = (enemy.attack ?? ENEMY_ATTACK_DAMAGE) + (enemyPass === 'ferocious' ? 1 : 0)
 
     if (defenderHp === null || defenderHp === undefined) {
       // No defender in the player room — the front enemy strikes the
@@ -585,11 +593,39 @@ export class WaveSystem {
       return
     }
 
-    // Placed defenders and summons alike report their own attack — a weak
-    // summon should hit lighter than a placed card, a strong one harder.
+    const isBossCell = cellIndex === BOSS_CELL_INDEX
+    // Front ally's attack + passive, captured before combat so a mutual kill
+    // still lands both blows this tick.
     const allyAttack = this.defenders?.getAttack(cellIndex) ?? ALLY_COUNTER_DAMAGE
-    this.defenders?.damage(cellIndex, enemyDamage)
-    this.damageEnemy(enemyList, cellIndex, enemy, allyAttack, cellIndex === BOSS_CELL_INDEX)
+    const allyPass = this.defenders?.getFrontAllyPassive(cellIndex)
+
+    // ── enemy strikes the defender(s) ──
+    let allyDied: boolean
+    if (enemyPass === 'cleave') {
+      allyDied = this.defenders?.cleaveDamage(cellIndex, enemyDamage) ?? false
+      this.emitPassive({ kind: 'cleave', cellIndex })
+    } else {
+      allyDied = this.defenders?.damage(cellIndex, enemyDamage) ?? false
+    }
+    // Enemy devour: eating an ally grows the predator's attack.
+    if (allyDied && enemyPass === 'devour') {
+      enemy.attack = (enemy.attack ?? ENEMY_ATTACK_DAMAGE) + DEVOUR_GAIN
+      this.emitPassive({ kind: 'devour', cellIndex })
+    }
+
+    // ── the defender strikes back (front enemy, + cleave splash) ──
+    // Snapshot the rest of the stack before the front hit can splice it.
+    const splash = allyPass === 'cleave' ? enemyList.slice(1) : []
+    const res = this.damageEnemy(enemyList, cellIndex, enemy, allyAttack, isBossCell)
+    if (splash.length > 0) {
+      for (const other of splash) this.damageEnemy(enemyList, cellIndex, other, allyAttack, isBossCell)
+      this.emitPassive({ kind: 'cleave', cellIndex })
+    }
+    // Ally devour: eating the front enemy grows the defender's attack.
+    if (res.defeated && allyPass === 'devour') {
+      this.defenders?.buffFrontAllyAttack(cellIndex, DEVOUR_GAIN)
+      this.emitPassive({ kind: 'devour', cellIndex })
+    }
     this.emitClash({ cellIndex })
   }
 
