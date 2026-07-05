@@ -39,6 +39,7 @@ export class AudioManager {
 
   constructor() {
     this.ost = audioByName['ost'] ? new Audio(audioByName['ost']) : null
+    if (this.ost) this.ost.preload = 'auto'
     this.battle = this.hasBattleTracks() ? new Audio() : null
     if (this.battle) {
       this.battle.addEventListener('ended', () => {
@@ -58,18 +59,37 @@ export class AudioManager {
     return ['bgm1', 'bgm2'].map((n) => audioByName[n]).filter(Boolean) as string[]
   }
 
-  /** Title/victory theme from the 40s mark, faded in. Used both when the game
-   * first opens (intro veil) and on the 1st-ending victory screen. */
+  /** Title/victory theme. Plays IMMEDIATELY but seeks into the track to its
+   * 40s mark (the intro of the song is skipped, not delayed). Faded in. Used
+   * both when the game first opens (intro veil) and on the 1st-ending victory. */
   playOst(): void {
     if (!this.ost) return
     this.mode = 'ost'
     this.stopBattle(true)
     const el = this.ost
+    this.seekTo(el, OST_START_SEC)
     this.tryPlay(el, () => {
-      el.currentTime = OST_START_SEC
+      this.seekTo(el, OST_START_SEC)
       el.volume = 0
       this.fade(el, OST_VOLUME, FADE_IN_MS)
     })
+  }
+
+  /** Jump to a track position robustly: seek now if the metadata is already
+   * loaded, otherwise queue the seek for when it arrives (a bare currentTime
+   * set before load is silently dropped, leaving the song at 0s). */
+  private seekTo(el: HTMLAudioElement, seconds: number): void {
+    if (el.readyState >= 1 /* HAVE_METADATA */) {
+      if (Math.abs(el.currentTime - seconds) > 0.5) el.currentTime = seconds
+      return
+    }
+    el.addEventListener(
+      'loadedmetadata',
+      () => {
+        if (this.mode === 'ost' && el.currentTime < seconds) el.currentTime = seconds
+      },
+      { once: true }
+    )
   }
 
   /** Enter combat: stop the OST and start a random battle loop, faded in. */
