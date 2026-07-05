@@ -49,6 +49,7 @@ interface Occupant {
   label?: string
   creatureId?: string
   tier?: number
+  attack?: number
   raised?: boolean
   isBoss?: boolean
 }
@@ -294,11 +295,20 @@ export class BoardRenderer {
     const seen = new Set<string>()
     const roleOffsetX = role === 'ally' ? -GRID_ROLE_OFFSET_X : GRID_ROLE_OFFSET_X
 
-    cellLists.forEach((list, cellIndex) => {
+    cellLists.forEach((rawList, cellIndex) => {
       const row = Math.floor(cellIndex / GRID_COLS)
       const col = cellIndex % GRID_COLS
       const baseX = col * (CELL_SIZE + CELL_GAP) + roleOffsetX
       const baseY = row * (CELL_SIZE + CELL_GAP)
+
+      // Weakest-first, strongest-last: the last index gets the largest stack
+      // offset, which reads as frontmost/bottom-most on the tilted board —
+      // a stable order (by star, then attack) instead of whatever order the
+      // system happens to hold them in, so an overlapping stack doesn't
+      // reshuffle its "face" every render.
+      const list = [...rawList].sort(
+        (a, b) => (a.tier ?? 1) - (b.tier ?? 1) || (a.attack ?? 0) - (b.attack ?? 0)
+      )
 
       list.forEach((occupant, i) => {
         seen.add(occupant.id)
@@ -315,16 +325,23 @@ export class BoardRenderer {
 
   private syncBossRole(
     tokens: Map<string, HTMLElement>,
-    list: readonly Occupant[],
+    rawList: readonly Occupant[],
     role: 'enemy' | 'ally'
   ): void {
     const seen = new Set<string>()
     const x = role === 'ally' ? BOSS_ALLY_OFFSET_X : BOSS_ENEMY_OFFSET_X
+    const list = [...rawList].sort(
+      (a, b) => (a.tier ?? 1) - (b.tier ?? 1) || (a.attack ?? 0) - (b.attack ?? 0)
+    )
+    // An enemy crossing into the boss room slides in from the grid side
+    // instead of popping in — the same phantom-entry idiom a wave's first
+    // spawn already uses (see syncGridRole's spawnFromX).
+    const spawnFromX = role === 'enemy' ? x + CELL_SIZE + CELL_GAP : undefined
 
     list.forEach((occupant, i) => {
       seen.add(occupant.id)
       const y = (i - (list.length - 1) / 2) * STACK_GAP_Y
-      this.upsertToken(tokens, this.playerCellEl, occupant, role, x, y)
+      this.upsertToken(tokens, this.playerCellEl, occupant, role, x, y, spawnFromX)
     })
 
     this.pruneTokens(tokens, seen)
