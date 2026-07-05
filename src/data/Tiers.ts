@@ -10,11 +10,13 @@ export const MAX_TIER = 3
 
 // Per-creature LEVEL stat ladder. Every creature owns a distinct level so no
 // two mobs share a similar spec — a level is a clearly separate power step.
-// The curve is hand-tuned to start gentle and then escalate hard (격등), not
-// climb evenly, so a wave introducing a higher-level creature reads as a real
-// jump. Indexed 1-based; clamped for any level past the table.
-const LEVEL_HP = [0, 6, 10, 15, 22, 32, 45, 62, 84, 112, 148, 194, 252, 326, 420]
-const LEVEL_ATK = [0, 1, 1, 2, 2, 3, 3, 4, 5, 6, 7, 8, 10, 12, 14]
+// Gentle and roughly even end to end (NOT a hard late-game escalation — an
+// earlier steeper curve made the tide overwhelming well before the run's real
+// late game, since the wave ladder reaches max level by wave ~40). Each level
+// is a modest, comparable step up from the last. Indexed 1-based; clamped for
+// any level past the table.
+const LEVEL_HP = [0, 6, 9, 13, 17, 22, 27, 33, 40, 47, 55, 64, 74, 85, 97]
+const LEVEL_ATK = [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 8]
 
 /** Enemy base stats for a creature's level. */
 export function enemyStatsForLevel(level: number): TierStats {
