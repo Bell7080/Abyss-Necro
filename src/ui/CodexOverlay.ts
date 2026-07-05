@@ -89,7 +89,9 @@ export class CodexOverlay {
           <article class="codex-figure codex-figure--after" data-creature-id="${c.id}">
             <div class="codex-tier-tabs" role="tablist" aria-label="사령 등급">
               <button type="button" class="codex-tier-btn is-active" data-tier="1" aria-label="1성">★</button>
+              <span class="codex-tier-divider" aria-hidden="true"></span>
               <button type="button" class="codex-tier-btn" data-tier="2" aria-label="2성">★★</button>
+              <span class="codex-tier-divider" aria-hidden="true"></span>
               <button type="button" class="codex-tier-btn" data-tier="3" aria-label="3성">★★★</button>
             </div>
             <div class="codex-figure-art-slot">${figureArt(c.allyArt, `${c.label} (사령 1성)`)}</div>
