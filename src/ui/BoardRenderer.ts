@@ -6,24 +6,25 @@ import playerArt from '@/assets/sprites/player_001.webp'
 import { Icons } from '@ui/Icons'
 import { entityCardHtml } from '@ui/EntityCard'
 
-const GRID_COLS = 4 // lane depth (matches WaveSystem COLS) — the wider horizontal axis
+const GRID_COLS = 5 // lane depth (matches WaveSystem COLS) — the wider horizontal axis
 const GRID_ROWS = 3 // lanes — one horizontal row per lane (matches WaveSystem ROWS)
 const CELL_COUNT = GRID_COLS * GRID_ROWS
 // Must match .board-grid's grid-template-columns/rows/gap in board.css —
 // tokens are positioned by pixel math instead of CSS grid placement so their
-// movement between cells can transition smoothly. Cells shrank when the grid
-// gained a 4th column so the wider board still fits the viewport.
-const CELL_SIZE = 210
+// movement between cells can transition smoothly. Cells shrank again when the
+// grid gained a 5th column so the wider board still fits the viewport.
+const CELL_SIZE = 180
 const CELL_GAP = 28
 // Allies sit slightly left of a cell's center, enemies slightly right, so
 // a shared cell reads as a face-off instead of a pile. Multiple occupants
 // on the same side stack with a small vertical offset.
-const GRID_ROLE_OFFSET_X = 62
+const GRID_ROLE_OFFSET_X = 52
 const STACK_GAP_Y = 34
-// In the boss/player cell: player leftmost (shifted well outside the cell,
-// see --board-figure-shift-x), allies in the middle, enemies rightmost —
-// the same "standing off against each other" composition.
-const BOSS_ALLY_OFFSET_X = 120
+// In the boss/player cell: player pushed well back toward the room's far
+// (left) edge — see --board-figure-shift-x — with allies trailing at a
+// matching offset so the trio still reads as grouped together inside the
+// room, enemies rightmost closest to the grid they crossed in from.
+const BOSS_ALLY_OFFSET_X = 66
 const BOSS_ENEMY_OFFSET_X = 152
 
 const DEFEAT_FX_MS = 420
@@ -32,15 +33,18 @@ const ARRIVE_FX_MS = 340
 const LUNGE_FX_MS = 280
 // How far a token lunges toward its opponent on a clash, in px.
 const LUNGE_DISTANCE = 44
-// Must cover .board-token's 0.85s slide transition — a lunge starting
+// Must cover .board-token's 1.15s slide transition — a lunge starting
 // inside that window would fight the in-flight transform.
-const SLIDE_SETTLE_MS = 880
-// .board-token's transform transition (0.85s) — used to interpolate where a
+const SLIDE_SETTLE_MS = 1180
+// .board-token's transform transition (1.15s) — used to interpolate where a
 // dying enemy visually was so its corpse can pick up the remaining slide.
-const CORPSE_SLIDE_MS = 850
+const CORPSE_SLIDE_MS = 1150
 // Matches the corpse-leave keyframe — keep the element alive long enough to play
 // the fade/flicker/pop before pulling it from the DOM.
 const CORPSE_LEAVE_MS = 880
+// Covers the spawn pop-in + the slowest bubble's rise-and-fade before the
+// one-shot spawn fx elements are cleared out.
+const CORPSE_SPAWN_FX_MS = 780
 
 interface Occupant {
   id: string
@@ -124,10 +128,11 @@ export class BoardRenderer {
     this.playerCellEl.appendChild(playerFigure)
     layout.appendChild(this.playerCellEl)
 
-    const arrow = document.createElement('div')
-    arrow.className = 'board-flow-arrow'
-    arrow.innerHTML = Icons.flowArrow()
-    layout.appendChild(arrow)
+    const converge = document.createElement('div')
+    converge.className = 'board-flow-arrow'
+    converge.setAttribute('aria-hidden', 'true')
+    converge.innerHTML = convergeSvg()
+    layout.appendChild(converge)
 
     this.gridEl = document.createElement('div')
     this.gridEl.className = 'board-grid'
@@ -203,7 +208,7 @@ export class BoardRenderer {
         el.className = 'board-token board-corpse'
         const creature = c.creatureId ? getCreature(c.creatureId) : undefined
         const img = creature?.allyArt ? `<img src="${creature.allyArt}" alt="" />` : ''
-        el.innerHTML = `<div class="board-figure board-corpse-figure">${img}<div class="corpse-shadow" aria-hidden="true"></div></div>`
+        el.innerHTML = `<div class="board-figure board-corpse-figure is-spawning">${img}<div class="corpse-shadow" aria-hidden="true"></div><div class="corpse-spawn-bubbles" aria-hidden="true">${corpseBubblesHtml()}</div></div>`
         // The figure (not the 210×210 token wrapper) is the clickable hit area —
         // a direct click raises THIS corpse instead of firing a basic attack.
         const figureEl = el.querySelector<HTMLElement>('.board-corpse-figure')
@@ -214,6 +219,11 @@ export class BoardRenderer {
         const container = c.cellIndex === BOSS_CELL_INDEX ? this.playerCellEl : this.gridEl
         container.appendChild(el)
         this.corpseTokens.set(c.id, el)
+        const spawnedEl = el
+        window.setTimeout(() => {
+          spawnedEl.querySelector('.board-corpse-figure')?.classList.remove('is-spawning')
+          spawnedEl.querySelector('.corpse-spawn-bubbles')?.remove()
+        }, CORPSE_SPAWN_FX_MS)
       }
 
       let x: number
@@ -509,14 +519,6 @@ export class BoardRenderer {
     return this.playerFigureEl?.getBoundingClientRect() ?? null
   }
 
-  /** The board-mount frame's own rect — lets a sibling 3D element (the skill
-   * hive) compute board-mount's actual perspective-origin eye point in live
-   * viewport coordinates, so its own perspective-origin can share that eye
-   * exactly wherever it's anchored (not just at one assumed screen position). */
-  getBoardMountRect(): DOMRect {
-    return this.root.getBoundingClientRect()
-  }
-
   /** Springy cast feedback on the player card: 'recoil' kicks it back-and-in
    * (ranged casts — 공격/포획), 'hop' bounces it up-and-down (raising casts —
    * 급조/기상). The keyframes carry the standee's own transform so the lean
@@ -597,6 +599,21 @@ function flashCard(card: Element | null): void {
   window.setTimeout(() => card.classList.remove('is-hit'), HIT_FLASH_MS)
 }
 
+// A small burst of rising, fading bubbles for a corpse's first appearance —
+// each span carries its own drift/size/delay as inline custom properties so
+// the CSS keyframe can stay a single shared rule.
+function corpseBubblesHtml(): string {
+  const count = 7
+  return Array.from({ length: count }, (_, i) => {
+    const angle = (i / count) * 360 + Math.random() * 30
+    const dist = 20 + Math.random() * 28
+    const dx = (Math.cos((angle * Math.PI) / 180) * dist).toFixed(1)
+    const size = (6 + Math.random() * 9).toFixed(1)
+    const delay = (Math.random() * 0.16).toFixed(2)
+    return `<span class="corpse-bubble" style="--bubble-dx:${dx}px;--bubble-size:${size}px;--bubble-delay:${delay}s"></span>`
+  }).join('')
+}
+
 // Four-point star for the constellation crossings — a crisp diamond core with
 // short sparkle points (higher `w` = fuller, more gem-like than a thin cross).
 function starPath(cx: number, cy: number, r: number): string {
@@ -635,4 +652,28 @@ function constellationSvg(): string {
     .join('')
 
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${linesHtml}${bigStars}${smallStars}</svg>`
+}
+
+// Width of .board-layout's middle grid-template-columns track (the gutter
+// between the player cell and the enemy grid) — kept in sync with board.css.
+const GUTTER_WIDTH = 128
+
+/** Replaces the old flow-arrow icon: each lane's entrance (right edge, one
+ * per row) draws a starlight line converging on a single point at the left
+ * edge — reading as "every lane funnels into the boss room" — with a big
+ * diamond star marking the convergence. */
+function convergeSvg(): string {
+  const height = GRID_ROWS * CELL_SIZE + (GRID_ROWS - 1) * CELL_GAP
+  const laneYs = Array.from({ length: GRID_ROWS }, (_, i) => i * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2)
+  const coreY = height / 2
+
+  const linesHtml = laneYs
+    .map((y) => `<path class="board-constellation-line board-converge-line" d="M${GUTTER_WIDTH} ${y} L0 ${coreY}"/>`)
+    .join('')
+  const laneStars = laneYs
+    .map((y, i) => `<path class="board-star board-star--p${i % 4}" d="${starPath(GUTTER_WIDTH - 6, y, 6)}"/>`)
+    .join('')
+  const coreStar = `<path class="board-star board-star--big board-converge-core" d="${starPath(6, coreY, 14)}"/>`
+
+  return `<svg viewBox="0 0 ${GUTTER_WIDTH} ${height}" xmlns="http://www.w3.org/2000/svg">${linesHtml}${laneStars}${coreStar}</svg>`
 }

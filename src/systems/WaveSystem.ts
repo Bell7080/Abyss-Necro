@@ -6,7 +6,7 @@ import { getCreature } from '@data/CreatureDefinitions'
 import { enemyStatsForLevel } from '@data/Tiers'
 
 const ROWS = 3 // lanes — enemies march straight down their own lane
-const COLS = 4 // lane depth — cells an enemy crosses before the boss room
+const COLS = 5 // lane depth — cells an enemy crosses before the boss room
 const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss room
 // Fallback per-tick enemy attack, only if a token carries none (all spawned
 // enemies now carry their creature-level attack).
@@ -536,13 +536,14 @@ export class WaveSystem {
     this.schedulePush()
   }
 
-  // Board tokens slide to their new cell over 0.85s (see .board-token's
-  // transform transition) — resolving clashes immediately would layer the
-  // lunge keyframe over an in-flight slide, which reads as the enemy
-  // snapping forward then "retreating" when the keyframe releases. Waiting
-  // out the slide keeps the two animations sequential; 0.9s still lands
-  // safely inside the 1.3s tick.
-  private static readonly CLASH_SETTLE_MS = 900
+  // Board tokens slide to their new cell over 1.15s (see .board-token's
+  // transform transition — stretched to nearly fill the tick so movement
+  // reads as a continuous creep instead of snap-then-freeze) — resolving
+  // clashes immediately would layer the lunge keyframe over an in-flight
+  // slide, which reads as the enemy snapping forward then "retreating" when
+  // the keyframe releases. Waiting out the slide keeps the two animations
+  // sequential; 1.2s still lands safely inside the 1.3s tick.
+  private static readonly CLASH_SETTLE_MS = 1200
 
   private tick(): void {
     if (this.paused) return

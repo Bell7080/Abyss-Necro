@@ -216,7 +216,7 @@ body {
   --floor-depth: -72px;
   display: grid;
   grid-template-columns: 320px 128px auto;
-  grid-template-rows: repeat(3, 210px);
+  grid-template-rows: repeat(3, 180px);
   align-items: center;
   gap: 40px;
   transform-style: preserve-3d;
@@ -294,27 +294,65 @@ body {
   }
 }
 
+/* Every lane funnels into the boss room as a starlight convergence — three
+   lines from each lane's entrance meeting a single glowing diamond, instead
+   of a lone pulsing arrow icon. Sits on the floor plane like the grid's own
+   constellation (translateZ so it doesn't slice enemy glows). */
 .board-flow-arrow {
   grid-column: 2;
   grid-row: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(150, 205, 255, 0.55);
-  animation: flow-pulse 1.8s ease-in-out infinite;
+  position: relative;
+  transform: translateZ(var(--floor-depth, -72px));
 }
 
-/* translateZ folded into the keyframes: the arrow sits on the floor plane, so
-   it sinks with the tiles (else it would slice enemy glows in the left column). */
-@keyframes flow-pulse {
+.board-flow-arrow svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.board-converge-line {
+  stroke: rgba(180, 220, 255, 0.4);
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 5px rgba(140, 205, 255, 0.4));
+  animation: converge-line-pulse 2.6s ease-in-out infinite;
+}
+
+.board-converge-line:nth-child(2) {
+  animation-delay: 0.45s;
+}
+
+.board-converge-line:nth-child(3) {
+  animation-delay: 0.9s;
+}
+
+@keyframes converge-line-pulse {
   0%,
   100% {
-    opacity: 0.4;
-    transform: translateZ(var(--floor-depth, -72px)) translateX(0);
+    opacity: 0.32;
   }
   50% {
-    opacity: 1;
-    transform: translateZ(var(--floor-depth, -72px)) translateX(-4px);
+    opacity: 0.85;
+  }
+}
+
+/* The convergence point itself — a brighter, breathing diamond so the "all
+   lanes meet here" point reads clearly next to the boss room. */
+.board-star.board-converge-core {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation:
+    star-twinkle 2.2s ease-in-out infinite,
+    converge-core-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes converge-core-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.28);
   }
 }
 
@@ -323,10 +361,30 @@ body {
   grid-column: 3;
   grid-row: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(4, 210px);
-  grid-template-rows: repeat(3, 210px);
+  grid-template-columns: repeat(5, 180px);
+  grid-template-rows: repeat(3, 180px);
   gap: 28px;
   transform-style: preserve-3d;
+}
+
+/* The map's outer edge (entrance column, opposite the boss room) sinks into a
+   deep-sea black beyond the last cell — enemies read as surfacing out of that
+   dark instead of just popping in at a lit tile. Bleeds well past the grid's
+   own right boundary so the darkness feels like it's outside the visible map. */
+.board-grid::after {
+  content: '';
+  position: absolute;
+  top: -60px;
+  bottom: -60px;
+  right: -220px;
+  width: 50%;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(2, 3, 10, 0.5) 50%,
+    rgba(0, 1, 4, 0.94) 100%
+  );
+  pointer-events: none;
 }
 
 /* Persistent per-entity token, absolutely positioned over the grid so
@@ -339,8 +397,8 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  width: 210px;
-  height: 210px;
+  width: 180px;
+  height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -350,8 +408,11 @@ body {
   /* Stretches with the game's aim-mode slow motion (--time-scale set on
      .abyss-shell — 1 = normal, 0.3 while aiming): the move itself slides
      proportionally slower instead of just the gap between moves growing,
-     so it reads as one uniform slow-mo rather than pause-then-snap. */
-  transition: transform calc(0.85s / var(--time-scale, 1)) ease-in-out;
+     so it reads as one uniform slow-mo rather than pause-then-snap. Nearly
+     fills the 1.3s move tick (WaveSystem's MOVE_TICK_MS) so there's almost
+     no dead pause between steps — reads as a continuous creep the player can
+     track and react to, instead of a quick snap-then-freeze-then-snap. */
+  transition: transform calc(1.15s / var(--time-scale, 1)) ease-in-out;
 }
 
 /* A clash tick — front-of-queue enemy/ally dash a short step toward each
@@ -376,8 +437,8 @@ body {
    seeing a box. States still speak through glow. */
 .board-cell {
   position: relative;
-  width: 210px;
-  height: 210px;
+  width: 180px;
+  height: 180px;
   padding: 0;
   border-radius: 34px;
   background: radial-gradient(circle at 50% 44%, rgba(8, 6, 18, 0.3), rgba(5, 4, 12, 0.12) 76%);
@@ -642,7 +703,7 @@ body {
    allies/enemies) and raises it up the slope so it sits nearer the middle
    of the screen instead of hugging the bottom-left. */
 .board-figure--boss-player {
-  --board-figure-shift-x: -100px;
+  --board-figure-shift-x: -160px;
   --figure-rise: -235px;
 }
 
@@ -2753,78 +2814,34 @@ body {
     0 0 26px rgba(150, 205, 255, 0.3);
 }
 
-/* ---------- Skill hive (hex skills + vertical gauge, left of player) ---------- */
-/* Four hex ability buttons stacked as a honeycomb column with the sacral
-   gauge on their inner edge, hugging the left of the board where the
-   necromancer stands. Basic is the resting default; raise/capture light
-   amber when armed. */
-/* No backdrop panel — the hexes + gauge column sit just to the LEFT of the
-   player card (beside it, not over its face). Its position is welded to the live
-   card rect in JS (SkillHive.anchorTo), so it tracks the card at any window
-   size. The initial left/top is just a first-paint fallback before JS anchors. */
-/* Transparent perspective frame sharing the board's eye: board-mount uses
-   perspective:1900px with its origin at screen (960, -147); with the frame at
-   (158, 216) that eye is (960-158, -147-216) = (802px, -363px) relative to the
-   frame. Sharing the eye makes the plane's vertical edges converge exactly
-   like the card's, so the wedge-shaped gap disappears. */
+/* ---------- Skill hive (hex skills + gauge, top-center below wave HUD) ---------- */
+/* Four hex ability buttons in a flat horizontal row with the sacral gauge
+   underneath, fixed at screen-center just below the wave/timer readout —
+   center-screen reads far more clearly to the player than tucked beside the
+   player card. Basic is the resting default; raise/capture light amber when
+   armed. No backdrop panel, no perspective tilt — a plain top-center HUD like
+   .wave-hud above it. */
 .skill-hive {
   position: absolute;
-  left: 158px;
-  top: 216px;
-  perspective: 1900px;
-  perspective-origin: 802px -363px;
-  /* Above the aim-mode board (board-mount rises to 72 while aiming): otherwise
-     the player card overlaps and swallows clicks on the hexes it covers — which
-     is why 급조 (tucked against the card) couldn't be pressed. Below the hand (75). */
+  top: 78px;
+  left: 50%;
+  transform: translateX(-50%);
+  /* Above the aim-mode board (board-mount rises to 72 while aiming). Below the hand (75). */
   z-index: 74;
 }
 
-/* The content plane, tilted on the same plane as the board figures — matches
-   the player card's own standee lean. Wider hex spacing (see .hive-hexes below)
-   keeps every hex's hit-area inside its own rendered shape under this tilt, so
-   raise/capture/etc. all still click correctly (verified: real .click() on
-   each hex correctly arms it, flat or tilted). */
 .hive-plane {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 9px;
-  transform: rotateX(-15deg) scaleY(1.16);
-  /* Flat (not preserve-3d): the plane renders as one rigid tilted surface
-     instead of keeping each hex as an independent object in 3D space.
-     preserve-3d here triggers a Chromium bug where descendants nested inside
-     a preserve-3d ancestor get wrong/stale getBoundingClientRect()s, which
-     broke real click hit-testing for the top two hexes. Flat compositing
-     projects the whole already-laid-out plane through one transform, so
-     every child's rect stays correct. */
-  transform-style: flat;
+  gap: 10px;
 }
 
 .hive-hexes {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-/* Overlapping honeycomb column, gently fanned toward the player on the right:
-   the two ends lean in (margin-left), the middle bulges out — a bracket that
-   cups the necromancer. margin (not transform) keeps hover/pop free. */
-.hive-hexes .skill-hex {
-  margin-top: 12px;
-}
-.hive-hexes .skill-hex:first-child {
-  margin-top: 0;
-}
-.skill-hex--basic {
-  margin-left: 22px;
-}
-.skill-hex--raise {
-  margin-left: 4px;
-}
-.skill-hex--raise-all {
-  margin-left: 0;
-}
-.skill-hex--capture {
-  margin-left: 18px;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 10px;
 }
 
 .skill-hex {
@@ -2892,6 +2909,42 @@ body {
     0 6px 16px rgba(0, 0, 0, 0.55);
 }
 
+/* 전체 기상/저격 (raise-all, capture) — the two rarest, highest-impact casts —
+   get a much stronger, ONGOING tell while affordable than the plain cyan
+   ready-ring above: a pair of amber hexagon afterimages continuously pulsing
+   outward and fading, staggered half a cycle apart so a new one blooms as the
+   last dissolves. Driven by SkillHive's `is-primed` class (canCast, not armed). */
+.skill-hex--raise-all.is-primed .hex-face::before,
+.skill-hex--raise-all.is-primed .hex-face::after,
+.skill-hex--capture.is-primed .hex-face::before,
+.skill-hex--capture.is-primed .hex-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 214, 140, 0.9),
+    0 0 22px rgba(255, 190, 110, 0.75);
+  pointer-events: none;
+  animation: hex-primed-afterimage 1.6s ease-out infinite;
+}
+
+.skill-hex--raise-all.is-primed .hex-face::after,
+.skill-hex--capture.is-primed .hex-face::after {
+  animation-delay: 0.8s;
+}
+
+@keyframes hex-primed-afterimage {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
 /* Basic is the always-on default — smaller than the toggle skills, with a
    pressed-in resting look (recessed inset shadow) and a cyan arc that revolves
    around its edge like a loading ring to prove it's permanently active. */
@@ -2915,7 +2968,9 @@ body {
   font-size: 13px;
 }
 /* The revolving loading glow — a bright cyan arc masked to a hexagon-edge
-   ring, spinning slowly. */
+   ring (an SVG evenodd outer-hex-minus-inner-hex mask, matching hex-face's
+   own clip-path shape), spinning slowly — a round mask here read as a
+   mismatched circle spinning inside a hexagon frame. */
 .skill-hex--basic .hex-face::after {
   content: '';
   position: absolute;
@@ -2930,8 +2985,12 @@ body {
     rgba(150, 225, 255, 0.16) 200deg,
     rgba(150, 225, 255, 0.16) 360deg
   );
-  -webkit-mask: radial-gradient(circle, transparent 52%, #000 64%);
-  mask: radial-gradient(circle, transparent 52%, #000 64%);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M50 2 L95 25 L95 75 L50 98 L5 75 L5 25 Z M50 18 L82 34 L82 66 L50 82 L18 66 L18 34 Z' fill='white'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M50 2 L95 25 L95 75 L50 98 L5 75 L5 25 Z M50 18 L82 34 L82 66 L50 82 L18 66 L18 34 Z' fill='white'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
   filter: drop-shadow(0 0 4px rgba(140, 220, 255, 0.7));
   animation: hex-loading-spin 2.4s linear infinite;
   pointer-events: none;
@@ -2947,11 +3006,6 @@ body {
   position: relative;
   z-index: 1;
   display: inline-block;
-  /* The plane's tilt (rotateX -15 · scaleY 1.16) stretches glyphs vertically;
-     counter it so the font keeps its true shape, and float it above the tilted
-     hex with a lifted drop shadow to smooth over the flat-text/tilted-body
-     dissonance. */
-  transform: scaleY(0.88);
   text-shadow:
     0 2px 6px rgba(0, 0, 0, 0.95),
     0 0 10px rgba(160, 220, 255, 0.55),
@@ -3042,14 +3096,16 @@ body {
 }
 
 /* Moody sacral gauge — a slim, dark, seamless capsule (no childish segment
-   seams). Deep teal sinking into indigo/violet, with a soft surface sheen. */
+   seams). Deep teal sinking into indigo/violet, with a soft surface sheen.
+   Horizontal now (was a vertical bar beside the player card) so it reads as
+   a strip under the hex row instead of a tower. */
 .hive-gauge-track {
   position: relative;
-  width: 13px;
-  height: 300px;
+  width: 260px;
+  height: 13px;
   border-radius: 999px;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(9, 7, 18, 0.9), rgba(3, 2, 9, 0.94));
+  background: linear-gradient(90deg, rgba(9, 7, 18, 0.9), rgba(3, 2, 9, 0.94));
   box-shadow:
     inset 0 0 0 1px rgba(120, 150, 210, 0.16),
     inset 0 4px 12px rgba(0, 0, 0, 0.72);
@@ -3057,12 +3113,12 @@ body {
 
 .hive-gauge-fill {
   position: absolute;
-  left: 0;
-  right: 0;
+  top: 0;
   bottom: 0;
-  height: 0%;
+  left: 0;
+  width: 0%;
   border-radius: 999px;
-  background: linear-gradient(180deg, #79d3e0 0%, #3f74c2 52%, #4a3d86 100%);
+  background: linear-gradient(90deg, #4a3d86 0%, #3f74c2 48%, #79d3e0 100%);
   box-shadow:
     0 0 10px rgba(90, 160, 220, 0.5),
     inset 0 2px 5px rgba(220, 245, 255, 0.32);
@@ -3119,9 +3175,9 @@ body {
   filter: none;
   background: radial-gradient(
     circle,
-    rgba(196, 140, 255, 0.72) 0%,
-    rgba(150, 105, 255, 0.36) 44%,
-    transparent 68%
+    rgba(196, 140, 255, 0.4) 0%,
+    rgba(150, 105, 255, 0.2) 44%,
+    transparent 66%
   );
   z-index: -1;
   pointer-events: none;
@@ -3138,9 +3194,9 @@ body {
   transform: translateX(-50%);
   background: linear-gradient(
     to top,
-    rgba(158, 96, 236, 0.6) 0%,
-    rgba(126, 74, 214, 0.34) 38%,
-    rgba(120, 70, 210, 0.12) 66%,
+    rgba(158, 96, 236, 0.34) 0%,
+    rgba(126, 74, 214, 0.18) 38%,
+    rgba(120, 70, 210, 0.07) 66%,
     transparent 86%
   );
   filter: blur(6px);
@@ -3152,15 +3208,15 @@ body {
 
 @keyframes corpse-aura-rise {
   0% {
-    opacity: 0.22;
+    opacity: 0.14;
     transform: translateX(-50%) translateY(8px) scaleY(0.9) scaleX(1);
   }
   50% {
-    opacity: 0.7;
+    opacity: 0.42;
     transform: translateX(-50%) translateY(-10px) scaleY(1.14) scaleX(0.92);
   }
   100% {
-    opacity: 0.18;
+    opacity: 0.1;
     transform: translateX(-50%) translateY(-26px) scaleY(1) scaleX(1.02);
   }
 }
@@ -3185,6 +3241,64 @@ body {
   filter: blur(3px);
   z-index: -3;
   pointer-events: none;
+}
+
+/* Corpse spawn: an elastic pop-in (overrides corpse-waver's `animation` for
+   just this brief window — the same "compound selector wins outright"
+   pattern as .is-leaving) plus a burst of small violet bubbles rising off
+   the body, so a fresh corpse reads as bubbling up rather than just appearing. */
+.board-corpse-figure.is-spawning {
+  animation: corpse-spawn-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes corpse-spawn-pop {
+  0% {
+    transform: scale(0.25) translateY(16px);
+    opacity: 0;
+    filter: blur(3px);
+  }
+  60% {
+    transform: scale(1.14) translateY(-6px);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+.corpse-spawn-bubbles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.corpse-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: 20%;
+  width: var(--bubble-size, 8px);
+  height: var(--bubble-size, 8px);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95), rgba(196, 150, 255, 0.6) 55%, rgba(150, 100, 255, 0.15) 80%);
+  box-shadow: 0 0 6px rgba(196, 150, 255, 0.7);
+  animation: corpse-bubble-rise 0.6s ease-out both;
+  animation-delay: var(--bubble-delay, 0s);
+}
+
+@keyframes corpse-bubble-rise {
+  0% {
+    transform: translate(calc(-50% + var(--bubble-dx, 0px) * 0.2), 0) scale(0.3);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--bubble-dx, 0px)), -76px) scale(1);
+    opacity: 0;
+  }
 }
 
 .board-corpse-figure img {

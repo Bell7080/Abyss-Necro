@@ -2,8 +2,8 @@ import type { AbilitySystem, AbilityId } from '@systems/AbilitySystem'
 import { SKILL_FACES, getSkillArt } from '@ui/SkillArt'
 
 // Basic first (always-on default), then the three toggle skills — laid out
-// as a honeycomb column beside the player card. Order/names/hints come from
-// the shared SKILL_FACES map (same source the cast cut-in panel reads).
+// left-to-right. Order/names/hints come from the shared SKILL_FACES map
+// (same source the cast cut-in panel reads).
 const HEX_ORDER: AbilityId[] = ['basic', 'raise', 'raise-all', 'capture']
 
 export interface SkillHiveHandlers {
@@ -12,18 +12,12 @@ export interface SkillHiveHandlers {
   onSkill: (id: AbilityId) => void
 }
 
-// Left-of-player honeycomb of four hex skill buttons with a vertical sacral
-// gauge on their inner edge. The gauge fill reads getSmoothGauge() every
-// frame (display only) so it creeps between kills/trickle ticks; render()
-// updates the whole-number affordable/armed states.
-// Gap between the hive's right edge and the player card's left edge, and the
-// minimum distance the hive keeps from the screen's left edge (so it never
-// falls off-screen when the board hugs the left at narrow window sizes).
-const HIVE_CARD_GAP = 8
-const HIVE_MIN_LEFT = 10
-
+// A row of four hex skill buttons fixed top-center (below the wave/timer
+// readout — screen-center reads more clearly than tucked beside the player
+// card) with a horizontal sacral gauge underneath. The gauge fill reads
+// getSmoothGauge() every frame (display only) so it creeps between kills/
+// trickle ticks; render() updates the whole-number affordable/armed states.
 export class SkillHive {
-  private readonly wrap: HTMLElement
   private readonly hexes = new Map<AbilityId, HTMLButtonElement>()
   private readonly gaugeFill: HTMLElement
 
@@ -32,13 +26,8 @@ export class SkillHive {
     private readonly ability: AbilitySystem,
     handlers: SkillHiveHandlers
   ) {
-    // .skill-hive = transparent perspective frame (matches the board's eye);
-    // .hive-plane = the tilted content plane. Splitting them lets the shared
-    // vanishing point live on the frame while the tilt/rotate pivot stays on
-    // the plane — so the gauge's edges run parallel to the card's (no wedge).
     const wrap = document.createElement('div')
     wrap.className = 'skill-hive'
-    this.wrap = wrap
     const plane = document.createElement('div')
     plane.className = 'hive-plane'
 
@@ -75,47 +64,36 @@ export class SkillHive {
 
     const tick = (): void => {
       const ratio = this.ability.getSmoothGauge() / this.ability.getMaxGauge()
-      this.gaugeFill.style.height = `${ratio * 100}%`
+      this.gaugeFill.style.width = `${ratio * 100}%`
       requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
   }
 
-  /** Welds the hive to the player card's live position, sitting just to the LEFT
-   * of the card (beside it, not overlapping its face) and vertically centered on
-   * it. Clamped so it never slides off the screen's left edge. Call after layout
-   * and on resize; skip during cast animations so it anchors to the card at rest.
-   *
-   * `boardMountRect`, if given, re-derives perspective-origin from board-mount's
-   * OWN actual eye (its `perspective-origin: 50% -14%`, in live viewport
-   * coordinates) relative to wherever the hive just got anchored — sharing the
-   * board's vanishing point exactly, not just at one assumed screen position.
-   * Without it the hive keeps its last (or CSS-default) perspective-origin. */
-  anchorTo(cardRect: DOMRect | null, boardMountRect?: DOMRect | null): void {
-    if (!cardRect) return
-    const w = this.wrap.offsetWidth || 112
-    const h = this.wrap.offsetHeight || 320
-    const left = Math.max(HIVE_MIN_LEFT, cardRect.left - w - HIVE_CARD_GAP)
-    const top = cardRect.top + (cardRect.height - h) / 2
-    this.wrap.style.left = `${Math.round(left)}px`
-    this.wrap.style.top = `${Math.round(top)}px`
-
-    if (boardMountRect) {
-      const eyeX = boardMountRect.left + boardMountRect.width * 0.5
-      const eyeY = boardMountRect.top + boardMountRect.height * -0.14
-      this.wrap.style.perspectiveOrigin = `${Math.round(eyeX - left)}px ${Math.round(eyeY - top)}px`
-    }
-  }
-
   /** Highlights the currently armed toggle skill (null = plain basic mode). */
   setArmed(id: AbilityId | null): void {
-    for (const [aid, btn] of this.hexes) btn.classList.toggle('is-armed', aid === id)
+    for (const [aid, btn] of this.hexes) {
+      const armed = aid === id
+      btn.classList.toggle('is-armed', armed)
+      // Arming raise-all/capture should suppress their afterimage pulse right
+      // away (armed already reads via scale + hotter glow) instead of waiting
+      // for the next gauge-driven render().
+      if (aid === 'raise-all' || aid === 'capture') {
+        btn.classList.toggle('is-primed', !armed && this.ability.canCast(aid))
+      }
+    }
   }
 
   render(): void {
     for (const [aid, btn] of this.hexes) {
       const can = this.ability.canCast(aid)
       btn.classList.toggle('is-disabled', !can)
+      // Raise-all/capture (the two rarest, highest-impact casts) carry an
+      // ongoing pulsing afterimage the whole time they're affordable, not
+      // just a one-shot pop — see .is-primed in board.css.
+      if (aid === 'raise-all' || aid === 'capture') {
+        btn.classList.toggle('is-primed', can && !btn.classList.contains('is-armed'))
+      }
       // "팅!" — when a skill first becomes affordable, pop + flash it.
       if (this.prevAffordable.get(aid) === false && can) {
         btn.classList.remove('is-ready-pop')
