@@ -1314,10 +1314,10 @@ body {
 
 /* Tier rank stars — deployed board allies, sitting just above the name. */
 .entity-card-stars {
-  font-size: 16px;
+  font-size: 20px;
   letter-spacing: 2px;
   line-height: 1;
-  margin-top: 4px;
+  margin-top: 24px;
   text-align: center;
   color: #ffd66b;
   text-shadow:
