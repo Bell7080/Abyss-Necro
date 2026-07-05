@@ -1189,7 +1189,7 @@ body {
 /* The necromancer's name is the one name on the board that should read like
    a title — bigger, brighter, letterspaced, with a cyan-violet halo. */
 .entity-card--player .entity-card-name {
-  font-size: 30px;
+  font-size: 26px;
   letter-spacing: 0.12em;
   padding-left: 0.12em;
   text-align: center;
@@ -1270,6 +1270,7 @@ body {
 .entity-card-name {
   font-size: 20px;
   letter-spacing: 0.04em;
+  text-align: center;
   color: var(--abyss-lavender-bright);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
@@ -1316,6 +1317,7 @@ body {
   font-size: 13px;
   letter-spacing: 2px;
   line-height: 1;
+  text-align: center;
   color: #ffd66b;
   text-shadow:
     0 0 6px rgba(255, 190, 90, 0.85),
