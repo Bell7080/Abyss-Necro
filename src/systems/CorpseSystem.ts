@@ -9,6 +9,10 @@ export interface Corpse {
   creatureId: string
   label: string
   cellIndex: number
+  /** Where the enemy was sliding from when it fell (and when) — lets the corpse
+   * pick up that in-flight slide instead of teleporting to its resting cell. */
+  fromCellIndex?: number
+  movedAt?: number
 }
 
 // Corpses left by slain enemies (75% of kills). They sit on their cell as a
@@ -43,12 +47,14 @@ export class CorpseSystem {
     return this.corpses.filter((c) => c.cellIndex === cellIndex)
   }
 
-  add(cellIndex: number, creatureId: string, label: string): void {
+  add(cellIndex: number, creatureId: string, label: string, fromCellIndex?: number, movedAt?: number): void {
     const corpse: Corpse = {
       id: `corpse-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       creatureId,
       label,
       cellIndex,
+      fromCellIndex,
+      movedAt,
     }
     this.corpses.push(corpse)
     this.decayTimers.set(corpse.id, window.setTimeout(() => this.decay(corpse.id), CORPSE_DECAY_MS))
