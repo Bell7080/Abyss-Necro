@@ -13,6 +13,7 @@ import { RelicInventory } from '@ui/RelicInventory'
 import { RewardOverlay } from '@ui/RewardOverlay'
 import { ShopOverlay, type ShopOffer } from '@ui/ShopOverlay'
 import { SkillCastPanel } from '@ui/SkillCastPanel'
+import { SKILL_FACES, getSkillArt } from '@ui/SkillArt'
 import { SkillHive } from '@ui/SkillHive'
 import { VictoryOverlay } from '@ui/VictoryOverlay'
 import { WaveHud } from '@ui/WaveHud'
@@ -155,6 +156,7 @@ export class Game {
     )
     this.hive = new SkillHive(shell, this.abilitySystem, {
       onSkill: (id) => this.handleSkill(id),
+      onHover: (id) => this.handleSkillHover(id),
     })
     this.skillCast = new SkillCastPanel(shell)
     this.rewardOverlay = new RewardOverlay({
@@ -338,6 +340,24 @@ export class Game {
     this.board.setPlayerHp(this.playerSystem.getHp(), this.playerSystem.getMaxHp())
     // The OST now starts once the intro title scene finishes revealing itself
     // (IntroOverlay's onRevealed callback), not immediately at boot.
+  }
+
+  /** Hovering a skill hex reuses the same right-side inspector as board/hand
+   * hover — cost, catchphrase, and a plain description of what it does. */
+  private handleSkillHover(id: AbilityId | null): void {
+    if (id === null) {
+      this.inspector.hide()
+      return
+    }
+    const face = SKILL_FACES[id]
+    this.inspector.render({
+      imageUrl: getSkillArt(id),
+      title: face.name,
+      tag: '스킬',
+      stats: [{ label: '게이지', value: `${this.abilitySystem.costOf(id)}` }],
+      desc: face.hint,
+      passive: face.desc,
+    })
   }
 
   /** Hover-to-inspect on the board. Ignored while aiming (the selected hand
