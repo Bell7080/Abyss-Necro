@@ -15,8 +15,11 @@ for (const [path, url] of Object.entries(audioGlob)) {
 }
 
 // Where the OST's "good part" starts — the title/victory theme skips the intro
-// and fades in from here.
-const OST_START_SEC = 40
+// and fades in from here. The fade covers the 5s right after that mark (quiet
+// → full), and looping back to this same mark (not 0) keeps every replay
+// starting from the good part.
+const OST_START_SEC = 35
+const OST_FADE_IN_MS = 5000
 const FADE_IN_MS = 1600
 const FADE_OUT_MS = 1200
 // Battle tracks cross-fade near their tail into the next random pick.
@@ -39,7 +42,14 @@ export class AudioManager {
 
   constructor() {
     this.ost = audioByName['ost'] ? new Audio(audioByName['ost']) : null
-    if (this.ost) this.ost.preload = 'auto'
+    if (this.ost) {
+      this.ost.preload = 'auto'
+      // Loop back to the 35s mark (not 0) — every replay re-enters at the good
+      // part with the same quiet-to-full fade-in.
+      this.ost.addEventListener('ended', () => {
+        if (this.mode === 'ost') this.playOst()
+      })
+    }
     this.battle = this.hasBattleTracks() ? new Audio() : null
     if (this.battle) {
       this.battle.addEventListener('ended', () => {
@@ -71,7 +81,7 @@ export class AudioManager {
     this.tryPlay(el, () => {
       this.seekTo(el, OST_START_SEC)
       el.volume = 0
-      this.fade(el, OST_VOLUME, FADE_IN_MS)
+      this.fade(el, OST_VOLUME, OST_FADE_IN_MS)
     })
   }
 

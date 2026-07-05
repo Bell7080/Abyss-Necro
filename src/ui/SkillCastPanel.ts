@@ -1,34 +1,5 @@
 import type { AbilityId } from '@systems/AbilitySystem'
-
-// Skill cut-in art auto-wiring: drop `src/assets/sprites/skill_00N.webp` and it
-// lights up by id (missing files fall back to a tinted name card, so the build
-// never breaks while the art trickles in).
-const skillArtGlob = import.meta.glob('../assets/sprites/skill_*.webp', {
-  eager: true,
-  import: 'default',
-}) as Record<string, string>
-
-const skillArtByName: Record<string, string> = {}
-for (const [path, url] of Object.entries(skillArtGlob)) {
-  const base = path.split('/').pop()!.replace(/\.webp$/, '')
-  skillArtByName[base] = url
-}
-
-interface SkillFace {
-  art: string // skill_00N id
-  name: string
-  hint: string
-  tone: string
-}
-
-// The four hive skills, in hex order (1 공격 · 2 급조 · 3 기상 · 4 포획), each
-// mapped to its cut-in illustration id and accent tone.
-const FACES: Record<AbilityId, SkillFace> = {
-  basic: { art: 'skill_001', name: '공격', hint: '이거나 먹어라!', tone: '#9b6cff' },
-  raise: { art: 'skill_002', name: '급조', hint: '얘들아…! 막아!', tone: '#7ff0b0' },
-  'raise-all': { art: 'skill_003', name: '기상', hint: '모두 일어나!', tone: '#ffce7a' },
-  capture: { art: 'skill_004', name: '포획', hint: '넌 내꺼야!', tone: '#d69cff' },
-}
+import { SKILL_FACES, getSkillArt } from '@ui/SkillArt'
 
 const HOLD_MS = 620
 const CLEAR_MS = 1260
@@ -67,11 +38,11 @@ export class SkillCastPanel {
   /** Slide the skill's illustration in, then fade it out. Re-casting the same
    * skill while it's still up just extends the hold (no jittery re-slide). */
   show(id: AbilityId): void {
-    const face = FACES[id]
+    const face = SKILL_FACES[id]
     if (!face) return
 
     if (id !== this.current) {
-      const art = skillArtByName[face.art]
+      const art = getSkillArt(id)
       this.artEl.style.backgroundImage = art ? `url('${art}')` : ''
       this.panel.classList.toggle('has-art', !!art)
       this.nameEl.textContent = face.name

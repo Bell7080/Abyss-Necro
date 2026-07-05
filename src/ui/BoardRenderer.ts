@@ -71,6 +71,7 @@ export class BoardRenderer {
   private playerCellEl!: HTMLElement
   private playerFigureEl!: HTMLElement
   private playerHpFill: HTMLElement | null = null
+  private playerHpText: HTMLElement | null = null
   private gridEl!: HTMLElement
   private readonly enemyTokens = new Map<string, HTMLElement>()
   private readonly allyTokens = new Map<string, HTMLElement>()
@@ -83,7 +84,8 @@ export class BoardRenderer {
     private readonly waveSystem: WaveSystem,
     private readonly defenderSystem: DefenderSystem,
     private readonly onCellClick: (cellIndex: number) => void,
-    private readonly onCellHover: (cellIndex: number | null) => void = () => {}
+    private readonly onCellHover: (cellIndex: number | null) => void = () => {},
+    private readonly onCorpseClick: (corpseId: string) => void = () => {}
   ) {}
 
   render(): void {
@@ -110,9 +112,14 @@ export class BoardRenderer {
       variant: 'player',
       imageUrl: playerArt,
       name: '넥슈',
+      // Placeholder numbers — Game.boot() calls setPlayerHp() with the real
+      // values right after render(), before this ever paints.
+      hp: 1,
+      maxHp: 1,
     })
     this.playerFigureEl = playerFigure
     this.playerHpFill = playerFigure.querySelector('.entity-card-hp-fill')
+    this.playerHpText = playerFigure.querySelector('.entity-card-hp-text')
     this.playerCellEl.appendChild(playerFigure)
     layout.appendChild(this.playerCellEl)
 
@@ -196,6 +203,13 @@ export class BoardRenderer {
         const creature = c.creatureId ? getCreature(c.creatureId) : undefined
         const img = creature?.allyArt ? `<img src="${creature.allyArt}" alt="" />` : ''
         el.innerHTML = `<div class="board-figure board-corpse-figure">${img}<div class="corpse-shadow" aria-hidden="true"></div></div>`
+        // The figure (not the 210×210 token wrapper) is the clickable hit area —
+        // a direct click raises THIS corpse instead of firing a basic attack.
+        const figureEl = el.querySelector<HTMLElement>('.board-corpse-figure')
+        figureEl?.addEventListener('click', (e) => {
+          e.stopPropagation()
+          this.onCorpseClick(c.id)
+        })
         const container = c.cellIndex === BOSS_CELL_INDEX ? this.playerCellEl : this.gridEl
         container.appendChild(el)
         this.corpseTokens.set(c.id, el)
@@ -338,6 +352,8 @@ export class BoardRenderer {
       existing.style.setProperty('--token-y', `${y}px`)
       const fill = existing.querySelector<HTMLElement>('.entity-card-hp-fill')
       if (fill) fill.style.width = `${Math.round((occupant.hp / occupant.maxHp) * 100)}%`
+      const hpText = existing.querySelector<HTMLElement>('.entity-card-hp-text')
+      if (hpText) hpText.textContent = `${Math.max(0, Math.round(occupant.hp))}/${Math.round(occupant.maxHp)}`
       // Red hit-flash whenever this occupant's hp went down since last sync.
       const prevHp = Number(existing.dataset.hp ?? occupant.maxHp)
       if (occupant.hp < prevHp) flashCard(existing.querySelector('.entity-card'))
@@ -365,6 +381,10 @@ export class BoardRenderer {
       // labeled now, not just deployed allies.
       name: occupant.label ?? creature?.label,
       hpRatio: occupant.hp / occupant.maxHp,
+      hp: occupant.hp,
+      maxHp: occupant.maxHp,
+      // Tier stars — deployed defenders only (hasty 급조 undead carry no rank).
+      stars: variant === 'ally' && !occupant.raised ? (occupant.tier ?? 1) : undefined,
     })}</div>`
     container.appendChild(el)
     tokens.set(occupant.id, el)
@@ -437,24 +457,24 @@ export class BoardRenderer {
     apply(this.bossEnemyTokens)
   }
 
-  /** 급조 aim: the corpse standees float ABOVE their floor tile, so the tile
-   * to actually click isn't obvious. Ring every grid cell that holds a
-   * raisable corpse (with room) so the target is unmistakable. */
-  setRaiseTargets(cellIndices: readonly number[]): void {
-    const wanted = new Set(cellIndices)
-    this.cellEls.forEach((el, i) => {
-      const on = wanted.has(i)
+  /** 급조 aim: emphasis rides on the CORPSE itself, not the tile — every
+   * raisable corpse (room permitting) gets a pulsing green aura + an up-chevron
+   * badge, so the exact clickable target is unmistakable. */
+  setRaiseTargets(corpseIds: ReadonlySet<string>): void {
+    for (const [id, el] of this.corpseTokens) {
+      const on = corpseIds.has(id)
       el.classList.toggle('is-raise-target', on)
-      let marker = el.querySelector<HTMLElement>('.raise-marker')
+      const host = el.querySelector<HTMLElement>('.board-corpse-figure') ?? el
+      let marker = host.querySelector<HTMLElement>('.raise-marker')
       if (on && !marker) {
         marker = document.createElement('div')
         marker.className = 'raise-marker'
         marker.innerHTML = Icons.raiseHand()
-        el.appendChild(marker)
+        host.appendChild(marker)
       } else if (!on && marker) {
         marker.remove()
       }
-    })
+    }
   }
 
   getCellRect(cellIndex: number): DOMRect | null {
@@ -501,6 +521,7 @@ export class BoardRenderer {
   /** Live player HP on the necromancer card's bottom bar. */
   setPlayerHp(hp: number, maxHp: number): void {
     if (this.playerHpFill) this.playerHpFill.style.width = `${Math.round((hp / maxHp) * 100)}%`
+    if (this.playerHpText) this.playerHpText.textContent = `${Math.max(0, Math.round(hp))}/${Math.round(maxHp)}`
   }
 
   /** Red hit-flash on the necromancer card (enemy struck the player). */

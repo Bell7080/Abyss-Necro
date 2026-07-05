@@ -134,7 +134,8 @@ export class Game {
       this.waveSystem,
       this.defenderSystem,
       (cellIndex) => this.handleCellClick(cellIndex),
-      (cellIndex) => this.handleCellHover(cellIndex)
+      (cellIndex) => this.handleCellHover(cellIndex),
+      (corpseId) => this.handleCorpseClick(corpseId)
     )
     this.hive = new SkillHive(shell, this.abilitySystem, {
       onSkill: (id) => this.handleSkill(id),
@@ -221,6 +222,14 @@ export class Game {
     this.setAiming(active)
   }
 
+  /** The live game-speed multiplier — 1 normally, AIM_TIME_SCALE while aiming.
+   * Effects fired mid-cast (e.g. the capture snipe bolt) scale their own
+   * duration against this so they crawl along with everything else instead of
+   * zipping past at full speed inside the slow-mo. */
+  private currentTimeScale(): number {
+    return this.aiming ? AIM_TIME_SCALE : 1
+  }
+
   /** Aim mode: darken everything but the board and crawl the game clock —
    * a held breath while choosing where to aim. */
   private setAiming(active: boolean): void {
@@ -230,6 +239,11 @@ export class Game {
     const scale = active ? AIM_TIME_SCALE : 1
     this.tickManager.setRate(scale)
     this.waveSystem.setTimeScale(scale)
+    this.corpseSystem.setTimeScale(scale)
+    // Drives every CSS transition/animation keyed to var(--time-scale) — the
+    // enemy move slide included — so the whole game visibly slows, not just
+    // the gap between ticks.
+    this.shellEl.style.setProperty('--time-scale', String(scale))
     this.refreshMerge()
   }
 
@@ -266,8 +280,9 @@ export class Game {
   }
 
   /** Aim-mode target emphasis. 포획 lights the weak-enough ENEMIES themselves
-   * (bosses need a stricter cut); 급조 rings the floor tiles that actually hold
-   * raisable corpses. Both clear when their skill isn't armed. */
+   * (bosses need a stricter cut); 급조 lights the raisable CORPSES themselves.
+   * Neither ever rings a floor tile — the target is always the actual entity.
+   * Both clear when their skill isn't armed. */
   private refreshAimTargets(): void {
     if (this.armedAbility === 'capture') {
       const ids = new Set<string>()
@@ -282,19 +297,24 @@ export class Game {
     }
 
     if (this.armedAbility === 'raise') {
-      const cells = this.corpseSystem
-        .getCorpses()
-        .map((c) => c.cellIndex)
-        .filter((idx) => this.defenderSystem.freeSlots(idx) > 0)
-      this.board.setRaiseTargets(cells)
+      const ids = new Set(
+        this.corpseSystem
+          .getCorpses()
+          .filter((c) => this.defenderSystem.freeSlots(c.cellIndex) > 0)
+          .map((c) => c.id)
+      )
+      this.board.setRaiseTargets(ids)
     } else {
-      this.board.setRaiseTargets([])
+      this.board.setRaiseTargets(EMPTY_ID_SET)
     }
   }
 
   boot(): void {
     this.board.render()
-    // Entering the game: the OST fades in from its 40s mark over the intro veil.
+    // Sync the necromancer's hp/xx text immediately — otherwise it shows the
+    // placeholder 1/1 until the first change event.
+    this.board.setPlayerHp(this.playerSystem.getHp(), this.playerSystem.getMaxHp())
+    // Entering the game: the OST fades in from its 35s mark over the intro veil.
     // In the browser this may wait for the first click (autoplay gate); the
     // packaged Electron app plays it immediately (autoplayPolicy override).
     this.audio.playOst()
@@ -421,26 +441,52 @@ export class Game {
     this.castBasicAttack(cellIndex)
   }
 
-  /** "얘들아…! 막아!" — raise every corpse on the aimed cell (up to its free
-   * slots) as hasty undead. No corpses / no room / no gauge = no spend. */
+  /** "얘들아…! 막아!" core: turns ONE specific corpse into a hasty undead in its
+   * own cell (never the whole cell's stack) — the cast/fx shared by both the
+   * direct corpse-click shortcut and the armed-hex fallback below. Assumes the
+   * cost/slot checks already passed. */
+  private performRaise(corpse: Corpse): void {
+    this.corpseSystem.takeOne(corpse.id)
+    this.defenderSystem.placeRaised(corpse.cellIndex, getCreature(corpse.creatureId)?.label ?? corpse.label, corpse.creatureId)
+    this.board.playerCast('hop')
+    this.skillCast.show('raise')
+    const rect = this.board.getCellRect(corpse.cellIndex)
+    if (rect) this.blast.passiveBurst(rect, 'shield')
+  }
+
+  /** Fallback when 급조 is armed and the player clicks a CELL rather than the
+   * precise corpse figure — raises the first raisable corpse there. */
   private castRaise(cellIndex: number): void {
-    const capacity = this.defenderSystem.freeSlots(cellIndex)
-    const available = this.corpseSystem.corpsesInCell(cellIndex).length
-    // Missed the target tile (no corpse / no room) — stay armed so the marked
-    // cell can still be clicked, rather than silently cancelling the skill.
-    if (available === 0 || capacity === 0) return
+    const corpse = this.corpseSystem.corpsesInCell(cellIndex)[0]
+    // Missed the target (no corpse here) — stay armed rather than cancelling.
+    if (!corpse || this.defenderSystem.freeSlots(cellIndex) <= 0) return
     if (!this.abilitySystem.tryCast('raise')) {
       this.disarmSkill()
       return
     }
-    this.board.playerCast('hop')
-    this.skillCast.show('raise')
-    for (const corpse of this.corpseSystem.takeCell(cellIndex, capacity)) {
-      this.defenderSystem.placeRaised(cellIndex, getCreature(corpse.creatureId)?.label ?? corpse.label, corpse.creatureId)
-    }
-    const rect = this.board.getCellRect(cellIndex)
-    if (rect) this.blast.passiveBurst(rect, 'shield')
+    this.performRaise(corpse)
     this.disarmSkill()
+  }
+
+  /** Clicking a corpse directly is the primary way to raise it — works with or
+   * without 급조 armed first, and disarms it never was. A selected hand card or
+   * armed 포획 defer to the normal cell click instead (placement/capture win). */
+  private handleCorpseClick(corpseId: string): void {
+    if (!this.runStarted) return
+    const corpse = this.corpseSystem.getCorpses().find((c) => c.id === corpseId)
+    if (!corpse) return
+    if (this.handSystem.getSelectedCard() || this.armedAbility === 'capture') {
+      this.handleCellClick(corpse.cellIndex)
+      return
+    }
+    const wasArmed = this.armedAbility === 'raise'
+    if (this.defenderSystem.freeSlots(corpse.cellIndex) <= 0) return
+    if (!this.abilitySystem.tryCast('raise')) {
+      if (wasArmed) this.disarmSkill()
+      return
+    }
+    this.performRaise(corpse)
+    if (wasArmed) this.disarmSkill()
   }
 
   /** "모두 일어나!" — raise every corpse on the field at once. */
@@ -477,7 +523,9 @@ export class Game {
     if (muzzle && targetRect) {
       const o = centerOf(muzzle)
       const t = centerOf(targetRect)
-      BubbleBolt.fire(o.x, o.y, t.x, t.y, { duration: 260 })
+      // Scales with the aim-mode slow-mo (still active here, just before disarm)
+      // so the snipe bolt doesn't zip past at full speed while everything else crawls.
+      BubbleBolt.fire(o.x, o.y, t.x, t.y, { duration: 260 / this.currentTimeScale() })
     }
     const captured = this.waveSystem.captureFrontEnemy(cellIndex)
     if (captured) {

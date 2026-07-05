@@ -1,7 +1,7 @@
 // How long an unraised corpse lingers on its cell before it sinks into the
-// abyss (~3 movement ticks). On sinking it has a 75% chance to leave a
-// graveyard shard; otherwise it's simply gone.
-const CORPSE_DECAY_MS = 3800
+// abyss. On sinking it has a 75% chance to leave a graveyard shard; otherwise
+// it's simply gone. Generous window so there's real time to notice and raise it.
+const CORPSE_DECAY_MS = 6500
 const NEGLECT_SHARD_CHANCE = 0.75
 
 export interface Corpse {
@@ -23,6 +23,11 @@ export interface Corpse {
 export class CorpseSystem {
   private corpses: Corpse[] = []
   private readonly decayTimers = new Map<string, number>()
+  // Per-corpse decay bookkeeping in "effective" (scale-adjusted) time, so
+  // aim-mode slow motion stretches a corpse's remaining lifetime too — the
+  // same pattern WaveSystem uses for its push timer.
+  private readonly decayMeta = new Map<string, { markAt: number; effectiveElapsedMs: number }>()
+  private timeScale = 1
   private readonly listeners: Array<() => void> = []
   // A neglected corpse sank and left a shard — Game flies it to the graveyard.
   private readonly decayListeners: Array<(c: Corpse) => void> = []
@@ -57,20 +62,37 @@ export class CorpseSystem {
       movedAt,
     }
     this.corpses.push(corpse)
-    this.decayTimers.set(corpse.id, window.setTimeout(() => this.decay(corpse.id), CORPSE_DECAY_MS))
+    this.decayMeta.set(corpse.id, { markAt: Date.now(), effectiveElapsedMs: 0 })
+    this.decayTimers.set(corpse.id, window.setTimeout(() => this.decay(corpse.id), CORPSE_DECAY_MS / this.timeScale))
     this.emit()
   }
 
-  /** Removes and returns up to `max` corpses on a cell — for "얘들아…! 막아!"
-   * (capped by the cell's free ally slots so none are wasted). */
-  takeCell(cellIndex: number, max = Infinity): Corpse[] {
-    const taken = this.corpses.filter((c) => c.cellIndex === cellIndex).slice(0, max)
-    if (taken.length === 0) return []
-    const takenIds = new Set(taken.map((c) => c.id))
-    for (const c of taken) this.clearTimer(c.id)
-    this.corpses = this.corpses.filter((c) => !takenIds.has(c.id))
+  /** Aim-mode slow motion for every corpse's remaining decay countdown — 1 =
+   * normal speed. Re-arms each live timer at its true remaining time under the
+   * new scale, same trick WaveSystem uses for its push timer. */
+  setTimeScale(scale: number): void {
+    if (scale === this.timeScale) return
+    const now = Date.now()
+    for (const [id, meta] of this.decayMeta) {
+      const timer = this.decayTimers.get(id)
+      if (timer !== undefined) window.clearTimeout(timer)
+      meta.effectiveElapsedMs += (now - meta.markAt) * this.timeScale
+      meta.markAt = now
+      const remaining = Math.max(50, CORPSE_DECAY_MS - meta.effectiveElapsedMs)
+      this.decayTimers.set(id, window.setTimeout(() => this.decay(id), remaining / scale))
+    }
+    this.timeScale = scale
+  }
+
+  /** Removes and returns exactly one corpse by id — "얘들아…! 막아!" raises the
+   * SPECIFIC corpse the player clicked, not every body sharing its cell. */
+  takeOne(id: string): Corpse | null {
+    const idx = this.corpses.findIndex((c) => c.id === id)
+    if (idx < 0) return null
+    const [corpse] = this.corpses.splice(idx, 1)
+    this.clearTimer(id)
     this.emit()
-    return taken
+    return corpse
   }
 
   /** Removes and returns every corpse on the field — for "모두 일어나!". */
@@ -106,6 +128,7 @@ export class CorpseSystem {
       window.clearTimeout(t)
       this.decayTimers.delete(id)
     }
+    this.decayMeta.delete(id)
   }
 
   private emit(): void {
