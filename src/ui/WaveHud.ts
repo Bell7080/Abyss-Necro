@@ -23,6 +23,12 @@ export class WaveHud {
     window.setInterval(() => this.render(), REFRESH_MS)
   }
 
+  /** Live viewport rect of the "웨이브 N · MM:SS" readout — the intro
+   * dialogue's final countdown blasts its last number in here. */
+  getTimeRect(): DOMRect | null {
+    return this.textEl.getBoundingClientRect()
+  }
+
   private render(): void {
     const wave = this.waveSystem.getWaveNumber()
     if (this.waveSystem.isPaused()) {

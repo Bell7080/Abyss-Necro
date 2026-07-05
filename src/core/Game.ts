@@ -6,6 +6,7 @@ import { CodexOverlay } from '@ui/CodexOverlay'
 import { CoinPanel } from '@ui/CoinPanel'
 import { CosmosLayer } from '@ui/CosmosLayer'
 import { DefeatOverlay } from '@ui/DefeatOverlay'
+import { IntroDialogue } from '@ui/IntroDialogue'
 import { IntroOverlay } from '@ui/IntroOverlay'
 import { MergeButton } from '@ui/MergeButton'
 import { RelicInventory } from '@ui/RelicInventory'
@@ -75,6 +76,7 @@ export class Game {
   private readonly hand: CardHand
   private readonly relics: RelicInventory
   private readonly coins: CoinPanel
+  private readonly waveHud: WaveHud
   private readonly hive: SkillHive
   private readonly skillCast: SkillCastPanel
   private readonly rewardOverlay: RewardOverlay
@@ -125,7 +127,7 @@ export class Game {
     boardMount.className = 'board-mount'
     shell.appendChild(boardMount)
 
-    new WaveHud(shell, this.waveSystem)
+    this.waveHud = new WaveHud(shell, this.waveSystem)
     this.coins = new CoinPanel(shell)
 
     this.inspector = new CardInspector(shell)
@@ -168,7 +170,7 @@ export class Game {
     this.victoryOverlay = new VictoryOverlay(shell)
     new IntroOverlay(
       shell,
-      () => this.startRun(),
+      () => this.startIntroDialogue(),
       () => this.audio.playOst(),
       () => this.audio.duckTitleOst()
     )
@@ -420,11 +422,20 @@ export class Game {
     return null
   }
 
-  /** Fired once, when the player dismisses the intro veil — nothing spawns
-   * or moves before this. */
+  /** Fired once the title/board reveal finishes — plays 넥슈's opening
+   * cutscene, which itself calls startRun() once its countdown lands. */
+  private startIntroDialogue(): void {
+    new IntroDialogue(this.shellEl, {
+      getWaveTimeRect: () => this.waveHud.getTimeRect(),
+      onComplete: () => this.startRun(),
+    })
+  }
+
+  /** Fired once the intro dialogue's countdown lands — nothing spawns or
+   * moves before this. */
   private startRun(): void {
     this.runStarted = true
-    // Pressing 시작하기 hands off from the OST to a random battle loop.
+    // The dialogue cutscene hands off from the OST to a random battle loop.
     this.audio.startBattle()
     this.waveSystem.start(this.tickManager)
     this.abilitySystem.start(this.tickManager)

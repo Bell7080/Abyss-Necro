@@ -7,7 +7,6 @@ const LEAVE_FADE_MS = 700
 // ...then it fades back out onto the (still idle) board — must match
 // .is-entering's transition.
 const ENTER_FADE_MS = 900
-const DISMISS_MS = 500
 // Firefly count and how much of the screen's lower band they scatter across
 // ("물결 아래" — beneath/among the water ripple, not up near the title art).
 const FIREFLY_COUNT = 16
@@ -33,15 +32,17 @@ function firefliesHtml(): string {
 // starts here, not before), and a blinking click-to-start prompt invites the
 // player onward. Clicking plays like a scene cut: the screen cuts to black
 // (onDismiss fires here, for the OST's stutter-cut), then fades back out onto
-// the now-visible-but-still-idle board with its own "시작하기" button — only
-// pressing THAT actually calls onStart(). No enemies move or spawn before
-// that (see Game.startRun()).
+// the now-visible-but-still-idle board — once that fade finishes, this overlay
+// removes itself and fires `onBoardRevealed`, which Game hands off to
+// IntroDialogue (넥슈's opening cutscene). No enemies move or spawn until that
+// cutscene's own countdown finishes (see Game.startRun()) — there is no
+// "시작하기" button anymore, the dialogue is what starts the run.
 export class IntroOverlay {
   private readonly overlay: HTMLElement
 
   constructor(
     root: HTMLElement,
-    onStart: () => void,
+    onBoardRevealed: () => void,
     onRevealed: () => void,
     onDismiss: () => void
   ) {
@@ -55,17 +56,8 @@ export class IntroOverlay {
       <div class="intro-title-vignette"></div>
       <div class="intro-fireflies" aria-hidden="true">${firefliesHtml()}</div>
       <div class="intro-black-veil"></div>
-      <div class="intro-prompt">화면을 눌러 심해의 친구들을 사귀러 떠나기!</div>
-      <div class="intro-start-invite"><button type="button" class="intro-start-button">시작하기</button></div>`
+      <div class="intro-prompt">화면을 눌러 심해의 친구들을 사귀러 떠나기!</div>`
     root.appendChild(this.overlay)
-
-    const startButton = this.overlay.querySelector('.intro-start-button') as HTMLButtonElement
-    startButton.addEventListener('click', (e) => {
-      e.stopPropagation()
-      this.overlay.classList.add('is-dismissed')
-      window.setTimeout(() => this.overlay.remove(), DISMISS_MS)
-      onStart()
-    })
 
     const dismissTitle = (): void => {
       this.overlay.removeEventListener('click', dismissTitle)
@@ -75,7 +67,10 @@ export class IntroOverlay {
       window.setTimeout(() => {
         this.overlay.classList.remove('is-leaving')
         this.overlay.classList.add('is-entering')
-        window.setTimeout(() => this.overlay.classList.add('is-awaiting-start'), ENTER_FADE_MS)
+        window.setTimeout(() => {
+          this.overlay.remove()
+          onBoardRevealed()
+        }, ENTER_FADE_MS)
       }, LEAVE_FADE_MS)
     }
     this.overlay.addEventListener('click', dismissTitle)
