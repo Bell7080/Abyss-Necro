@@ -15,11 +15,9 @@ const ENEMY_ATTACK_DAMAGE = 1
 const ENEMY_REGEN = 2
 // 'devour' passive: attack gained each time this unit eats a kill.
 const DEVOUR_GAIN = 1
-// The run is a bounded 5 rounds (3 waves each). Rounds 1–4 each end in a
-// checkpoint reward (shop/relic); every round is capped by an elite mini-boss,
-// and round 5 opens on the final boss (상어). Elites spawn at a fixed wave; the
-// final one (isFinal) closes the 1st ending when slain/captured, the others are
-// just tough, capturable mini-bosses that keep the run going.
+// A boss token spawned at a boss wave (BOSS_EVERY). The final one (isFinal)
+// closes the 1st ending when slain/captured; the others are tough, capturable
+// mini-bosses that keep the run going.
 interface EliteSpawn {
   id: string
   label: string
@@ -27,38 +25,47 @@ interface EliteSpawn {
   attack: number
   isFinal?: boolean
 }
-const ELITE_BY_WAVE: Record<number, EliteSpawn> = {
-  3: { id: 'piranha', label: '굶주린 피라냐', hp: 22, attack: 2 },
-  6: { id: 'pufferfish', label: '부푼 복어', hp: 40, attack: 3 },
-  9: { id: 'marlin', label: '질주하는 청새치', hp: 66, attack: 4 },
-  12: { id: 'whale', label: '심연의 고래', hp: 150, attack: 4 },
-  13: { id: 'shark', label: '심연의 지배자', hp: 120, attack: 5, isFinal: true },
+
+// The regular tide, weakest→strongest — the creature at index i is "level i+1".
+// The run climbs this ladder slowly (see focusLevel): each creature lingers a
+// few waves so you can collect a trio and merge it, building your field up out
+// of the low-level ones before the water gets deep. Bosses are drawn separately.
+const REGULAR_LADDER = [
+  'jellyfish', // 1
+  'sea-rabbit', // 2
+  'clownfish', // 3
+  'shrimp', // 4
+  'plankton', // 5
+  'starfish', // 6
+  'hermit-crab', // 7
+  'clam', // 8
+  'scallop', // 9
+  'axolotl', // 10
+  'seahorse', // 11
+  'crab', // 12
+  'octopus', // 13
+  'squid', // 14
+]
+const MAX_REGULAR_LEVEL = REGULAR_LADDER.length
+
+// Bosses appear every BOSS_EVERY waves, cycling this ladder in order; the last
+// (상어) is the FINAL boss that ends the run in victory. Custom labels give each
+// a title; their stats scale with the wave (bossForWave), not a fixed table.
+const BOSS_LADDER = ['piranha', 'pufferfish', 'marlin', 'whale', 'shark']
+const BOSS_LABELS: Record<string, string> = {
+  piranha: '굶주린 피라냐',
+  pufferfish: '부푼 복어',
+  marlin: '질주하는 청새치',
+  whale: '심연의 고래',
+  shark: '심연의 지배자',
 }
-// Curated per-wave spawn schedule (id → count), separate from the elites above.
-// The tide climbs by introducing creatures in strict ascending level order —
-// a new creature debuts as a lone "preview" one wave, then becomes the bulk the
-// next — so each wave is a clear power step (no similar-spec mobs mixed) and the
-// difficulty escalates sharply as higher-level creatures take over. Enemy stats
-// come from the creature's level (enemyStatsForLevel), not the wave. Waves past
-// the table reuse the last entry (the run has normally ended at the boss).
-const WAVE_SPAWNS: Record<number, Array<[string, number]>> = {
-  1: [['jellyfish', 1]],
-  2: [['jellyfish', 2], ['sea-rabbit', 1]],
-  3: [['sea-rabbit', 1], ['clownfish', 1]], // + 피라냐
-  4: [['clownfish', 2], ['shrimp', 1]],
-  5: [['shrimp', 2], ['plankton', 1]],
-  6: [['plankton', 1], ['starfish', 1]], // + 복어
-  7: [['hermit-crab', 2], ['clam', 1]],
-  8: [['clam', 2], ['scallop', 1]],
-  9: [['scallop', 1], ['axolotl', 1]], // + 청새치
-  10: [['axolotl', 2], ['seahorse', 1]],
-  11: [['seahorse', 2], ['crab', 1]],
-  12: [['crab', 1], ['octopus', 1]], // + 고래
-  13: [['octopus', 1]], // + 상어(최종)
-  14: [['squid', 2]],
-  15: [['squid', 3]],
-}
-const LAST_SCHEDULED_WAVE = 15
+// A boss is this much tankier / harder-hitting than the wave's regular tide.
+const BOSS_HP_MULT = 2.6
+const BOSS_ATK_BONUS = 2
+
+// Pacing: a shop-lull every SHOP_EVERY waves, a boss leading every BOSS_EVERY.
+const SHOP_EVERY = 10
+const BOSS_EVERY = 30
 // Capture ("넌 내꺼야!") cuts: an ordinary enemy is claimable at ≤25% hp, an
 // elite only at ≤10% — the harder execute that makes sacrificing it a payoff.
 const CAPTURE_THRESHOLD = 0.25
@@ -76,8 +83,9 @@ const MOVE_TICK_MS = 1300
 // board clears before the timer runs out, the next wave pushes immediately
 // instead of waiting out the rest of the interval (see triggerInstantPush).
 const WAVE_PUSH_INTERVAL_MS = 30 * 1000
-// A round is 3 waves; the lull (shop/relic beat) follows each round.
-const WAVES_PER_CHECKPOINT = 3
+// The lull (shop/relic beat) follows every SHOP_EVERY-th wave; every 3rd such
+// lull offers a relic pick instead of the shop (i.e. a relic every 30 waves,
+// right after each boss).
 const CHECKPOINTS_PER_RELIC = 3
 // Clearing the board no longer summons the next wave instantly — a ~3s
 // breather keeps rounds readable.
@@ -110,6 +118,8 @@ export interface DamageResult {
 
 export interface CheckpointInfo {
   checkpointNumber: number
+  /** Wave just cleared — drives how good the shop's offers roll (deeper = better). */
+  wave: number
   isRelicCheckpoint: boolean
 }
 
@@ -156,7 +166,6 @@ export class WaveSystem {
   private cells: EnemyToken[][] = Array.from({ length: ROWS * COLS }, () => [])
   private bossEnemies: EnemyToken[] = []
   private waveNumber = 1
-  private wavesSinceCheckpoint = 0
   private checkpointCount = 0
   // Trap-star stacks per grid cell — enemies entering pay 1 hp per stack.
   private cellTraps: number[] = Array.from({ length: ROWS * COLS }, () => 0)
@@ -404,8 +413,11 @@ export class WaveSystem {
     // 감전 점막: a jelly-amp ally in this cell adds to every hit landed here,
     // and sparks a passive blast so the boost reads on screen.
     const amp = this.defenders?.getDamageAmp(cellIndex) ?? 0
-    // Enemy passive 'armor': shelled/tanky foes shrug off 1 damage per hit.
-    const armor = getCreature(enemy.creatureId)?.enemyPassiveId === 'armor' ? 1 : 0
+    // Enemy passive 'armor': shelled foes shrug off 1 damage per hit — but only
+    // on regular enemies. Bosses already carry huge transparent HP; stacking a
+    // hidden -1 on top made them read as far tankier than their shown health,
+    // so bosses take full damage.
+    const armor = !enemy.isBoss && getCreature(enemy.creatureId)?.enemyPassiveId === 'armor' ? 1 : 0
     const total = Math.max(1, amount + amp - armor)
     if (amp > 0) this.emitPassive({ kind: 'spark', cellIndex })
 
@@ -471,19 +483,31 @@ export class WaveSystem {
     return this.bossEnemies.length === 0 && this.cells.every((list) => list.length === 0)
   }
 
-  private handlePushTimeout(): void {
-    this.wavesSinceCheckpoint += 1
+  private hasBossAlive(): boolean {
+    return (
+      this.bossEnemies.some((e) => e.isBoss) || this.cells.some((list) => list.some((e) => e.isBoss))
+    )
+  }
 
-    // Checkpoint first, wave later: the lull begins with the board as-is,
-    // and the wave that would have pushed here arrives only when the player
-    // proceeds (resumeFromCheckpoint) — no enemies pre-spawning into the
-    // rest stop.
-    if (this.wavesSinceCheckpoint >= WAVES_PER_CHECKPOINT) {
-      this.wavesSinceCheckpoint = 0
+  private handlePushTimeout(): void {
+    // Checkpoint first, wave later: after every SHOP_EVERY-th wave the lull
+    // begins with the board as-is, and the wave that would have pushed here
+    // arrives only when the player proceeds (resumeFromCheckpoint) — no enemies
+    // pre-spawning into the rest stop. Keyed off the wave number so the shop
+    // always lands on a clean 10/20/30… boundary.
+    if (this.waveNumber % SHOP_EVERY === 0) {
+      // A boss wave shares its number with a shop lull — don't open the shop
+      // while the boss still holds the field. Wait it out (no reinforcements
+      // pile on); the lull opens once the boss falls and the board clears.
+      if (this.hasBossAlive()) {
+        this.schedulePush()
+        return
+      }
       this.checkpointCount += 1
       this.paused = true
       this.emitCheckpoint({
         checkpointNumber: this.checkpointCount,
+        wave: this.waveNumber,
         isRelicCheckpoint: this.checkpointCount % CHECKPOINTS_PER_RELIC === 0,
       })
       return
@@ -642,12 +666,54 @@ export class WaveSystem {
     this.spawnWaveStaggered()
   }
 
-  /** The wave's roster (creature ids, counts expanded) from the schedule. */
+  /** The "focus" creature level for a wave — the deepest regular creature the
+   * tide has reached. Climbs one step every 3 waves so each creature lingers
+   * long enough to collect a trio and merge it. */
+  private focusLevel(wave: number): number {
+    return Math.max(1, Math.min(MAX_REGULAR_LEVEL, 1 + Math.floor((wave - 1) / 3)))
+  }
+
+  /** How many regular enemies a wave sends — grows slowly, capped so lanes stay
+   * readable. Gentle early so you can breathe and build a field. */
+  private waveCount(wave: number): number {
+    return Math.max(1, Math.min(6, 1 + Math.floor(wave / 3)))
+  }
+
+  /** The wave's regular roster: mostly the focus creature (so trios accumulate)
+   * with a few recent ones mixed in and the occasional next-tier preview — a
+   * gradual climb, no sudden jump to a much stronger mob. */
   private waveRoster(wave: number): string[] {
-    const entries = WAVE_SPAWNS[Math.min(wave, LAST_SCHEDULED_WAVE)] ?? []
+    const focus = this.focusLevel(wave)
+    const count = this.waveCount(wave)
     const ids: string[] = []
-    for (const [id, count] of entries) for (let n = 0; n < count; n += 1) ids.push(id)
+    for (let i = 0; i < count; i += 1) {
+      const r = Math.random()
+      let lvl: number
+      if (r < 0.6) lvl = focus
+      else if (r < 0.8) lvl = focus - 1
+      else if (r < 0.92) lvl = focus - 2
+      else lvl = focus + 1 // a single scout of the next tier
+      lvl = Math.max(1, Math.min(MAX_REGULAR_LEVEL, lvl))
+      ids.push(REGULAR_LADDER[lvl - 1])
+    }
     return ids
+  }
+
+  /** The boss (if any) that leads this wave — one every BOSS_EVERY waves,
+   * cycling BOSS_LADDER; 상어 (last) is the final boss. Stats scale with the
+   * wave's focus level so a boss stays a real spike without being fixed-value. */
+  private bossForWave(wave: number): EliteSpawn | null {
+    if (wave <= 0 || wave % BOSS_EVERY !== 0) return null
+    const idx = Math.min(BOSS_LADDER.length - 1, wave / BOSS_EVERY - 1)
+    const id = BOSS_LADDER[idx]
+    const base = enemyStatsForLevel(this.focusLevel(wave))
+    return {
+      id,
+      label: BOSS_LABELS[id] ?? getCreature(id)?.label ?? '심연의 것',
+      hp: Math.round(base.hp * BOSS_HP_MULT),
+      attack: base.attack + BOSS_ATK_BONUS,
+      isFinal: id === 'shark',
+    }
   }
 
   /** The wave's enemies trickle in one by one with random gaps rather than
@@ -660,10 +726,9 @@ export class WaveSystem {
     // Previous wave's arrivals have long fired — drop the stale ids.
     this.spawnTimeoutIds = []
     const wave = this.waveNumber
-    // A round-capping elite (or the final boss) leads its wave; escorts trickle
-    // in after.
-    const elite = ELITE_BY_WAVE[wave]
-    if (elite) this.spawnElite(elite)
+    // Every 30th wave a boss leads the tide; escorts trickle in after.
+    const boss = this.bossForWave(wave)
+    if (boss) this.spawnElite(boss)
     const roster = this.waveRoster(wave)
     const startLane = Math.floor(Math.random() * ROWS)
     let delay = 0

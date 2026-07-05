@@ -783,7 +783,8 @@ export class Game {
     if (info.isRelicCheckpoint) {
       this.rewardOverlay.show(drawRelicOptions(RELIC_CHOICE_COUNT))
     } else {
-      this.shopOverlay.show()
+      // Deeper waves roll better shop offers (stronger minions, more epics).
+      this.shopOverlay.show(info.wave)
     }
   }
 
