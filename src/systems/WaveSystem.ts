@@ -690,10 +690,11 @@ export class WaveSystem {
     )
   }
 
-  /** How many regular enemies a wave sends — grows slowly, capped so lanes stay
-   * readable. Gentle early so you can breathe and build a field. */
+  /** How many regular enemies a wave sends — 1:1 with the wave number (wave 1
+   * sends 1, wave 2 sends 2, ...), capped only so a very deep run doesn't spawn
+   * an unreasonable pile at once. */
   private waveCount(wave: number): number {
-    return Math.max(1, Math.min(6, 1 + Math.floor(wave / 3)))
+    return Math.max(1, Math.min(20, wave))
   }
 
   /** The wave's regular roster: mostly the focus creature (so trios accumulate)
