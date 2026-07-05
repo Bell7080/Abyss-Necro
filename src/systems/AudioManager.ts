@@ -15,14 +15,29 @@ for (const [path, url] of Object.entries(audioGlob)) {
 }
 
 // The title/victory theme fades in from the very start of the track (quiet →
-// full over this many ms), and simply loops back to 0 on end.
-const OST_FADE_IN_MS = 5000
+// full over this many ms, generous and slow so it's clearly audible coming
+// up), and simply loops back to 0 on end.
+const OST_FADE_IN_MS = 6000
 const FADE_IN_MS = 1600
 const FADE_OUT_MS = 1200
 // Battle tracks cross-fade near their tail into the next random pick.
 const TRACK_TAIL_FADE_MS = 2200
 const OST_VOLUME = 0.7
 const BGM_VOLUME = 0.6
+
+// Leaving the title screen: the OST doesn't smoothly fade, it guts down in a
+// few uneven dips before cutting out — a "투-후-후-훙" stutter cut timed to
+// the screen's fade-to-black. Each pair is [ms offset, volume multiplier of
+// the level playing when the cut starts].
+const OST_STUTTER_STEPS: ReadonlyArray<readonly [number, number]> = [
+  [0, 1],
+  [70, 0.3],
+  [150, 0.52],
+  [230, 0.16],
+  [310, 0.34],
+  [400, 0.05],
+  [480, 0],
+]
 
 type Mode = 'idle' | 'ost' | 'battle'
 
@@ -79,6 +94,23 @@ export class AudioManager {
       el.volume = 0
       this.fade(el, OST_VOLUME, OST_FADE_IN_MS)
     })
+  }
+
+  /** Leaving the title screen: gutter the OST out in a stuttering "투-후-후-훙"
+   * cut instead of a smooth fade, timed to the screen cutting to black. */
+  duckTitleOst(): void {
+    const el = this.ost
+    if (!el || el.paused) return
+    const prev = this.fadeTimers.get(el)
+    if (prev !== undefined) window.clearInterval(prev)
+    const start = el.volume
+    for (const [ms, mult] of OST_STUTTER_STEPS) {
+      window.setTimeout(() => {
+        el.volume = Math.max(0, Math.min(1, start * mult))
+      }, ms)
+    }
+    const lastMs = OST_STUTTER_STEPS[OST_STUTTER_STEPS.length - 1][0]
+    window.setTimeout(() => el.pause(), lastMs + 20)
   }
 
   /** Enter combat: stop the OST and start a random battle loop, faded in. */
