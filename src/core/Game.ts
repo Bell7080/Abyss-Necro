@@ -179,7 +179,11 @@ export class Game {
       shell,
       () => this.startIntroDialogue(),
       () => this.audio.playOst(),
-      () => this.audio.duckTitleOst()
+      () => this.audio.duckTitleOst(),
+      {
+        initial: this.audio.getMasterVolume(),
+        onChange: (v) => this.audio.setMasterVolume(v),
+      }
     )
 
     this.waveSystem.onChange(() => {

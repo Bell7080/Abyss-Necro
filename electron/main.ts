@@ -19,6 +19,9 @@ function createWindow(): void {
     useContentSize: true,
     minWidth: 1024,
     minHeight: 640,
+    // The packaged game opens straight into fullscreen (dev stays windowed
+    // for tooling); F11 toggles out of it — see before-input-event below.
+    fullscreen: !isDev,
     backgroundColor: '#0b0714',
     webPreferences: {
       // .cjs — sandboxed preloads only run CommonJS (see preload.cts).
@@ -41,11 +44,18 @@ function createWindow(): void {
   win.on('resize', fitZoom)
   win.webContents.on('did-finish-load', fitZoom)
 
+  // With the app menu gone its accelerators are gone too — re-add just the
+  // one a fullscreen game needs: F11 to toggle windowed mode.
+  win.webContents.on('before-input-event', (_e, input) => {
+    if (input.type === 'keyDown' && input.key === 'F11') {
+      win.setFullScreen(!win.isFullScreen())
+    }
+  })
+
   if (isDev) {
     win.loadURL('http://localhost:3000')
     win.webContents.openDevTools({ mode: 'detach' })
   } else {
-    win.maximize()
     win.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 }
