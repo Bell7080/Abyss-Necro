@@ -425,9 +425,14 @@ body {
 /* A wave's first-ever spawn on a lane: stretches the slide transition way out
    so the long walk in from off past the entry rail (see SPAWN_APPROACH_COLUMNS
    in BoardRenderer.ts) reads as a slow, visible creep the player can react to,
-   not a fast dash covering the extra distance in the same normal-tick time. */
+   not a fast dash covering the extra distance in the same normal-tick time.
+   Duration must match SPAWN_APPROACH_MS (BoardConstants.ts) — the model holds
+   the token out of movement/combat for exactly this window. linear (not
+   ease-in-out) keeps the whole crawl at one even pace instead of whipping
+   through the middle. */
 .board-token.is-spawning-approach {
-  transition-duration: calc(2.6s / var(--time-scale, 1));
+  transition-duration: calc(3.8s / var(--time-scale, 1));
+  transition-timing-function: linear;
 }
 
 /* A clash tick — front-of-queue enemy/ally dash a short step toward each
@@ -2087,7 +2092,9 @@ body {
 .intro-dlg-stage {
   position: absolute;
   left: 50%;
-  bottom: 160px;
+  /* Feet planted exactly on the dialogue box's top border (box: bottom 26px
+     + min-height 172px) — touching it, neither floating above nor sunk in. */
+  bottom: 196px;
   transform: translateX(-50%);
   width: 520px;
   height: 680px;
@@ -2095,8 +2102,10 @@ body {
   transition: left 0.6s ease;
 }
 
+/* Shifted for the card show: eased left but still resting on the dialogue
+   box's frame, not pushed off toward the screen edge. */
 .intro-dialogue.is-shifted .intro-dlg-stage {
-  left: 23%;
+  left: 27%;
 }
 
 .intro-dialogue.is-gone .intro-dlg-stage {
@@ -2203,7 +2212,7 @@ body {
 
 .intro-card .entity-card--enemy,
 .intro-card .entity-card--ally {
-  width: 172px;
+  width: 215px;
 }
 
 .intro-card .entity-card--ally.is-tier2 {

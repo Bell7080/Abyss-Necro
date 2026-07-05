@@ -43,10 +43,12 @@ const COUNTDOWN_FLY_MS = 520
 
 const FIRST_TRIO = ['jellyfish', 'piranha', 'octopus']
 const CUTE_TRIO = ['jellyfish', 'hermit-crab', 'crab']
+// Scatter sits right of screen-center: the portrait (shifted to the left
+// third during the card show) stays clear of even the leftmost card's label.
 const CARD_OFFSETS = [
-  { x: -190, y: -18, rot: -9 },
-  { x: 40, y: 42, rot: 5 },
-  { x: 230, y: -34, rot: -5 },
+  { x: -183, y: -22, rot: -9 },
+  { x: 105, y: 52, rot: 5 },
+  { x: 343, y: -42, rot: -5 },
 ]
 
 function wait(ms: number): Promise<void> {

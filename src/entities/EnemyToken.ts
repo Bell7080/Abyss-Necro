@@ -26,4 +26,7 @@ export interface EnemyToken {
   lastMovedAt?: number
   /** Wave-1 tutorial pity: this kill always drops a necro card. */
   guaranteedCard?: boolean
+  /** When this token spawned — while its crawl-in from the fog is still
+   * playing (SPAWN_APPROACH_MS) it neither marches nor fights. */
+  spawnedAt?: number
 }

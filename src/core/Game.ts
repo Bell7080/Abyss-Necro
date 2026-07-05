@@ -40,7 +40,7 @@ import type { PassiveEvent } from '@systems/PassiveEvent'
 import { TickManager } from '@core/TickManager'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import playerArtUrl from '@/assets/sprites/player_001.webp'
-import { getCreature } from '@data/CreatureDefinitions'
+import { getCreature, getAllyArt } from '@data/CreatureDefinitions'
 import { getEpicCard } from '@data/EpicCardDefinitions'
 import { getItemCard, randomItemCard } from '@data/ItemCardDefinitions'
 import { summonCost } from '@data/Tiers'
@@ -409,7 +409,7 @@ export class Game {
     if (ally) {
       const creature = ally.creatureId ? getCreature(ally.creatureId) : undefined
       return {
-        imageUrl: creature?.allyArt,
+        imageUrl: creature ? getAllyArt(creature.id, ally.tier ?? 1) : undefined,
         title: ally.label,
         stars: ally.raised ? undefined : ally.tier ?? 1,
         tag: ally.raised ? '급조 언데드' : (ally.tier ?? 1) >= 2 ? '아군 디펜더 · 진화체' : '아군 디펜더',
