@@ -40,7 +40,7 @@ import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import playerArtUrl from '@/assets/sprites/player_001.webp'
 import { getCreature } from '@data/CreatureDefinitions'
 import { getEpicCard } from '@data/EpicCardDefinitions'
-import { getItemCard } from '@data/ItemCardDefinitions'
+import { getItemCard, randomItemCard } from '@data/ItemCardDefinitions'
 import { summonCost } from '@data/Tiers'
 import { drawRelicOptions } from '@data/RelicPool'
 import type { HandCard } from '@entities/Card'
@@ -52,6 +52,11 @@ const EMPTY_ID_SET: ReadonlySet<string> = new Set()
 // While a hand card is held or a skill is armed the whole game clock crawls,
 // giving the player a slow-motion beat to read the board and aim.
 const AIM_TIME_SCALE = 0.3
+// A kill has this independent, modest chance to ALSO drop a usable item card
+// (on top of whichever necro-card/corpse outcome it already rolled) — items
+// are otherwise shop-only, but a rare kill-drop sprinkle was always part of
+// the loop.
+const ITEM_DROP_CHANCE = 0.12
 
 export class Game {
   private readonly handSystem = new HandSystem()
@@ -691,6 +696,18 @@ export class Game {
         result.fromCellIndex,
         result.movedAt
       )
+    }
+
+    // A modest independent chance to ALSO drop a usable item card, on top of
+    // whichever necro-card/corpse outcome this kill already rolled.
+    if (rect && Math.random() < ITEM_DROP_CHANCE) {
+      const item = randomItemCard()
+      const nextCount = this.handSystem.getCards().length + 1
+      const target = this.hand.getNextSlotPoint(nextCount)
+      const id = `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+      this.blast.travelDrop(rect, target, () => {
+        this.handSystem.addCard({ id, label: item.label, creatureId: '', kind: 'item', itemId: item.id })
+      })
     }
 
     // Every kill drops a coin: it lands on the ground in a short lobbed arc,

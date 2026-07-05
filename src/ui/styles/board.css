@@ -1168,20 +1168,23 @@ body {
 
 /* Enemy = deep, cold indigo; ally = fresh sky-cyan. Both sit in the blue
    family but split by value (dark vs bright) for an at-a-glance read. */
+/* Player/ally 20% down from their old 250/160px; enemy a further 10% down
+   from ITS 20%-reduced size (160 * 0.8 * 0.9 ≈ 115) so the tide reads as
+   slightly smaller than what's defending against it. */
 .entity-card--enemy {
-  width: 160px;
+  width: 115px;
   --card-ring: rgba(96, 108, 200, 0.42);
   --card-glow: rgba(52, 66, 165, 0.4);
 }
 
 .entity-card--ally {
-  width: 160px;
+  width: 128px;
   --card-ring: rgba(150, 230, 255, 0.5);
   --card-glow: rgba(120, 214, 255, 0.44);
 }
 
 .entity-card--player {
-  width: 250px;
+  width: 200px;
   --card-ring: rgba(205, 160, 255, 0.36);
   --card-glow: rgba(175, 115, 255, 0.32);
 }
@@ -2972,24 +2975,24 @@ body {
   color: #8fdcff;
 }
 
-.skill-hex.is-armed .hex-face {
-  background: radial-gradient(circle at 50% 32%, rgba(255, 172, 92, 0.96), rgba(120, 60, 20, 0.96));
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 210, 150, 0.7),
-    0 0 24px rgba(255, 170, 90, 0.85);
-}
+/* Armed reads through scale + a much hotter version of the same cyan glow —
+   no hue change (a color swap here read as tacky/garish). */
 .skill-hex.is-armed {
-  color: #fff2df;
+  transform: scale(1.14);
 }
-.skill-hex.is-armed .hex-cost {
-  color: #ffe6c2;
+.skill-hex.is-armed .hex-face {
+  box-shadow:
+    inset 0 0 0 2px rgba(200, 240, 255, 0.95),
+    0 0 30px rgba(150, 225, 255, 0.95),
+    0 0 58px rgba(150, 225, 255, 0.55);
 }
 
-/* Clearly "off": heavily desaturated and dimmed so an unaffordable skill reads
-   at a glance as unusable, not just slightly duller. */
+/* Clearly "off" but like a light switched off, not the hex vanishing — the
+   desaturation/darkening does the telling, opacity stays high so it never
+   reads as disappearing. */
 .skill-hex.is-disabled {
-  filter: grayscale(0.9) brightness(0.32);
-  opacity: 0.55;
+  filter: grayscale(0.85) brightness(0.4);
+  opacity: 0.92;
   cursor: default;
 }
 .skill-hex.is-disabled .hex-face {
@@ -3075,6 +3078,11 @@ body {
    that breathes faintly until raised or rotted away. */
 .board-corpse {
   pointer-events: none;
+  /* Always frontmost among board tokens (ally/enemy don't set a z-index of
+     their own) so a raisable body never gets visually buried under whoever's
+     standing in the same cell — it already sits centered between the ally/
+     enemy offsets (plain, unshifted cell X), just needed to win the stack. */
+  z-index: 2;
 }
 
 /* A raisable body reads as a lavender gem, not a card: the creature is masked
@@ -3083,7 +3091,7 @@ body {
    the desaturate/dim lives on the IMG's own filter. */
 .board-corpse-figure {
   position: relative;
-  opacity: 0.82;
+  opacity: 0.97;
   /* Re-enables hit-testing for just this figure — its .board-token wrapper is
      pointer-events:none (like every other token), so a click here is a clean,
      separate hit from the cell button underneath (raise this corpse directly). */
@@ -3210,10 +3218,10 @@ body {
 @keyframes corpse-waver {
   0%,
   100% {
-    opacity: 0.72;
+    opacity: 0.92;
   }
   50% {
-    opacity: 0.9;
+    opacity: 1;
   }
 }
 

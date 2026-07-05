@@ -25,6 +25,20 @@ function fanTransform(index: number, total: number): { x: number; y: number; rot
   return { x, y, rot }
 }
 
+/** Display order: highest star first, and same-creature cards clustered
+ * together (so merge progress reads at a glance) — items/epics (no tier)
+ * sort after every necro card, grouped by their own kind. */
+function sortForDisplay(cards: readonly HandCard[]): HandCard[] {
+  return [...cards].sort((a, b) => {
+    const tierA = a.kind ? 0 : (a.tier ?? 1)
+    const tierB = b.kind ? 0 : (b.tier ?? 1)
+    if (tierA !== tierB) return tierB - tierA
+    const keyA = a.kind ? `${a.kind}:${a.itemId ?? ''}` : a.creatureId
+    const keyB = b.kind ? `${b.kind}:${b.itemId ?? ''}` : b.creatureId
+    return keyA.localeCompare(keyB)
+  })
+}
+
 // Bottom-center fan of cards — reuses Unmelting's relic-fan CSS-variable
 // trick (--hand-x/--hand-y/--hand-rot per card) rather than per-card inline
 // transforms, so hover/hand-count changes stay pure CSS. Clicking a card
@@ -47,16 +61,18 @@ export class CardHand {
 
   render(cards: readonly HandCard[], selectedId: string | null, affordFn?: (card: HandCard) => boolean): void {
     if (affordFn) this.affordFn = affordFn
+    const previousIds = new Set(this.cards.map((c) => c.id))
+    const sorted = sortForDisplay(cards)
     // Same cards, same order (a selection toggle, not an add/remove/merge) —
     // update classes on the EXISTING elements instead of rebuilding. A full
     // rebuild throws away every node and recreates fresh ones with no prior
     // frame to transition from, so the is-selected lift/glow (a CSS
     // transition) just snaps instead of animating — this keeps it alive.
     const sameSet =
-      cards.length === this.cards.length && cards.every((c, i) => c.id === this.cards[i]?.id)
+      sorted.length === this.cards.length && sorted.every((c, i) => c.id === this.cards[i]?.id)
     if (sameSet) {
-      this.cards = cards
-      for (const card of cards) {
+      this.cards = sorted
+      for (const card of sorted) {
         const el = this.container.querySelector<HTMLElement>(`[data-card-id="${card.id}"]`)
         if (!el) continue
         el.classList.toggle('is-selected', card.id === selectedId)
@@ -65,9 +81,9 @@ export class CardHand {
       return
     }
     this.container.innerHTML = ''
-    this.cards = cards
-    const total = cards.length
-    cards.forEach((card, i) => {
+    this.cards = sorted
+    const total = sorted.length
+    sorted.forEach((card, i) => {
       const el = document.createElement('button')
       el.type = 'button'
       el.dataset.cardId = card.id
@@ -77,7 +93,7 @@ export class CardHand {
       if (card.kind === 'epic') el.classList.add('hand-card--epic')
       if (card.tier === 2) el.classList.add('hand-card--tier2')
       if (card.tier === 3) el.classList.add('hand-card--tier3')
-      if (i === total - 1) el.classList.add('is-new')
+      if (!previousIds.has(card.id)) el.classList.add('is-new')
       if (card.id === selectedId) el.classList.add('is-selected')
       if (!this.affordFn(card)) el.classList.add('is-unaffordable')
       const { x, y, rot } = fanTransform(i, total)

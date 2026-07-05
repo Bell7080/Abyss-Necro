@@ -15,6 +15,10 @@ const ENEMY_ATTACK_DAMAGE = 1
 const ENEMY_REGEN = 2
 // 'devour' passive: attack gained each time this unit eats a kill.
 const DEVOUR_GAIN = 1
+// Even with an ally guarding the necromancer's room, the front enemy has this
+// chance each clash to slip past and strike the player directly instead —
+// allies are the priority target, not an absolute shield.
+const PLAYER_BYPASS_CHANCE = 0.15
 // A boss token spawned at a boss wave (BOSS_EVERY). The final one (isFinal)
 // closes the 1st ending when slain/captured; the others are tough, capturable
 // mini-bosses that keep the run going.
@@ -96,9 +100,9 @@ const WAVE_PUSH_INTERVAL_MS = 30 * 1000
 // lull offers a relic pick instead of the shop (i.e. a relic every 30 waves,
 // right after each boss).
 const CHECKPOINTS_PER_RELIC = 3
-// Clearing the board no longer summons the next wave instantly — a ~3s
+// Clearing the board no longer summons the next wave instantly — a ~5s
 // breather keeps rounds readable.
-const CLEAR_PUSH_DELAY_MS = 3000
+const CLEAR_PUSH_DELAY_MS = 5000
 // How long after leaving a cell an enemy still counts as hittable there —
 // covers the 0.85s slide-out plus the tail of a mortar already in flight,
 // so aiming at where the enemy visibly is doesn't whiff on the model.
@@ -621,10 +625,17 @@ export class WaveSystem {
     // Enemy passive 'ferocious': predators hit +1 on every strike (ally or player).
     const enemyDamage = (enemy.attack ?? ENEMY_ATTACK_DAMAGE) + (enemyPass === 'ferocious' ? 1 : 0)
 
-    if (defenderHp === null || defenderHp === undefined) {
-      // No defender in the player room — the front enemy strikes the
-      // necromancer directly. Game routes this into PlayerSystem; defeat
-      // handling lives there. Grid cells without defenders stay peaceful.
+    const noDefender = defenderHp === null || defenderHp === undefined
+    // An ally guarding the necromancer's room is the priority target, but not
+    // an absolute shield — the front enemy occasionally slips past it anyway.
+    const bypassesToPlayer =
+      cellIndex === BOSS_CELL_INDEX && !noDefender && Math.random() < PLAYER_BYPASS_CHANCE
+
+    if (noDefender || bypassesToPlayer) {
+      // No defender in the player room (or the enemy bypassed one) — the
+      // front enemy strikes the necromancer directly. Game routes this into
+      // PlayerSystem; defeat handling lives there. Grid cells without
+      // defenders stay peaceful.
       if (cellIndex === BOSS_CELL_INDEX) {
         this.emitPlayerHit({ damage: enemyDamage })
         this.emitClash({ cellIndex })
