@@ -2812,9 +2812,13 @@ body {
   pointer-events: none;
 }
 
+/* The lavender glow lives on the figure's box-shadow (unfiltered → never clips
+   on the floor tiles), while the desaturate/dim lives on the IMG's filter. A
+   filter on the figure itself would flatten the standee and slice this glow. */
 .board-corpse-figure {
   opacity: 0.5;
-  filter: grayscale(0.5) brightness(0.72) drop-shadow(0 0 10px rgba(170, 120, 255, 0.7));
+  box-shadow: 0 0 14px rgba(170, 120, 255, 0.55);
+  border-radius: 18px;
   animation: corpse-waver 2.4s ease-in-out infinite;
 }
 
@@ -2822,15 +2826,18 @@ body {
   width: 118px;
   height: 118px;
   object-fit: contain;
+  filter: grayscale(0.5) brightness(0.72);
 }
 
 @keyframes corpse-waver {
   0%,
   100% {
     opacity: 0.4;
+    box-shadow: 0 0 12px rgba(170, 120, 255, 0.45);
   }
   50% {
     opacity: 0.62;
+    box-shadow: 0 0 20px rgba(190, 150, 255, 0.75);
   }
 }
 
