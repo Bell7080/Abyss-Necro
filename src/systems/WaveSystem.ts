@@ -1,6 +1,6 @@
 import type { TickManager } from '@core/TickManager'
 import type { EnemyToken } from '@entities/EnemyToken'
-import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
+import { BOSS_CELL_INDEX, SPAWN_APPROACH_MS } from '@systems/BoardConstants'
 import type { PassiveEvent } from '@systems/PassiveEvent'
 import { getCreature } from '@data/CreatureDefinitions'
 import { enemyStatsForLevel } from '@data/Tiers'
@@ -568,7 +568,19 @@ export class WaveSystem {
     }, WaveSystem.CLASH_SETTLE_MS)
   }
 
+  /** Still visually crawling in from the fog — the token is logically parked
+   * at the entry cell but shouldn't move or fight until it has arrived on
+   * screen (see SPAWN_APPROACH_MS in BoardConstants). Aim-mode slow motion
+   * stretches the visual slide, so scale the window to match. */
+  private isApproaching(enemy: EnemyToken): boolean {
+    if (enemy.spawnedAt === undefined) return false
+    return Date.now() - enemy.spawnedAt < SPAWN_APPROACH_MS / this.timeScale
+  }
+
   private stepEnemy(index: number, enemy: EnemyToken): void {
+    // Hold position (silently, no regen either) until the crawl-in finishes.
+    if (this.isApproaching(enemy)) return
+
     // A defender shares this cell — stand and fight instead of advancing;
     // resolveClashes() handles the actual damage trade this tick. This is
     // how a placed defender plugs the lane and stops the march.
@@ -619,7 +631,10 @@ export class WaveSystem {
   }
 
   private resolveClashAt(cellIndex: number, enemyList: EnemyToken[]): void {
-    const enemy = enemyList[0]
+    // Skip tokens still crawling in from the fog — an entry-cell defender
+    // shouldn't trade invisible blows with an enemy that hasn't visibly
+    // arrived yet. The next occupant that HAS arrived fronts the clash.
+    const enemy = enemyList.find((e) => !this.isApproaching(e))
     if (!enemy) return
     const defenderHp = this.defenders?.getHp(cellIndex)
     const enemyPass = getCreature(enemy.creatureId)?.enemyPassiveId
@@ -665,8 +680,10 @@ export class WaveSystem {
     }
 
     // ── the defender strikes back (front enemy, + cleave splash) ──
-    // Snapshot the rest of the stack before the front hit can splice it.
-    const splash = allyPass === 'cleave' ? enemyList.slice(1) : []
+    // Snapshot the rest of the stack before the front hit can splice it —
+    // leaving out any token still crawling in from the fog.
+    const splash =
+      allyPass === 'cleave' ? enemyList.filter((e) => e !== enemy && !this.isApproaching(e)) : []
     const res = this.damageEnemy(enemyList, cellIndex, enemy, allyAttack, isBossCell)
     if (splash.length > 0) {
       for (const other of splash) this.damageEnemy(enemyList, cellIndex, other, allyAttack, isBossCell)
@@ -804,6 +821,7 @@ export class WaveSystem {
           attack: stats.attack,
           // The very first kill must hand the player a necro card.
           guaranteedCard: wave === 1,
+          spawnedAt: Date.now(),
         })
         this.emitChange()
       }
@@ -833,6 +851,7 @@ export class WaveSystem {
       isBoss: true,
       isFinal: def.isFinal,
       guaranteedCard: true,
+      spawnedAt: Date.now(),
     })
     this.emitChange()
   }

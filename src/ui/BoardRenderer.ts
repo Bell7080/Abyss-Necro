@@ -1,6 +1,6 @@
 import type { WaveSystem } from '@systems/WaveSystem'
 import type { DefenderSystem } from '@systems/DefenderSystem'
-import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
+import { BOSS_CELL_INDEX, SPAWN_APPROACH_MS } from '@systems/BoardConstants'
 import { getCreature, getAllyArt } from '@data/CreatureDefinitions'
 import playerArt from '@/assets/sprites/player_001.webp'
 import { Icons } from '@ui/Icons'
@@ -47,10 +47,10 @@ const CORPSE_SPAWN_FX_MS = 780
 // A wave's first-ever spawn on a lane starts this many phantom columns past
 // the visible entry column — off in the fog beyond the rail — and the
 // .is-spawning-approach class (see board.css) stretches its slide transition
-// to SPAWN_APPROACH_MS so it reads as a long, slow creep the player can see
-// coming and react to, instead of just popping in one cell over.
+// to SPAWN_APPROACH_MS (shared via BoardConstants — WaveSystem holds the
+// token out of movement/combat for the same window) so it reads as one
+// long, even creep the player can see coming and react to.
 const SPAWN_APPROACH_COLUMNS = 3
-const SPAWN_APPROACH_MS = 2600
 
 interface Occupant {
   id: string

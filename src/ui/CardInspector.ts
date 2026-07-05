@@ -1,4 +1,4 @@
-import { getCreature } from '@data/CreatureDefinitions'
+import { getCreature, getAllyArt } from '@data/CreatureDefinitions'
 import { getEpicCard } from '@data/EpicCardDefinitions'
 import { getItemCard } from '@data/ItemCardDefinitions'
 import type { HandCard } from '@entities/Card'
@@ -109,7 +109,7 @@ export class CardInspector {
       const creature = getCreature(card.creatureId)
       const tier = card.tier ?? 1
       this.render({
-        imageUrl: creature?.allyArt,
+        imageUrl: creature ? getAllyArt(creature.id, tier) : undefined,
         title: card.label,
         stars: tier,
         tag: tier >= 2 ? '진화체 · 강화된 사령' : '사령 카드',
