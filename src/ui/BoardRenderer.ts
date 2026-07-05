@@ -35,6 +35,9 @@ const LUNGE_DISTANCE = 44
 // Must cover .board-token's 0.85s slide transition — a lunge starting
 // inside that window would fight the in-flight transform.
 const SLIDE_SETTLE_MS = 880
+// .board-token's transform transition (0.85s) — used to interpolate where a
+// dying enemy visually was so its corpse can pick up the remaining slide.
+const CORPSE_SLIDE_MS = 850
 
 interface Occupant {
   id: string
@@ -166,7 +169,14 @@ export class BoardRenderer {
   /** Faint raisable corpse markers, one per corpse, stacked per cell. Purely
    * positional — a dim purple-shadowed ghost of the creature's art. */
   syncCorpses(
-    corpses: readonly { id: string; creatureId: string; cellIndex: number; label: string }[]
+    corpses: readonly {
+      id: string
+      creatureId: string
+      cellIndex: number
+      label: string
+      fromCellIndex?: number
+      movedAt?: number
+    }[]
   ): void {
     const seen = new Set<string>()
     const stackCount = new Map<number, number>()
@@ -175,7 +185,8 @@ export class BoardRenderer {
       const stackIndex = stackCount.get(c.cellIndex) ?? 0
       stackCount.set(c.cellIndex, stackIndex + 1)
 
-      let el = this.corpseTokens.get(c.id)
+      const existing = this.corpseTokens.get(c.id)
+      let el = existing
       if (!el) {
         el = document.createElement('div')
         el.className = 'board-token board-corpse'
@@ -198,6 +209,11 @@ export class BoardRenderer {
         x = col * (CELL_SIZE + CELL_GAP)
         y = row * (CELL_SIZE + CELL_GAP) + stackIndex * STACK_GAP_Y
       }
+
+      // Just born from an enemy that was still sliding? Drop in at the enemy's
+      // in-flight position and let the .board-token transition carry the corpse
+      // the rest of the way — no teleport to the destination cell.
+      if (!existing) this.seedCorpseSlide(el, c, x, y)
       el.style.setProperty('--token-x', `${x}px`)
       el.style.setProperty('--token-y', `${y}px`)
     }
@@ -208,6 +224,34 @@ export class BoardRenderer {
         this.corpseTokens.delete(id)
       }
     }
+  }
+
+  /** Seeds a just-created corpse at the position its enemy had actually slid to
+   * (interpolated along from→rest by how far the 0.85s slide had progressed),
+   * committing it before the caller sets the resting position — so the token's
+   * transform transition slides the corpse home instead of it teleporting. */
+  private seedCorpseSlide(
+    el: HTMLElement,
+    c: { cellIndex: number; fromCellIndex?: number; movedAt?: number },
+    restX: number,
+    restY: number
+  ): void {
+    const { fromCellIndex, movedAt } = c
+    if (fromCellIndex == null || movedAt == null) return
+    if (fromCellIndex === c.cellIndex) return
+    if (fromCellIndex === BOSS_CELL_INDEX || c.cellIndex === BOSS_CELL_INDEX) return
+    const progress = Math.min(1, Math.max(0, (Date.now() - movedAt) / CORPSE_SLIDE_MS))
+    if (progress >= 1) return // the enemy had already settled — nothing to carry
+
+    const frow = Math.floor(fromCellIndex / GRID_COLS)
+    const fcol = fromCellIndex % GRID_COLS
+    const fromX = fcol * (CELL_SIZE + CELL_GAP)
+    const fromY = frow * (CELL_SIZE + CELL_GAP)
+    const startX = fromX + (restX - fromX) * progress
+    const startY = fromY + (restY - fromY) * progress
+    el.style.setProperty('--token-x', `${startX}px`)
+    el.style.setProperty('--token-y', `${startY}px`)
+    void el.offsetWidth // commit start pos so the following set transitions from here
   }
 
   // Persistent per-cell effects tint the tile with a slow shimmer; when two

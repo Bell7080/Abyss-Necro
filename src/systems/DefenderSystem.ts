@@ -99,7 +99,8 @@ export class DefenderSystem {
     if (!this.canPlace(cellIndex)) return false
     this.listFor(cellIndex).push({
       id: `raised-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      label,
+      // Hasty undead wear a 급조 prefix so they read apart from full defenders.
+      label: `급조 ${label}`,
       creatureId,
       hp: RAISED_ALLY_HP,
       maxHp: RAISED_ALLY_HP,

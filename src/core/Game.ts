@@ -615,7 +615,13 @@ export class Game {
       })
     } else if (result.outcome === 'corpse') {
       const creature = getCreature(result.creatureId)
-      this.corpseSystem.add(result.cellIndex, result.creatureId, creature?.label ?? '심연의 것')
+      this.corpseSystem.add(
+        result.cellIndex,
+        result.creatureId,
+        creature?.label ?? '심연의 것',
+        result.fromCellIndex,
+        result.movedAt
+      )
     }
 
     // Every kill drops a coin: it lands on the ground in a short lobbed arc,

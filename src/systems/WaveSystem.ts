@@ -108,6 +108,10 @@ export interface EncounterResult {
   viaBossRoom: boolean
   /** The slain enemy was the final boss — Game ends the run in victory. */
   isFinal: boolean
+  /** Cell the enemy was sliding FROM (and when), so a corpse can pick up the
+   * enemy's in-flight slide instead of popping in at the destination. */
+  fromCellIndex?: number
+  movedAt?: number
 }
 
 export interface DamageResult {
@@ -435,6 +439,8 @@ export class WaveSystem {
         dropCoin: true,
         viaBossRoom,
         isFinal: !!enemy.isFinal,
+        fromCellIndex: enemy.lastCellIndex,
+        movedAt: enemy.lastMovedAt,
       })
       this.triggerInstantPushIfClear()
       return { cellIndex, amount: total, defeated: true }

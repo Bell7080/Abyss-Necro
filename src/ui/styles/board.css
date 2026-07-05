@@ -593,8 +593,9 @@ body {
   --figure-rise: -105px;
   /* How far the standee floats toward the viewer off the floor tiles. Kept
      high enough that the card's soft outer glow clears the tiles in the 3D
-     z-sort instead of being sliced by them (was 58px, which let the glow clip). */
-  --figure-z: 100px;
+     z-sort instead of being sliced by them (was 58px, which let the glow clip).
+     Extra margin here buys more clearance for large/edge glows. */
+  --figure-z: 132px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -2812,32 +2813,46 @@ body {
   pointer-events: none;
 }
 
-/* The lavender glow lives on the figure's box-shadow (unfiltered → never clips
-   on the floor tiles), while the desaturate/dim lives on the IMG's filter. A
-   filter on the figure itself would flatten the standee and slice this glow. */
+/* A raisable body reads as a lavender gem, not a card: the creature is masked
+   into a DIAMOND, floating in a soft radial glow. The glow is a gradient FILL on
+   a ::before (no box-shadow/filter on the figure → never clips on the floor);
+   the desaturate/dim lives on the IMG's own filter. */
 .board-corpse-figure {
-  opacity: 0.5;
-  box-shadow: 0 0 14px rgba(170, 120, 255, 0.55);
-  border-radius: 18px;
+  position: relative;
+  opacity: 0.55;
   animation: corpse-waver 2.4s ease-in-out infinite;
 }
 
+/* Soft diamond-ish glow halo behind the body. */
+.board-corpse-figure::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(
+    circle,
+    rgba(190, 140, 255, 0.62) 0%,
+    rgba(150, 110, 255, 0.3) 42%,
+    transparent 66%
+  );
+  z-index: -1;
+  pointer-events: none;
+}
+
 .board-corpse-figure img {
-  width: 118px;
-  height: 118px;
-  object-fit: contain;
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  clip-path: polygon(50% 1%, 99% 50%, 50% 99%, 1% 50%);
   filter: grayscale(0.5) brightness(0.72);
 }
 
 @keyframes corpse-waver {
   0%,
   100% {
-    opacity: 0.4;
-    box-shadow: 0 0 12px rgba(170, 120, 255, 0.45);
+    opacity: 0.46;
   }
   50% {
-    opacity: 0.62;
-    box-shadow: 0 0 20px rgba(190, 150, 255, 0.75);
+    opacity: 0.64;
   }
 }
 
@@ -2881,24 +2896,33 @@ body {
   z-index: 8;
 }
 
+/* Cut-gem sparkle stars, not dots: a 4-point diamond star clipped from a white
+   core, wrapped in layered drop-shadow bloom (clip-path eats box-shadow, so the
+   glow rides on filter). Fixed 2D layer → no 3D clipping to worry about. */
 .cosmos-soul {
   position: absolute;
-  width: 10px;
-  height: 10px;
-  margin: -5px 0 0 -5px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fff 0%, var(--soul-color, #c9b8ff) 40%, transparent 72%);
-  box-shadow: 0 0 12px 2px var(--soul-color, #c9b8ff);
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  clip-path: polygon(50% 0, 71% 29%, 100% 50%, 71% 71%, 50% 100%, 29% 71%, 0 50%, 29% 29%);
+  background: radial-gradient(circle, #fff 0%, var(--soul-color, #c9b8ff) 58%);
+  filter:
+    drop-shadow(0 0 3px var(--soul-color, #c9b8ff))
+    drop-shadow(0 0 8px var(--soul-color, #c9b8ff))
+    drop-shadow(0 0 16px var(--soul-color, #c9b8ff));
   animation:
     soul-appear 0.5s ease-out,
     soul-twinkle 3s ease-in-out infinite;
 }
 
 .cosmos-soul.is-fragment {
-  width: 18px;
-  height: 18px;
-  margin: -9px 0 0 -9px;
-  box-shadow: 0 0 20px 3px var(--soul-color, #c9b8ff);
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  filter:
+    drop-shadow(0 0 4px var(--soul-color, #c9b8ff))
+    drop-shadow(0 0 11px var(--soul-color, #c9b8ff))
+    drop-shadow(0 0 22px var(--soul-color, #c9b8ff));
 }
 
 .cosmos-soul.is-leaving {
