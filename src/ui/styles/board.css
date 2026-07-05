@@ -809,8 +809,16 @@ body {
   bottom: 0;
   width: 144px;
   height: 192px;
-  transform: translate(-50%, 0) translate(var(--hand-x, 0px), var(--hand-y, 0px))
-    rotate(var(--hand-rot, 0deg));
+  /* --hand-extra-* are the cursor-tracked spread offsets (CardHand's
+     initHoverSpread — same mechanism as the relic fan): pivot lifts and
+     straightens, neighbours part aside. Zero when the hand isn't hovered. */
+  transform: translate(-50%, 0)
+    translate(
+      calc(var(--hand-x, 0px) + var(--hand-extra-x, 0px)),
+      calc(var(--hand-y, 0px) + var(--hand-extra-y, 0px))
+    )
+    rotate(calc(var(--hand-rot, 0deg) + var(--hand-extra-rot, 0deg)))
+    scale(calc(1 + var(--hand-extra-scale, 0)));
   transform-origin: bottom center;
   background: linear-gradient(165deg, rgba(46, 32, 78, 0.92), rgba(16, 12, 26, 0.94));
   border: 0;
@@ -838,8 +846,15 @@ body {
 }
 
 .hand-card.is-selected {
+  /* Carries the spread offsets too, so selecting a card mid-spread lifts it
+     from where it is instead of snapping the fan shut around it. */
   transform: translate(-50%, 0)
-    translate(var(--hand-x, 0px), calc(var(--hand-y, 0px) - 30px)) rotate(var(--hand-rot, 0deg));
+    translate(
+      calc(var(--hand-x, 0px) + var(--hand-extra-x, 0px)),
+      calc(var(--hand-y, 0px) + var(--hand-extra-y, 0px) - 30px)
+    )
+    rotate(calc(var(--hand-rot, 0deg) + var(--hand-extra-rot, 0deg)))
+    scale(calc(1 + var(--hand-extra-scale, 0)));
   box-shadow:
     inset 0 0 0 1px rgba(225, 190, 255, 0.7),
     0 16px 28px var(--abyss-shadow),

@@ -57,6 +57,59 @@ export class CardHand {
     this.container = document.createElement('div')
     this.container.className = 'hand-layer'
     root.appendChild(this.container)
+    this.initHoverSpread()
+  }
+
+  /** Cursor-tracked fan spread — the relic dock's mechanism, applied to the
+   * hand: the card under the pointer pins as the pivot (lifts, straightens,
+   * comes to front) and its neighbours part aside so an overlapped hand can
+   * be read card by card without clicking. The pivot comes from the fan's
+   * own layout math (not the cursor's fraction of the container, which is
+   * wider than the fan), and the push is capped so a deep hand's edge cards
+   * don't fly off. Listeners live on the persistent container, so rebuilds
+   * in render() need no re-attach. */
+  private initHoverSpread(): void {
+    const applyFocus = (ev: MouseEvent): void => {
+      const els = Array.from(this.container.querySelectorAll<HTMLElement>('.hand-card'))
+      const n = els.length
+      if (n < 2) return
+      const rect = this.container.getBoundingClientRect()
+      const centerX = rect.left + rect.width / 2
+      const step = Math.min(74, 620 / (n - 1))
+      const spreadPx = step * (n - 1)
+      const idx = Math.round((ev.clientX - centerX + spreadPx / 2) / step)
+      const pivotIdx = Math.max(0, Math.min(n - 1, idx))
+      els.forEach((el, i) => {
+        const dist = i - pivotIdx
+        const isPivot = dist === 0
+        // Part the curtain around the cursor: strong push on immediate
+        // neighbours, flattening out past ±3 cards.
+        const push = Math.max(-78, Math.min(78, dist * 26))
+        const splay = Math.max(-9, Math.min(9, dist * 3))
+        // The pivot nearly straightens (counters its own fan rotation) so
+        // the card reads upright while inspected.
+        const baseRot = parseFloat(el.style.getPropertyValue('--hand-rot')) || 0
+        el.style.setProperty('--hand-extra-x', `${push}px`)
+        el.style.setProperty('--hand-extra-rot', isPivot ? `${-baseRot * 0.85}deg` : `${splay}deg`)
+        el.style.setProperty('--hand-extra-y', isPivot ? '-18px' : '0px')
+        el.style.setProperty('--hand-extra-scale', isPivot ? '0.06' : '0')
+        // z-index can't ride a CSS calc once a pivot exists; restore on leave.
+        el.style.zIndex = isPivot ? '100' : ''
+      })
+    }
+
+    const clearFocus = (): void => {
+      for (const el of this.container.querySelectorAll<HTMLElement>('.hand-card')) {
+        el.style.removeProperty('--hand-extra-x')
+        el.style.removeProperty('--hand-extra-rot')
+        el.style.removeProperty('--hand-extra-y')
+        el.style.removeProperty('--hand-extra-scale')
+        el.style.zIndex = ''
+      }
+    }
+
+    this.container.addEventListener('mousemove', applyFocus)
+    this.container.addEventListener('mouseleave', clearFocus)
   }
 
   render(cards: readonly HandCard[], selectedId: string | null, affordFn?: (card: HandCard) => boolean): void {
