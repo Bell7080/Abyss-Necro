@@ -2,8 +2,10 @@
 // SHARP tip at top-left (the actual click point, like a normal arrow cursor),
 // its two rounded lobes flaring out toward the bottom-right like a mermaid
 // scale — in the same cyan→lavender→violet gradient the rest of the abyss UI
-// glows in. Applied globally via `*` so it wins over every element's own
-// `cursor` declaration (buttons, hexes, cells all set their own cursor: pointer).
+// glows in. No outline — just a soft drop shadow to lift it off the scene, like
+// a normal cursor's shadow. Applied globally via `*` so it wins over every
+// element's own `cursor` declaration (buttons, hexes, cells all set their own
+// cursor: pointer).
 const CURSOR_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52">
   <defs>
@@ -12,20 +14,14 @@ const CURSOR_SVG = `
       <stop offset="55%" stop-color="#b6a2ff"/>
       <stop offset="100%" stop-color="#e2b3ff"/>
     </linearGradient>
-    <filter id="cursorGlow" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="1.8" result="b"/>
-      <feMerge>
-        <feMergeNode in="b"/>
-        <feMergeNode in="b"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+    <filter id="cursorShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="1" dy="2" stdDeviation="1.1" flood-color="#050308" flood-opacity="0.5"/>
     </filter>
   </defs>
   <g transform="translate(24,26) rotate(152) scale(0.8,1.55)">
     <path d="M0 -8 C -6 -14, -14 -10, -14 -2 C -14 6, -6 10, 0 16 C 6 10, 14 6, 14 -2 C 14 -10, 6 -14, 0 -8 Z"
           fill="url(#cursorGrad)" fill-opacity="0.95"
-          stroke="#eaf6ff" stroke-width="1.4" stroke-opacity="0.9"
-          filter="url(#cursorGlow)"/>
+          filter="url(#cursorShadow)"/>
   </g>
 </svg>`.trim()
 
