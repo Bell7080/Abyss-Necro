@@ -1690,7 +1690,6 @@ body {
   overflow: hidden;
   pointer-events: none;
   cursor: default;
-  transition: opacity 0.6s ease-in;
 }
 
 .intro-overlay.is-revealed {
@@ -1698,16 +1697,22 @@ body {
   cursor: pointer;
 }
 
-.intro-overlay.is-dismissed {
-  opacity: 0;
-  pointer-events: none;
-}
-
 .intro-title-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
   background: url('../../assets/sprites/backgrounds/bg_002.webp') center/cover no-repeat;
+}
+
+/* Dismissing plays as a scene cut, not a plain cross-fade: the title layers
+   below the veil vanish instantly once fully hidden behind opaque black
+   (is-entering), so fading the veil back out reveals the live board
+   underneath instead of the title art re-appearing. */
+.intro-overlay.is-entering .intro-title-bg,
+.intro-overlay.is-entering .abyss-caustic,
+.intro-overlay.is-entering .intro-title-vignette,
+.intro-overlay.is-entering .intro-prompt {
+  display: none;
 }
 
 /* Heavier than the in-game ambience vignette — a title card reads darker at
@@ -1735,6 +1740,24 @@ body {
 }
 
 .intro-overlay.is-revealed .intro-black-veil {
+  opacity: 0;
+}
+
+/* Leaving: cuts back to black quickly (synced with the OST's stutter-cut in
+   AudioManager.duckTitleOst). Entering: once the run has quietly started
+   behind that black, it fades back out onto the live board. */
+.intro-overlay.is-leaving .intro-black-veil {
+  transition: opacity 0.7s ease-in;
+  opacity: 1;
+}
+
+.intro-overlay.is-entering .intro-black-veil {
+  transition: opacity 0.9s ease-out;
+  opacity: 0;
+}
+
+.intro-overlay.is-leaving .intro-prompt {
+  transition: opacity 0.2s ease;
   opacity: 0;
 }
 

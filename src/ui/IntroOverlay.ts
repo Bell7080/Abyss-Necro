@@ -1,18 +1,32 @@
 const REVEAL_DELAY_MS = 150
 // Must match .intro-black-veil's transition duration in board.css.
 const REVEAL_DURATION_MS = 2800
-const DISMISS_MS = 600
+// Leaving: the screen cuts back to black first (must match .is-leaving's
+// veil transition)...
+const LEAVE_FADE_MS = 700
+// ...then, once the run has quietly started behind that black, it fades back
+// out to reveal the now-live board (must match .is-entering's transition).
+const ENTER_FADE_MS = 900
+const REMOVE_DELAY_MS = 80
 
 // Full-screen title scene shown once at boot: a completely black screen fades
 // in over the title art (bg_002) — rippling caustics + a heavy vignette sell
 // the deep-sea mood. Only once fully revealed does `onRevealed` fire (the OST
 // starts here, not before), and a blinking click-to-start prompt invites the
-// player to actually start the run — no enemies move or spawn until they
-// click through (see Game.startRun()).
+// player to actually start the run. Dismissing plays like a scene cut: the
+// screen cuts to black (onDismiss fires here, for the OST's stutter-cut),
+// the run actually starts hidden behind that black, then it fades back out
+// onto the now-live board — no enemies move or spawn before that start
+// (see Game.startRun()).
 export class IntroOverlay {
   private readonly overlay: HTMLElement
 
-  constructor(root: HTMLElement, onStart: () => void, onRevealed: () => void) {
+  constructor(
+    root: HTMLElement,
+    onStart: () => void,
+    onRevealed: () => void,
+    onDismiss: () => void
+  ) {
     this.overlay = document.createElement('div')
     this.overlay.className = 'intro-overlay'
     this.overlay.innerHTML = `
@@ -27,9 +41,15 @@ export class IntroOverlay {
 
     const dismiss = (): void => {
       this.overlay.removeEventListener('click', dismiss)
-      this.overlay.classList.add('is-dismissed')
-      window.setTimeout(() => this.overlay.remove(), DISMISS_MS)
-      onStart()
+      this.overlay.classList.remove('is-prompt-visible')
+      this.overlay.classList.add('is-leaving')
+      onDismiss()
+      window.setTimeout(() => {
+        onStart()
+        this.overlay.classList.remove('is-leaving')
+        this.overlay.classList.add('is-entering')
+        window.setTimeout(() => this.overlay.remove(), ENTER_FADE_MS + REMOVE_DELAY_MS)
+      }, LEAVE_FADE_MS)
     }
     this.overlay.addEventListener('click', dismiss)
 

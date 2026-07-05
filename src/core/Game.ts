@@ -155,7 +155,8 @@ export class Game {
     new IntroOverlay(
       shell,
       () => this.startRun(),
-      () => this.audio.playOst()
+      () => this.audio.playOst(),
+      () => this.audio.duckTitleOst()
     )
 
     this.waveSystem.onChange(() => {
