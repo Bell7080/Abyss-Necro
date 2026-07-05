@@ -11,6 +11,7 @@ import { MergeButton } from '@ui/MergeButton'
 import { RelicInventory } from '@ui/RelicInventory'
 import { RewardOverlay } from '@ui/RewardOverlay'
 import { ShopOverlay, type ShopOffer } from '@ui/ShopOverlay'
+import { SkillCastPanel } from '@ui/SkillCastPanel'
 import { SkillHive } from '@ui/SkillHive'
 import { VictoryOverlay } from '@ui/VictoryOverlay'
 import { WaveHud } from '@ui/WaveHud'
@@ -68,6 +69,7 @@ export class Game {
   private readonly relics: RelicInventory
   private readonly coins: CoinPanel
   private readonly hive: SkillHive
+  private readonly skillCast: SkillCastPanel
   private readonly rewardOverlay: RewardOverlay
   private readonly shopOverlay: ShopOverlay
   private readonly defeatOverlay: DefeatOverlay
@@ -135,6 +137,7 @@ export class Game {
     this.hive = new SkillHive(shell, this.abilitySystem, {
       onSkill: (id) => this.handleSkill(id),
     })
+    this.skillCast = new SkillCastPanel(shell)
     this.rewardOverlay = new RewardOverlay({
       onChoose: (relic, cardEl) => this.resolveRelicChoice(relic, cardEl),
     })
@@ -418,6 +421,7 @@ export class Game {
       return
     }
     this.board.playerCast('hop')
+    this.skillCast.show('raise')
     for (const corpse of this.corpseSystem.takeCell(cellIndex, capacity)) {
       this.defenderSystem.placeRaised(cellIndex, getCreature(corpse.creatureId)?.label ?? corpse.label, corpse.creatureId)
     }
@@ -432,6 +436,7 @@ export class Game {
     if (!this.corpseSystem.hasAny()) return
     if (!this.abilitySystem.tryCast('raise-all')) return
     this.board.playerCast('hop')
+    this.skillCast.show('raise-all')
     for (const corpse of this.corpseSystem.takeAll()) {
       if (this.defenderSystem.freeSlots(corpse.cellIndex) <= 0) continue
       this.defenderSystem.placeRaised(corpse.cellIndex, getCreature(corpse.creatureId)?.label ?? corpse.label, corpse.creatureId)
@@ -453,6 +458,7 @@ export class Game {
     }
     // 저격 — recoil and fire a bolt from the card at the marked enemy.
     this.board.playerCast('recoil')
+    this.skillCast.show('capture')
     const muzzle = this.board.getPlayerCardRect() ?? this.board.getPlayerRect()
     const targetRect = this.board.getCellRect(cellIndex)
     if (muzzle && targetRect) {
@@ -560,6 +566,7 @@ export class Game {
     const target = centerOf(targetRect)
 
     this.board.playerCast('recoil')
+    this.skillCast.show('basic')
     BubbleBolt.fire(origin.x, origin.y, target.x, target.y, {
       onImpact: () => {
         const result = this.waveSystem.applyDamage(cellIndex, BASIC_ATTACK_DAMAGE + this.basicDamageBonus)

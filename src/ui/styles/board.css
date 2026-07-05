@@ -3489,3 +3489,127 @@ body {
     max-width: 240px;
   }
 }
+
+/* ---------- Skill cast cut-in (left, mirror of the right inspector) ---------- */
+/* Slides in from the left with the used skill's illustration, holds a beat,
+   then fades out in place. Purely a cast flourish. */
+.skill-cast {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  width: 300px;
+  height: min(430px, 62vh);
+  transform: translateY(-50%) translateX(-32px);
+  z-index: 240;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.24s ease,
+    transform 0.34s cubic-bezier(0.15, 0.85, 0.25, 1);
+}
+
+.skill-cast.is-shown {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* Fade out in place (keeps the slid-in position, just dissolves). */
+.skill-cast.is-fading {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+/* Art + darkness composite, faded out toward the board (this panel's RIGHT
+   edge) — the mirror of the right inspector's leftward fade. */
+.skill-cast-scrim {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: linear-gradient(270deg, transparent 0, #000 32%, #000 100%);
+  mask-image: linear-gradient(270deg, transparent 0, #000 32%, #000 100%);
+}
+
+.skill-cast-art {
+  position: absolute;
+  inset: 0;
+  background-color: #0c0918;
+  background-size: cover;
+  background-position: center 26%;
+  -webkit-mask-image: linear-gradient(180deg, #000 74%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 74%, transparent 100%);
+}
+
+/* No-art fallback: a tone-tinted plate so the cut-in still reads before the
+   real skill_00N.webp lands. */
+.skill-cast:not(.has-art) .skill-cast-art {
+  background-image: radial-gradient(circle at 50% 34%, var(--cast-tone, #9b6cff), transparent 68%);
+  opacity: 0.5;
+}
+
+.skill-cast-grad {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 5, 16, 0) 0%,
+    rgba(6, 4, 12, 0.35) 40%,
+    rgba(3, 2, 7, 0.82) 72%,
+    rgba(0, 0, 1, 0.96) 100%
+  );
+}
+
+.skill-cast-body {
+  position: absolute;
+  left: 26px;
+  right: 22px;
+  bottom: 40px;
+  z-index: 1;
+}
+
+/* A tone accent line above the name — the skill's color signature. */
+.skill-cast-body::before {
+  content: '';
+  display: block;
+  width: 54px;
+  height: 3px;
+  margin-bottom: 14px;
+  border-radius: 3px;
+  background: var(--cast-tone, #9b6cff);
+  box-shadow: 0 0 12px var(--cast-tone, #9b6cff);
+}
+
+.skill-cast-name {
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #f4eeff;
+  text-shadow:
+    0 0 16px var(--cast-tone, #9b6cff),
+    0 0 34px rgba(127, 232, 255, 0.35),
+    0 2px 5px rgba(0, 0, 0, 0.9);
+}
+
+.skill-cast-hint {
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: rgba(226, 232, 255, 0.82);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+
+/* The name/hint slide up a touch as the panel arrives. */
+.skill-cast.is-shown .skill-cast-body {
+  animation: skill-cast-rise 0.4s cubic-bezier(0.15, 0.85, 0.25, 1);
+}
+
+@keyframes skill-cast-rise {
+  0% {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
