@@ -108,6 +108,8 @@ export class Game {
   // (irregular, masked) shape, so without this guard the inspector data got
   // torn down and rebuilt on every one of those, flickering its glow.
   private lastHoveredCell: number | null = null
+  // Last wave the cosmos was settled for — cascade fires once per new wave.
+  private lastCascadeWave = 1
   // The intro overlay is pointer-transparent outside its button, so board/
   // orb clicks physically arrive before the run starts — gate them here.
   private runStarted = false
@@ -180,6 +182,13 @@ export class Game {
     this.waveSystem.onChange(() => {
       this.board.syncCells()
       this.refreshAimTargets()
+      // Every new wave settles the cosmos (조각3→파편, 파편3→온전한 카드) —
+      // recovered value flows back each wave, not only at checkpoint lulls.
+      const wave = this.waveSystem.getWaveNumber()
+      if (wave !== this.lastCascadeWave) {
+        this.lastCascadeWave = wave
+        this.cascadeCosmos()
+      }
     })
     this.waveSystem.onEncounter((result) => this.handleEncounter(result))
     this.waveSystem.onCheckpoint((info) => this.handleCheckpoint(info))
@@ -380,30 +389,16 @@ export class Game {
     else this.inspector.hide()
   }
 
-  /** What to show for a hovered cell: front enemy > front ally > player
-   * (boss room) > cell buffs > nothing. Units carry their live attack/hp
-   * and signature passive; any trap-star stacks on the cell append as an
-   * active-buff line. */
+  /** What to show for a hovered cell: front ally > player (boss room) >
+   * cell buffs > nothing. Units carry their live attack/hp and signature
+   * passive; any trap-star stacks on the cell append as an active-buff line.
+   * Enemies are deliberately NOT hover-inspectable — mousing across the tide
+   * shouldn't flood the panel; their profile shows on a direct click instead
+   * (see buildEnemyInspect in handleCellClick). */
   private buildCellInspect(cellIndex: number): InspectorData | null {
     const isBoss = cellIndex === BOSS_CELL_INDEX
     const trapCount = isBoss ? 0 : this.waveSystem.getCellTraps()[cellIndex]
     const buffs = trapCount > 0 ? `함정별 ×${trapCount} · 진입 시 ${trapCount} 피해` : undefined
-
-    const enemy = this.waveSystem.getFrontEnemy(cellIndex)
-    if (enemy) {
-      const creature = getCreature(enemy.creatureId)
-      return {
-        imageUrl: creature?.enemyArt,
-        title: enemy.label ?? creature?.label ?? '심연의 것',
-        tag: enemy.isBoss ? '엘리트 보스' : '적',
-        stats: [
-          { label: '공격', value: `${enemy.attack ?? this.waveSystem.getEnemyAttack()}` },
-          { label: '체력', value: `${enemy.hp}/${enemy.maxHp}` },
-        ],
-        passive: creature?.enemyPassive,
-        buffs,
-      }
-    }
 
     const ally = this.defenderSystem.getFrontAlly(cellIndex)
     if (ally) {
@@ -440,6 +435,25 @@ export class Game {
       return { title: '심연의 자리', tag: '칸 효과', buffs }
     }
     return null
+  }
+
+  /** The cell's front enemy as inspector data — click-to-inspect only. */
+  private buildEnemyInspect(cellIndex: number): InspectorData | null {
+    const enemy = this.waveSystem.getFrontEnemy(cellIndex)
+    if (!enemy) return null
+    const trapCount = cellIndex === BOSS_CELL_INDEX ? 0 : this.waveSystem.getCellTraps()[cellIndex]
+    const creature = getCreature(enemy.creatureId)
+    return {
+      imageUrl: creature?.enemyArt,
+      title: enemy.label ?? creature?.label ?? '심연의 것',
+      tag: enemy.isBoss ? '엘리트 보스' : '적',
+      stats: [
+        { label: '공격', value: `${enemy.attack ?? this.waveSystem.getEnemyAttack()}` },
+        { label: '체력', value: `${enemy.hp}/${enemy.maxHp}` },
+      ],
+      passive: creature?.enemyPassive,
+      buffs: trapCount > 0 ? `함정별 ×${trapCount} · 진입 시 ${trapCount} 피해` : undefined,
+    }
   }
 
   /** Fired once the title/board reveal finishes — plays 넥슈's opening
@@ -479,6 +493,12 @@ export class Game {
       this.castCapture(cellIndex)
       return
     }
+
+    // A plain click on an enemy's cell is the ONLY way to open its profile
+    // (hover deliberately doesn't) — shown regardless of whether the attack
+    // below actually fires. Hover-leave clears it like any inspection.
+    const enemyInspect = this.buildEnemyInspect(cellIndex)
+    if (enemyInspect) this.inspector.render(enemyInspect)
 
     // Plain basic attack — no arming. Nothing fires during a checkpoint lull;
     // leftover enemies just stand there until the player proceeds.
