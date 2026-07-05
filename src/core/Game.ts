@@ -152,7 +152,11 @@ export class Game {
     new CodexOverlay(shell)
     this.defeatOverlay = new DefeatOverlay(shell)
     this.victoryOverlay = new VictoryOverlay(shell)
-    new IntroOverlay(shell, () => this.startRun())
+    new IntroOverlay(
+      shell,
+      () => this.startRun(),
+      () => this.audio.playOst()
+    )
 
     this.waveSystem.onChange(() => {
       this.board.syncCells()
@@ -314,10 +318,8 @@ export class Game {
     // Sync the necromancer's hp/xx text immediately — otherwise it shows the
     // placeholder 1/1 until the first change event.
     this.board.setPlayerHp(this.playerSystem.getHp(), this.playerSystem.getMaxHp())
-    // Entering the game: the OST fades in from its 35s mark over the intro veil.
-    // In the browser this may wait for the first click (autoplay gate); the
-    // packaged Electron app plays it immediately (autoplayPolicy override).
-    this.audio.playOst()
+    // The OST now starts once the intro title scene finishes revealing itself
+    // (IntroOverlay's onRevealed callback), not immediately at boot.
     // Weld the skill hive to the player card's live position (survives resize).
     const syncHive = (): void =>
       this.hive.anchorTo(this.board.getPlayerCardRect(), this.board.getBoardMountRect())
