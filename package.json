@@ -15,7 +15,7 @@
     "build:electron": "tsc -p electron/tsconfig.json",
     "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:3000 && npm run build:electron && electron .\"",
     "electron:build": "npm run build && npm run build:electron",
-    "dist": "npm run electron:build && electron-builder",
+    "dist": "npm run electron:build && electron-builder --publish never",
     "type-check": "tsc --noEmit",
     "lint": "eslint src electron --ext .ts",
     "format": "prettier --write src electron",
