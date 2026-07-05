@@ -319,7 +319,8 @@ export class Game {
     // packaged Electron app plays it immediately (autoplayPolicy override).
     this.audio.playOst()
     // Weld the skill hive to the player card's live position (survives resize).
-    const syncHive = (): void => this.hive.anchorTo(this.board.getPlayerCardRect())
+    const syncHive = (): void =>
+      this.hive.anchorTo(this.board.getPlayerCardRect(), this.board.getBoardMountRect())
     requestAnimationFrame(syncHive)
     requestAnimationFrame(() => requestAnimationFrame(syncHive))
     window.addEventListener('resize', syncHive)
