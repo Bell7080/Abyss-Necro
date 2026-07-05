@@ -16,6 +16,7 @@ import { SkillCastPanel } from '@ui/SkillCastPanel'
 import { SKILL_FACES, getSkillArt } from '@ui/SkillArt'
 import { SkillHive } from '@ui/SkillHive'
 import { VictoryOverlay } from '@ui/VictoryOverlay'
+import { VolumeControl } from '@ui/VolumeControl'
 import { WaveHud } from '@ui/WaveHud'
 import { BlastManager } from '@ui/effects/BlastManager'
 import { BubbleBolt } from '@ui/effects/BubbleBolt'
@@ -175,15 +176,21 @@ export class Game {
     new CodexOverlay(shell)
     this.defeatOverlay = new DefeatOverlay(shell)
     this.victoryOverlay = new VictoryOverlay(shell)
+    // One persistent top-right volume slider for the whole session — title,
+    // tutorial dialogue, and in-game alike (nothing else uses that corner).
+    const volumeCtrl = new VolumeControl(shell, {
+      initial: this.audio.getMasterVolume(),
+      onChange: (v) => this.audio.setMasterVolume(v),
+    })
+
     new IntroOverlay(
       shell,
       () => this.startIntroDialogue(),
-      () => this.audio.playOst(),
-      () => this.audio.duckTitleOst(),
-      {
-        initial: this.audio.getMasterVolume(),
-        onChange: (v) => this.audio.setMasterVolume(v),
-      }
+      () => {
+        this.audio.playOst()
+        volumeCtrl.reveal()
+      },
+      () => this.audio.duckTitleOst()
     )
 
     this.waveSystem.onChange(() => {
