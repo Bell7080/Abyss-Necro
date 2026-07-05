@@ -66,16 +66,15 @@ const BOSS_ATK_BONUS = 2
 // Pacing: a shop-lull every SHOP_EVERY waves, a boss leading every BOSS_EVERY.
 const SHOP_EVERY = 10
 const BOSS_EVERY = 30
-// Each regular-ladder tier lingers this many waves before the next one starts
-// (tier 2/sea-rabbit from wave 8, tier 3/clownfish from wave ~15, and so on) —
-// long enough to actually stack a trio of the new arrival too, not just glimpse it.
-const TIER_WAVES = 7
-// The opening stretch, before the first checkpoint, is a deliberately pure
-// jellyfish tide — no mixing at all — so corpses/hand cards stack up enough
-// for a first triple-merge before any variety shows up. Matches tier 1's own
-// span (TIER_WAVES); a sea-rabbit or two starts trickling in only from the
-// wave right after.
-const PURE_OPENING_WAVES = TIER_WAVES
+// Each regular-ladder tier (from tier 2 on) lingers this many waves before the
+// next one starts — long enough to actually stack a trio of the new arrival
+// too, not just glimpse it.
+const TIER_WAVES = 4
+// Tier 1 (jellyfish) is the one exception: a deliberately longer opening run
+// (no mixing at all) so corpses/hand cards stack up enough for a first
+// triple-merge before any variety shows up. Sea-rabbit starts right after.
+const FIRST_TIER_WAVES = 8
+const PURE_OPENING_WAVES = FIRST_TIER_WAVES
 // Capture ("넌 내꺼야!") cuts: an ordinary enemy is claimable at ≤25% hp, an
 // elite only at ≤10% — the harder execute that makes sacrificing it a payoff.
 const CAPTURE_THRESHOLD = 0.25
@@ -683,11 +682,15 @@ export class WaveSystem {
   }
 
   /** The "focus" creature level for a wave — the deepest regular creature the
-   * tide has reached. Every tier lingers TIER_WAVES waves before the ladder
-   * climbs one more step (tier 1 through wave 7, tier 2 from wave 8, tier 3
-   * from wave ~15, ...). */
+   * tide has reached. Tier 1 gets the longer FIRST_TIER_WAVES opening run;
+   * every tier after that climbs one step every TIER_WAVES waves (tier 2 from
+   * wave 9, tier 3 from wave 13, ...). */
   private focusLevel(wave: number): number {
-    return Math.max(1, Math.min(MAX_REGULAR_LEVEL, 1 + Math.floor((wave - 1) / TIER_WAVES)))
+    if (wave <= FIRST_TIER_WAVES) return 1
+    return Math.max(
+      1,
+      Math.min(MAX_REGULAR_LEVEL, 2 + Math.floor((wave - FIRST_TIER_WAVES - 1) / TIER_WAVES))
+    )
   }
 
   /** How many regular enemies a wave sends — 1:1 with the wave number (wave 1
@@ -697,33 +700,48 @@ export class WaveSystem {
     return Math.max(1, Math.min(20, wave))
   }
 
-  /** The wave's regular roster: mostly the focus creature (so trios accumulate),
-   * the rest spread across the WHOLE unlocked pool so far (every earlier tier
-   * can still show up, not just the last couple) plus the occasional next-tier
-   * preview — a gradual climb, no sudden jump to a much stronger mob. The very
-   * opening waves skip the mix entirely — pure jellyfish, so a first
-   * triple-merge is ready before any other creature shows up at all. */
+  /** The wave's regular roster: a new tier doesn't just switch on, it crossfades
+   * in against the previous one across its own span (mostly-old → half-half →
+   * mostly-new), with a small slice reserved for even older unlocked tiers so
+   * the pool still feels varied. The very opening waves skip all of this —
+   * pure jellyfish, so a first triple-merge is ready before any other
+   * creature shows up at all. */
   private waveRoster(wave: number): string[] {
     const count = this.waveCount(wave)
     if (wave <= PURE_OPENING_WAVES) return Array(count).fill(REGULAR_LADDER[0])
     const focus = this.focusLevel(wave)
+    const progress = this.tierProgress(wave, focus)
     const ids: string[] = []
     for (let i = 0; i < count; i += 1) {
-      ids.push(REGULAR_LADDER[this.pickRegularLevel(focus) - 1])
+      ids.push(REGULAR_LADDER[this.pickRegularLevel(focus, progress) - 1])
     }
     return ids
   }
 
-  /** Mostly the focus tier, a rare peek at the next one up, and the remaining
-   * share spread evenly across every already-unlocked lower tier — so the
-   * pool feels genuinely varied deep into a run instead of only ever showing
-   * the most recent two creatures. */
-  private pickRegularLevel(focus: number): number {
-    const r = Math.random()
-    if (r < 0.55) return focus
-    if (r < 0.63 && focus < MAX_REGULAR_LEVEL) return focus + 1 // a single scout of the next tier
-    if (focus <= 1) return focus
-    return 1 + Math.floor(Math.random() * (focus - 1))
+  /** Wave index (1-based) where the given tier first became the focus. */
+  private tierStartWave(focus: number): number {
+    if (focus <= 1) return 1
+    return FIRST_TIER_WAVES + 1 + (focus - 2) * TIER_WAVES
+  }
+
+  /** 0 (this tier just took over) → 1 (about to hand off to the next one) —
+   * position within the focus tier's own span, driving the crossfade below. */
+  private tierProgress(wave: number, focus: number): number {
+    if (focus <= 1) return 1
+    const start = this.tierStartWave(focus)
+    return Math.max(0, Math.min(1, (wave - start) / (TIER_WAVES - 1)))
+  }
+
+  /** Crossfades the focus tier in against the tier right before it — mostly
+   * the previous tier at the start of the span, mostly the new one by the
+   * end — plus a small constant slice spread across every older unlocked
+   * tier so deeper pool stays part of the mix, not just the last two. */
+  private pickRegularLevel(focus: number, progress: number): number {
+    if (focus <= 1) return 1
+    const olderShare = focus >= 3 ? 0.15 : 0
+    if (Math.random() < olderShare) return 1 + Math.floor(Math.random() * (focus - 2))
+    const newShare = 0.15 + 0.7 * progress
+    return Math.random() < newShare ? focus : focus - 1
   }
 
   /** The boss (if any) that leads this wave — one every BOSS_EVERY waves,
