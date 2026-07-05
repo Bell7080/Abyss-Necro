@@ -66,12 +66,16 @@ const BOSS_ATK_BONUS = 2
 // Pacing: a shop-lull every SHOP_EVERY waves, a boss leading every BOSS_EVERY.
 const SHOP_EVERY = 10
 const BOSS_EVERY = 30
+// Each regular-ladder tier lingers this many waves before the next one starts
+// (tier 2/sea-rabbit from wave 8, tier 3/clownfish from wave ~15, and so on) —
+// long enough to actually stack a trio of the new arrival too, not just glimpse it.
+const TIER_WAVES = 7
 // The opening stretch, before the first checkpoint, is a deliberately pure
 // jellyfish tide — no mixing at all — so corpses/hand cards stack up enough
-// for a first triple-merge before any variety shows up. A sea-rabbit or two
-// starts trickling in only from this wave on (still mostly jellyfish for a
-// few more waves after, via the normal focus-level mix).
-const PURE_OPENING_WAVES = 7
+// for a first triple-merge before any variety shows up. Matches tier 1's own
+// span (TIER_WAVES); a sea-rabbit or two starts trickling in only from the
+// wave right after.
+const PURE_OPENING_WAVES = TIER_WAVES
 // Capture ("넌 내꺼야!") cuts: an ordinary enemy is claimable at ≤25% hp, an
 // elite only at ≤10% — the harder execute that makes sacrificing it a payoff.
 const CAPTURE_THRESHOLD = 0.25
@@ -679,15 +683,11 @@ export class WaveSystem {
   }
 
   /** The "focus" creature level for a wave — the deepest regular creature the
-   * tide has reached. Level 1 (jellyfish) gets a deliberately long opening
-   * run through PURE_OPENING_WAVES (see waveRoster) before the ladder starts
-   * climbing one step every 3 waves, same cadence as before from there on. */
+   * tide has reached. Every tier lingers TIER_WAVES waves before the ladder
+   * climbs one more step (tier 1 through wave 7, tier 2 from wave 8, tier 3
+   * from wave ~15, ...). */
   private focusLevel(wave: number): number {
-    if (wave <= PURE_OPENING_WAVES) return 1
-    return Math.max(
-      1,
-      Math.min(MAX_REGULAR_LEVEL, 2 + Math.floor((wave - PURE_OPENING_WAVES - 1) / 3))
-    )
+    return Math.max(1, Math.min(MAX_REGULAR_LEVEL, 1 + Math.floor((wave - 1) / TIER_WAVES)))
   }
 
   /** How many regular enemies a wave sends — 1:1 with the wave number (wave 1
@@ -697,27 +697,33 @@ export class WaveSystem {
     return Math.max(1, Math.min(20, wave))
   }
 
-  /** The wave's regular roster: mostly the focus creature (so trios accumulate)
-   * with a few recent ones mixed in and the occasional next-tier preview — a
-   * gradual climb, no sudden jump to a much stronger mob. The very opening
-   * waves skip the mix entirely — pure jellyfish, so a first triple-merge is
-   * ready before any other creature shows up at all. */
+  /** The wave's regular roster: mostly the focus creature (so trios accumulate),
+   * the rest spread across the WHOLE unlocked pool so far (every earlier tier
+   * can still show up, not just the last couple) plus the occasional next-tier
+   * preview — a gradual climb, no sudden jump to a much stronger mob. The very
+   * opening waves skip the mix entirely — pure jellyfish, so a first
+   * triple-merge is ready before any other creature shows up at all. */
   private waveRoster(wave: number): string[] {
     const count = this.waveCount(wave)
     if (wave <= PURE_OPENING_WAVES) return Array(count).fill(REGULAR_LADDER[0])
     const focus = this.focusLevel(wave)
     const ids: string[] = []
     for (let i = 0; i < count; i += 1) {
-      const r = Math.random()
-      let lvl: number
-      if (r < 0.6) lvl = focus
-      else if (r < 0.8) lvl = focus - 1
-      else if (r < 0.92) lvl = focus - 2
-      else lvl = focus + 1 // a single scout of the next tier
-      lvl = Math.max(1, Math.min(MAX_REGULAR_LEVEL, lvl))
-      ids.push(REGULAR_LADDER[lvl - 1])
+      ids.push(REGULAR_LADDER[this.pickRegularLevel(focus) - 1])
     }
     return ids
+  }
+
+  /** Mostly the focus tier, a rare peek at the next one up, and the remaining
+   * share spread evenly across every already-unlocked lower tier — so the
+   * pool feels genuinely varied deep into a run instead of only ever showing
+   * the most recent two creatures. */
+  private pickRegularLevel(focus: number): number {
+    const r = Math.random()
+    if (r < 0.55) return focus
+    if (r < 0.63 && focus < MAX_REGULAR_LEVEL) return focus + 1 // a single scout of the next tier
+    if (focus <= 1) return focus
+    return 1 + Math.floor(Math.random() * (focus - 1))
   }
 
   /** The boss (if any) that leads this wave — one every BOSS_EVERY waves,
