@@ -18,7 +18,7 @@ for (const [path, url] of Object.entries(audioGlob)) {
 // and fades in from here. The fade covers the 5s right after that mark (quiet
 // → full), and looping back to this same mark (not 0) keeps every replay
 // starting from the good part.
-const OST_START_SEC = 35
+const OST_START_SEC = 36.3
 const OST_FADE_IN_MS = 5000
 const FADE_IN_MS = 1600
 const FADE_OUT_MS = 1200

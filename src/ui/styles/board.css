@@ -91,10 +91,10 @@ body {
   position: absolute;
   inset: 0;
   background: radial-gradient(
-    ellipse 115% 95% at 50% 42%,
-    rgba(3, 2, 9, 0) 38%,
-    rgba(3, 2, 9, 0.38) 70%,
-    rgba(1, 1, 5, 0.72) 100%
+    ellipse 112% 92% at 50% 42%,
+    rgba(3, 2, 9, 0) 32%,
+    rgba(3, 2, 9, 0.5) 66%,
+    rgba(1, 1, 5, 0.9) 100%
   );
 }
 
@@ -2625,23 +2625,41 @@ body {
    player card (beside it, not over its face). Its position is welded to the live
    card rect in JS (SkillHive.anchorTo), so it tracks the card at any window
    size. The initial left/top is just a first-paint fallback before JS anchors. */
+/* Transparent perspective frame sharing the board's eye: board-mount uses
+   perspective:1900px with its origin at screen (960, -147); with the frame at
+   (158, 216) that eye is (960-158, -147-216) = (802px, -363px) relative to the
+   frame. Sharing the eye makes the plane's vertical edges converge exactly
+   like the card's, so the wedge-shaped gap disappears. */
 .skill-hive {
   position: absolute;
   left: 158px;
   top: 216px;
+  perspective: 1900px;
+  perspective-origin: 802px -363px;
   /* Above the aim-mode board (board-mount rises to 72 while aiming): otherwise
      the player card overlaps and swallows clicks on the hexes it covers — which
      is why 급조 (tucked against the card) couldn't be pressed. Below the hand (75). */
   z-index: 74;
 }
 
-/* The content plane. Kept FLAT (no rotateX tilt): the 3D projection was
-   displacing each hex's hit-area off its rendered shape, so the 급조 hex — tucked
-   against the card — became impossible to click. Flat = hit-area matches visual. */
+/* The content plane, tilted on the same plane as the board figures — matches
+   the player card's own standee lean. Wider hex spacing (see .hive-hexes below)
+   keeps every hex's hit-area inside its own rendered shape under this tilt, so
+   raise/capture/etc. all still click correctly (verified: real .click() on
+   each hex correctly arms it, flat or tilted). */
 .hive-plane {
   display: flex;
   align-items: center;
   gap: 9px;
+  transform: rotateX(-15deg) scaleY(1.16);
+  /* Flat (not preserve-3d): the plane renders as one rigid tilted surface
+     instead of keeping each hex as an independent object in 3D space.
+     preserve-3d here triggers a Chromium bug where descendants nested inside
+     a preserve-3d ancestor get wrong/stale getBoundingClientRect()s, which
+     broke real click hit-testing for the top two hexes. Flat compositing
+     projects the whole already-laid-out plane through one transform, so
+     every child's rect stays correct. */
+  transform-style: flat;
 }
 
 .hive-hexes {
@@ -2676,9 +2694,8 @@ body {
   position: relative;
   width: 72px;
   height: 80px;
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   border: none;
-  background: radial-gradient(circle at 50% 32%, rgba(58, 46, 96, 0.94), rgba(15, 11, 26, 0.97));
+  background: none;
   color: var(--abyss-lavender, #cdbcff);
   display: flex;
   flex-direction: column;
@@ -2686,19 +2703,35 @@ body {
   justify-content: center;
   gap: 3px;
   cursor: pointer;
+  transition:
+    transform 0.14s ease,
+    filter 0.14s ease;
+}
+
+/* The hexagon's actual painted body lives on this inset decorative layer, not
+   the button itself — so the button's real (clickable) hit-box stays a plain
+   rectangle. clip-path also clips HIT-TESTING to the clipped shape; under the
+   plane's 3D tilt, a clipped button's foreshortened hexagon shifts inside its
+   own bounding box, and a click at the box's geometric center (what browsers/
+   Playwright target) can land in the sliver the clip-path just cut away,
+   missing the button and falling through to the hive container underneath.
+   A rectangular hit-box has no such sliver, so every hex stays reliably
+   clickable at any tilt angle. */
+.hex-face {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: radial-gradient(circle at 50% 32%, rgba(58, 46, 96, 0.94), rgba(15, 11, 26, 0.97));
   box-shadow:
     inset 0 0 0 1px rgba(150, 130, 220, 0.34),
     0 6px 16px rgba(0, 0, 0, 0.55);
-  transition:
-    transform 0.14s ease,
-    filter 0.14s ease,
-    box-shadow 0.2s ease;
 }
 
-/* When skill_00N art exists (has-art), it fills the hex as a cover background
-   (clip-path already cuts it to the hexagon), with a bottom-heavy scrim under
-   the label/cost so text stays legible over the illustration. */
-.skill-hex.has-art {
+/* When skill_00N art exists (has-art), it fills the hex as a cover background,
+   with a bottom-heavy scrim under the label/cost so text stays legible over
+   the illustration. */
+.skill-hex.has-art .hex-face {
   background-image: var(--hex-art), radial-gradient(circle at 50% 32%, rgba(58, 46, 96, 0.94), rgba(15, 11, 26, 0.97));
   background-size: cover;
   background-position: center 30%;
@@ -2707,16 +2740,15 @@ body {
 .hex-art-scrim {
   position: absolute;
   inset: 0;
-  z-index: 0;
   pointer-events: none;
   background: linear-gradient(180deg, rgba(10, 7, 20, 0.1) 0%, rgba(8, 5, 16, 0.35) 55%, rgba(6, 4, 12, 0.88) 100%);
 }
 
 /* The three press-to-use skills read as the stars of the hive: a live cyan
    ready-ring while affordable so they invite the click. */
-.skill-hex--raise:not(.is-disabled):not(.is-armed),
-.skill-hex--raise-all:not(.is-disabled):not(.is-armed),
-.skill-hex--capture:not(.is-disabled):not(.is-armed) {
+.skill-hex--raise:not(.is-disabled):not(.is-armed) .hex-face,
+.skill-hex--raise-all:not(.is-disabled):not(.is-armed) .hex-face,
+.skill-hex--capture:not(.is-disabled):not(.is-armed) .hex-face {
   box-shadow:
     inset 0 0 0 1px rgba(150, 225, 255, 0.55),
     0 0 16px rgba(90, 190, 255, 0.4),
@@ -2729,13 +2761,15 @@ body {
 .skill-hex--basic {
   width: 58px;
   height: 64px;
+}
+.skill-hex--basic .hex-face {
   background: radial-gradient(circle at 50% 34%, rgba(64, 55, 96, 0.9), rgba(17, 13, 28, 0.96));
   box-shadow:
     inset 0 5px 10px rgba(0, 0, 0, 0.62),
     inset 0 -2px 5px rgba(180, 210, 255, 0.08),
     inset 0 0 0 1px rgba(140, 125, 190, 0.3);
 }
-.skill-hex--basic.has-art {
+.skill-hex--basic.has-art .hex-face {
   background-image: var(--hex-art), radial-gradient(circle at 50% 34%, rgba(64, 55, 96, 0.9), rgba(17, 13, 28, 0.96));
   background-size: cover;
   background-position: center 30%;
@@ -2745,11 +2779,10 @@ body {
 }
 /* The revolving loading glow — a bright cyan arc masked to a hexagon-edge
    ring, spinning slowly. */
-.skill-hex--basic::after {
+.skill-hex--basic .hex-face::after {
   content: '';
   position: absolute;
   inset: 0;
-  z-index: 0;
   /* Faint cyan ring always present + a bright arc that sweeps around it. */
   background: conic-gradient(
     from 0deg,
@@ -2771,7 +2804,7 @@ body {
     transform: rotate(360deg);
   }
 }
-/* Keep the label/cost above the spinning ring. */
+/* Keep the label/cost above the hex-face. */
 .skill-hex .hex-name,
 .skill-hex .hex-cost {
   position: relative;
@@ -2783,7 +2816,8 @@ body {
      dissonance. */
   transform: scaleY(0.88);
   text-shadow:
-    0 2px 5px rgba(0, 0, 0, 0.92),
+    0 2px 6px rgba(0, 0, 0, 0.95),
+    0 0 10px rgba(160, 220, 255, 0.55),
     0 5px 13px rgba(0, 0, 0, 0.5);
 }
 
@@ -2793,48 +2827,80 @@ body {
 }
 
 .skill-hex .hex-name {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
 }
 
 .skill-hex .hex-cost {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   color: #8fdcff;
 }
 
-.skill-hex.is-armed {
+.skill-hex.is-armed .hex-face {
   background: radial-gradient(circle at 50% 32%, rgba(255, 172, 92, 0.96), rgba(120, 60, 20, 0.96));
-  color: #fff2df;
   box-shadow:
     inset 0 0 0 1px rgba(255, 210, 150, 0.7),
     0 0 24px rgba(255, 170, 90, 0.85);
+}
+.skill-hex.is-armed {
+  color: #fff2df;
 }
 .skill-hex.is-armed .hex-cost {
   color: #ffe6c2;
 }
 
+/* Clearly "off": heavily desaturated and dimmed so an unaffordable skill reads
+   at a glance as unusable, not just slightly duller. */
 .skill-hex.is-disabled {
-  filter: grayscale(0.72) brightness(0.42);
-  opacity: 0.75;
+  filter: grayscale(0.9) brightness(0.32);
+  opacity: 0.55;
   cursor: default;
 }
+.skill-hex.is-disabled .hex-face {
+  box-shadow:
+    inset 0 0 0 1px rgba(120, 110, 150, 0.25),
+    0 4px 10px rgba(0, 0, 0, 0.5);
+}
 
-/* "팅!" — a skill just became affordable: a quick pop + bright flash. */
+/* "팅!" — a skill just became affordable: a bright pop + flash ring that
+   reads unmistakably as "lit up now", not a subtle brightness tick. */
 .skill-hex.is-ready-pop {
-  animation: hex-ready-pop 0.5s ease-out;
+  animation: hex-ready-pop 0.55s ease-out;
+}
+.skill-hex.is-ready-pop .hex-face {
+  animation: hex-ready-pop-ring 0.55s ease-out;
 }
 @keyframes hex-ready-pop {
   0% {
     transform: scale(1);
   }
-  38% {
-    transform: scale(1.24);
-    filter: brightness(1.8) drop-shadow(0 0 16px rgba(150, 225, 255, 0.95));
+  35% {
+    transform: scale(1.32);
+    filter: brightness(2.1) drop-shadow(0 0 20px rgba(170, 230, 255, 1));
   }
   100% {
     transform: scale(1);
     filter: brightness(1);
+  }
+}
+@keyframes hex-ready-pop-ring {
+  0% {
+    box-shadow:
+      inset 0 0 0 1px rgba(150, 225, 255, 0.55),
+      0 0 16px rgba(90, 190, 255, 0.4);
+  }
+  35% {
+    box-shadow:
+      inset 0 0 0 2px rgba(220, 245, 255, 1),
+      0 0 40px rgba(150, 225, 255, 1),
+      0 0 70px rgba(150, 225, 255, 0.6);
+  }
+  100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(150, 225, 255, 0.55),
+      0 0 16px rgba(90, 190, 255, 0.4);
   }
 }
 
@@ -2978,7 +3044,21 @@ body {
   mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
-  filter: grayscale(0.42) brightness(0.82);
+  filter: grayscale(0.42) brightness(0.82) drop-shadow(0 0 3px rgba(225, 205, 255, 0.4));
+  animation: corpse-outline-pulse 2.4s ease-in-out infinite;
+}
+
+/* A translucent line tracing the masked diamond's own silhouette (drop-shadow
+   follows the img's alpha edge exactly) — pulses to call out a raisable body
+   beyond the static purple halo/aura. */
+@keyframes corpse-outline-pulse {
+  0%,
+  100% {
+    filter: grayscale(0.42) brightness(0.82) drop-shadow(0 0 3px rgba(225, 205, 255, 0.4));
+  }
+  50% {
+    filter: grayscale(0.42) brightness(0.82) drop-shadow(0 0 10px rgba(225, 205, 255, 0.9));
+  }
 }
 
 @keyframes corpse-waver {

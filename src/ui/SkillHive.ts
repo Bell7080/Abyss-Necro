@@ -53,7 +53,7 @@ export class SkillHive {
       btn.title = face.hint
       btn.style.setProperty('--hex-tone', face.tone)
       if (art) btn.style.setProperty('--hex-art', `url('${art}')`)
-      btn.innerHTML = `<span class="hex-art-scrim" aria-hidden="true"></span><span class="hex-name">${face.name}</span><span class="hex-cost">${this.ability.costOf(id)}</span>`
+      btn.innerHTML = `<span class="hex-face" aria-hidden="true"><span class="hex-art-scrim" aria-hidden="true"></span></span><span class="hex-name">${face.name}</span><span class="hex-cost">${this.ability.costOf(id)}</span>`
       btn.addEventListener('click', () => handlers.onSkill(id))
       hexes.appendChild(btn)
       this.hexes.set(id, btn)
@@ -84,8 +84,14 @@ export class SkillHive {
   /** Welds the hive to the player card's live position, sitting just to the LEFT
    * of the card (beside it, not overlapping its face) and vertically centered on
    * it. Clamped so it never slides off the screen's left edge. Call after layout
-   * and on resize; skip during cast animations so it anchors to the card at rest. */
-  anchorTo(cardRect: DOMRect | null): void {
+   * and on resize; skip during cast animations so it anchors to the card at rest.
+   *
+   * `boardMountRect`, if given, re-derives perspective-origin from board-mount's
+   * OWN actual eye (its `perspective-origin: 50% -14%`, in live viewport
+   * coordinates) relative to wherever the hive just got anchored — sharing the
+   * board's vanishing point exactly, not just at one assumed screen position.
+   * Without it the hive keeps its last (or CSS-default) perspective-origin. */
+  anchorTo(cardRect: DOMRect | null, boardMountRect?: DOMRect | null): void {
     if (!cardRect) return
     const w = this.wrap.offsetWidth || 112
     const h = this.wrap.offsetHeight || 320
@@ -93,6 +99,12 @@ export class SkillHive {
     const top = cardRect.top + (cardRect.height - h) / 2
     this.wrap.style.left = `${Math.round(left)}px`
     this.wrap.style.top = `${Math.round(top)}px`
+
+    if (boardMountRect) {
+      const eyeX = boardMountRect.left + boardMountRect.width * 0.5
+      const eyeY = boardMountRect.top + boardMountRect.height * -0.14
+      this.wrap.style.perspectiveOrigin = `${Math.round(eyeX - left)}px ${Math.round(eyeY - top)}px`
+    }
   }
 
   /** Highlights the currently armed toggle skill (null = plain basic mode). */

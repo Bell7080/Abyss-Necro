@@ -492,6 +492,14 @@ export class BoardRenderer {
     return this.playerFigureEl?.getBoundingClientRect() ?? null
   }
 
+  /** The board-mount frame's own rect — lets a sibling 3D element (the skill
+   * hive) compute board-mount's actual perspective-origin eye point in live
+   * viewport coordinates, so its own perspective-origin can share that eye
+   * exactly wherever it's anchored (not just at one assumed screen position). */
+  getBoardMountRect(): DOMRect {
+    return this.root.getBoundingClientRect()
+  }
+
   /** Springy cast feedback on the player card: 'recoil' kicks it back-and-in
    * (ranged casts — 공격/포획), 'hop' bounces it up-and-down (raising casts —
    * 급조/기상). The keyframes carry the standee's own transform so the lean

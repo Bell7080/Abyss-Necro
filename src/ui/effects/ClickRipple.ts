@@ -1,19 +1,18 @@
 /**
- * ClickRipple — a borderless glowing ring that blooms outward from every
- * click/tap and dissolves, with two trailing echoes right behind it for an
- * afterimage feel. Purely decorative, purely global: it listens on the
- * capture phase so it fires no matter what's clicked (a hex, a corpse figure
- * that stops propagation, an overlay button — everything).
+ * ClickRipple — a single faint glowing ring that blooms outward from every
+ * click/tap and dissolves quickly. Purely decorative, purely global: it
+ * listens on the capture phase so it fires no matter what's clicked (a hex, a
+ * corpse figure that stops propagation, an overlay button — everything).
+ * Kept to one quick, subtle ring — stacked trailing echoes read as a
+ * double/triple click, which is misleading for a single-click game.
  */
 
 const OVERLAY_ID = 'click-ripple-overlay'
 const STYLE_ID = 'click-ripple-styles'
 
-// Cyan → violet, matching the rest of the abyss UI's glow language.
-const RING_COLORS = ['rgba(150, 225, 255, 0.95)', 'rgba(190, 165, 255, 0.85)', 'rgba(220, 180, 255, 0.7)']
-const RING_COUNT = 3
-const RING_STAGGER_MS = 90
-const RING_DURATION_MS = 620
+// Soft cyan, matching the rest of the abyss UI's glow language.
+const RING_COLOR = 'rgba(170, 220, 255, 0.5)'
+const RING_DURATION_MS = 340
 
 function ensureStyles(): void {
   if (document.getElementById(STYLE_ID)) return
@@ -53,28 +52,23 @@ function getOverlay(): HTMLElement {
 }
 
 function spawnRipple(overlay: HTMLElement, x: number, y: number): void {
-  for (let i = 0; i < RING_COUNT; i += 1) {
-    const ring = document.createElement('div')
-    ring.className = 'click-ripple-ring'
-    ring.style.left = `${x}px`
-    ring.style.top = `${y}px`
-    const color = RING_COLORS[i] ?? RING_COLORS[RING_COLORS.length - 1]
-    ring.style.border = `${2 - i * 0.4}px solid ${color}`
-    ring.style.boxShadow = `0 0 ${10 - i * 2}px ${color}, 0 0 ${20 - i * 4}px ${color}`
-    overlay.appendChild(ring)
+  const ring = document.createElement('div')
+  ring.className = 'click-ripple-ring'
+  ring.style.left = `${x}px`
+  ring.style.top = `${y}px`
+  ring.style.border = `1.5px solid ${RING_COLOR}`
+  ring.style.boxShadow = `0 0 6px ${RING_COLOR}`
+  overlay.appendChild(ring)
 
-    const delay = i * RING_STAGGER_MS
-    const anim = ring.animate(
-      [
-        { transform: 'scale(0.5)', opacity: 0.95 },
-        { transform: 'scale(1.4)', opacity: 0.55, offset: 0.45 },
-        { transform: 'scale(2.8)', opacity: 0 },
-      ],
-      { duration: RING_DURATION_MS, delay, easing: 'cubic-bezier(0.15, 0.7, 0.3, 1)', fill: 'forwards' }
-    )
-    anim.onfinish = () => ring.remove()
-    window.setTimeout(() => ring.remove(), RING_DURATION_MS + delay + 200)
-  }
+  const anim = ring.animate(
+    [
+      { transform: 'scale(0.5)', opacity: 0.6 },
+      { transform: 'scale(1.6)', opacity: 0 },
+    ],
+    { duration: RING_DURATION_MS, easing: 'ease-out', fill: 'forwards' }
+  )
+  anim.onfinish = () => ring.remove()
+  window.setTimeout(() => ring.remove(), RING_DURATION_MS + 200)
 }
 
 export const ClickRipple = {
