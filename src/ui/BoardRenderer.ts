@@ -63,6 +63,7 @@ interface Occupant {
 export class BoardRenderer {
   private cellEls: HTMLElement[] = []
   private playerCellEl!: HTMLElement
+  private playerFigureEl!: HTMLElement
   private playerHpFill: HTMLElement | null = null
   private gridEl!: HTMLElement
   private readonly enemyTokens = new Map<string, HTMLElement>()
@@ -104,6 +105,7 @@ export class BoardRenderer {
       imageUrl: playerArt,
       name: '넥슈',
     })
+    this.playerFigureEl = playerFigure
     this.playerHpFill = playerFigure.querySelector('.entity-card-hp-fill')
     this.playerCellEl.appendChild(playerFigure)
     layout.appendChild(this.playerCellEl)
@@ -361,24 +363,49 @@ export class BoardRenderer {
     this.playerCellEl.classList.toggle('is-placement-targetable', active)
   }
 
-  /** Shows the purple skull capture marker on exactly the given cells (front
-   * enemy weak enough to claim), clearing it from all others. */
-  setCaptureMarkers(cellIndices: readonly number[]): void {
+  /** 포획 aim: emphasis rides on the ENEMY, not the tile. Every enemy token
+   * whose id is in the set gets a pulsing violet capture aura + a "넌 내꺼야!"
+   * skull badge; all others are cleared. */
+  setCaptureTargets(enemyIds: ReadonlySet<string>): void {
+    const apply = (tokens: Map<string, HTMLElement>): void => {
+      for (const [id, el] of tokens) {
+        const on = enemyIds.has(id)
+        el.classList.toggle('is-capture-target', on)
+        // Marker rides on the raised standee (figure), floating above the card.
+        const host = el.querySelector<HTMLElement>('.board-figure') ?? el
+        let marker = host.querySelector<HTMLElement>('.capture-marker')
+        if (on && !marker) {
+          marker = document.createElement('div')
+          marker.className = 'capture-marker'
+          marker.innerHTML = Icons.captureSkull()
+          host.appendChild(marker)
+        } else if (!on && marker) {
+          marker.remove()
+        }
+      }
+    }
+    apply(this.enemyTokens)
+    apply(this.bossEnemyTokens)
+  }
+
+  /** 급조 aim: the corpse standees float ABOVE their floor tile, so the tile
+   * to actually click isn't obvious. Ring every grid cell that holds a
+   * raisable corpse (with room) so the target is unmistakable. */
+  setRaiseTargets(cellIndices: readonly number[]): void {
     const wanted = new Set(cellIndices)
-    const apply = (el: HTMLElement, index: number): void => {
-      const on = wanted.has(index)
-      let marker = el.querySelector<HTMLElement>('.capture-marker')
+    this.cellEls.forEach((el, i) => {
+      const on = wanted.has(i)
+      el.classList.toggle('is-raise-target', on)
+      let marker = el.querySelector<HTMLElement>('.raise-marker')
       if (on && !marker) {
         marker = document.createElement('div')
-        marker.className = 'capture-marker'
-        marker.innerHTML = Icons.captureSkull()
+        marker.className = 'raise-marker'
+        marker.innerHTML = Icons.raiseHand()
         el.appendChild(marker)
       } else if (!on && marker) {
         marker.remove()
       }
-    }
-    this.cellEls.forEach((el, i) => apply(el, i))
-    apply(this.playerCellEl, BOSS_CELL_INDEX)
+    })
   }
 
   getCellRect(cellIndex: number): DOMRect | null {
@@ -388,6 +415,26 @@ export class BoardRenderer {
 
   getPlayerRect(): DOMRect | null {
     return this.playerCellEl?.getBoundingClientRect() ?? null
+  }
+
+  /** The player's standee CARD rect (offset up/left of the floor socket) — the
+   * true muzzle point, so casts launch from the card's center, not the tile. */
+  getPlayerCardRect(): DOMRect | null {
+    return this.playerFigureEl?.getBoundingClientRect() ?? null
+  }
+
+  /** Springy cast feedback on the player card: 'recoil' kicks it back-and-in
+   * (ranged casts — 공격/포획), 'hop' bounces it up-and-down (raising casts —
+   * 급조/기상). The keyframes carry the standee's own transform so the lean
+   * and lift are preserved through the animation. */
+  playerCast(kind: 'recoil' | 'hop'): void {
+    const el = this.playerFigureEl
+    if (!el) return
+    const cls = kind === 'recoil' ? 'is-casting-recoil' : 'is-casting-hop'
+    el.classList.remove('is-casting-recoil', 'is-casting-hop')
+    void el.offsetWidth
+    el.classList.add(cls)
+    window.setTimeout(() => el.classList.remove(cls), 460)
   }
 
   playDefeatFx(cellIndex: number): void {
@@ -455,9 +502,10 @@ function flashCard(card: Element | null): void {
   window.setTimeout(() => card.classList.remove('is-hit'), HIT_FLASH_MS)
 }
 
-// Four-point star path for the constellation crossings.
+// Four-point star for the constellation crossings — a crisp diamond core with
+// short sparkle points (higher `w` = fuller, more gem-like than a thin cross).
 function starPath(cx: number, cy: number, r: number): string {
-  const w = r * 0.26
+  const w = r * 0.42
   return `M${cx} ${cy - r} L${cx + w} ${cy - w} L${cx + r} ${cy} L${cx + w} ${cy + w} L${cx} ${cy + r} L${cx - w} ${cy + w} L${cx - r} ${cy} L${cx - w} ${cy - w} Z`
 }
 

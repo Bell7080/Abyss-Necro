@@ -29,6 +29,14 @@ export const Icons = {
       <path d="M12 14.5l-1.1 2.2h2.2L12 14.5Z" fill="#0a0716"/>
     </svg>`
   },
+  /** 급조 target: an up-chevron rising from a ground line — "여기서 일으켜". */
+  raiseHand(): string {
+    return `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 15 12 9l6 6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12 9v9" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+      <path d="M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>`
+  },
   /** Basic attack: a curse shot streaking away with trailing bubbles. */
   curseBolt(): string {
     return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
