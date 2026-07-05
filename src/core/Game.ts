@@ -298,6 +298,11 @@ export class Game {
     // In the browser this may wait for the first click (autoplay gate); the
     // packaged Electron app plays it immediately (autoplayPolicy override).
     this.audio.playOst()
+    // Weld the skill hive to the player card's live position (survives resize).
+    const syncHive = (): void => this.hive.anchorTo(this.board.getPlayerCardRect())
+    requestAnimationFrame(syncHive)
+    requestAnimationFrame(() => requestAnimationFrame(syncHive))
+    window.addEventListener('resize', syncHive)
   }
 
   /** Hover-to-inspect on the board. Ignored while aiming (the selected hand
