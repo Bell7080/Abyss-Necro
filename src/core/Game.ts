@@ -330,12 +330,6 @@ export class Game {
     this.board.setPlayerHp(this.playerSystem.getHp(), this.playerSystem.getMaxHp())
     // The OST now starts once the intro title scene finishes revealing itself
     // (IntroOverlay's onRevealed callback), not immediately at boot.
-    // Weld the skill hive to the player card's live position (survives resize).
-    const syncHive = (): void =>
-      this.hive.anchorTo(this.board.getPlayerCardRect(), this.board.getBoardMountRect())
-    requestAnimationFrame(syncHive)
-    requestAnimationFrame(() => requestAnimationFrame(syncHive))
-    window.addEventListener('resize', syncHive)
   }
 
   /** Hover-to-inspect on the board. Ignored while aiming (the selected hand

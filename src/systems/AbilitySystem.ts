@@ -16,7 +16,7 @@ export type AbilityId = 'basic' | 'raise' | 'raise-all' | 'capture'
 export const ABILITY_COST: Record<AbilityId, number> = {
   basic: 1, // "이거나 먹어라!" — single-cell bubble blast
   raise: 2, // "얘들아…! 막아!" — raise every corpse in a cell
-  'raise-all': 10, // "모두 일어나!" — raise every corpse on the field
+  'raise-all': 6, // "모두 일어나!" — raise every corpse on the field
   capture: 10, // "넌 내꺼야!" — execute a low-hp enemy for a guaranteed card
 }
 
@@ -26,7 +26,7 @@ export const ABILITY_COST: Record<AbilityId, number> = {
 // only decides whether a cast is affordable — the effects live in Game.
 export class AbilitySystem {
   private maxGauge = BASE_MAX_GAUGE
-  private gauge = BASE_MAX_GAUGE
+  private gauge = 0
   private lastRegenAt = Date.now()
   private readonly listeners: Array<() => void> = []
 

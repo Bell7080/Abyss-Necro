@@ -5,7 +5,7 @@ import { getCreature } from '@data/CreatureDefinitions'
 import { MAX_TIER, RAISED_STATS, allyStatsForLevel } from '@data/Tiers'
 
 const ROWS = 3
-const COLS = 4
+const COLS = 5 // must match WaveSystem's COLS / BoardRenderer's GRID_COLS
 const CELL_COUNT = ROWS * COLS
 const MAX_ALLIES_PER_CELL = 3
 // Fallback attack for a placed ally that carries no explicit value.
