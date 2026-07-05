@@ -1,6 +1,5 @@
 import type { AbilitySystem, AbilityId } from '@systems/AbilitySystem'
 import { SKILL_FACES, getSkillArt } from '@ui/SkillArt'
-import { Icons } from '@ui/Icons'
 
 // Basic first (always-on default), then the three toggle skills — laid out
 // left-to-right. Order/names/hints come from the shared SKILL_FACES map
@@ -11,6 +10,9 @@ export interface SkillHiveHandlers {
   /** A hex was pressed. Game decides: basic disarms, raise/capture arm,
    * raise-all fires at once. */
   onSkill: (id: AbilityId) => void
+  /** Hovering a hex — Game renders this into the right-side CardInspector
+   * (the same panel used for board/hand hover), null on mouse-leave. */
+  onHover: (id: AbilityId | null) => void
 }
 
 // A row of four hex skill buttons fixed top-center (below the wave/timer
@@ -22,10 +24,6 @@ export class SkillHive {
   private readonly hexes = new Map<AbilityId, HTMLButtonElement>()
   private readonly gaugeFill: HTMLElement
   private readonly gaugeTicks: HTMLElement
-  private readonly tooltip: HTMLElement
-  private readonly tooltipName: HTMLElement
-  private readonly tooltipHint: HTMLElement
-  private readonly tooltipCost: HTMLElement
 
   constructor(
     root: HTMLElement,
@@ -39,12 +37,6 @@ export class SkillHive {
 
     const hexes = document.createElement('div')
     hexes.className = 'hive-hexes'
-    hexes.innerHTML = `
-      <div class="hive-backdrop" aria-hidden="true">
-        <span class="hive-spark hive-spark--a">${Icons.coinSparkle()}</span>
-        <span class="hive-spark hive-spark--b">${Icons.coinSparkle()}</span>
-        <span class="hive-spark hive-spark--c">${Icons.coinSparkle()}</span>
-      </div>`
     for (const id of HEX_ORDER) {
       const face = SKILL_FACES[id]
       const art = getSkillArt(id)
@@ -55,10 +47,8 @@ export class SkillHive {
       if (art) btn.style.setProperty('--hex-art', `url('${art}')`)
       btn.innerHTML = `<span class="hex-face" aria-hidden="true"><span class="hex-art-scrim" aria-hidden="true"></span></span><span class="hex-name">${face.name}</span><span class="hex-cost">${this.ability.costOf(id)}</span>`
       btn.addEventListener('click', () => handlers.onSkill(id))
-      // Custom themed panel to the right of the hive replaces the browser's
-      // native title tooltip — instant, and matches the rest of the UI.
-      btn.addEventListener('mouseenter', () => this.showTooltip(id))
-      btn.addEventListener('mouseleave', () => this.hideTooltip())
+      btn.addEventListener('mouseenter', () => handlers.onHover(id))
+      btn.addEventListener('mouseleave', () => handlers.onHover(null))
       hexes.appendChild(btn)
       this.hexes.set(id, btn)
     }
@@ -77,19 +67,6 @@ export class SkillHive {
     plane.appendChild(gauge)
     wrap.appendChild(plane)
 
-    const tooltip = document.createElement('div')
-    tooltip.className = 'hive-tooltip'
-    tooltip.setAttribute('aria-hidden', 'true')
-    tooltip.innerHTML = `
-      <span class="hive-tooltip-name"></span>
-      <span class="hive-tooltip-hint"></span>
-      <span class="hive-tooltip-cost"></span>`
-    this.tooltip = tooltip
-    this.tooltipName = tooltip.querySelector('.hive-tooltip-name') as HTMLElement
-    this.tooltipHint = tooltip.querySelector('.hive-tooltip-hint') as HTMLElement
-    this.tooltipCost = tooltip.querySelector('.hive-tooltip-cost') as HTMLElement
-    wrap.appendChild(tooltip)
-
     root.appendChild(wrap)
 
     const tick = (): void => {
@@ -98,21 +75,6 @@ export class SkillHive {
       requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
-  }
-
-  /** Fills and reveals the right-side info panel for a hovered hex — name,
-   * catchphrase, and gauge cost. */
-  private showTooltip(id: AbilityId): void {
-    const face = SKILL_FACES[id]
-    this.tooltipName.textContent = face.name
-    this.tooltipHint.textContent = face.hint
-    this.tooltipCost.textContent = `게이지 ${this.ability.costOf(id)}`
-    this.tooltip.style.setProperty('--tooltip-tone', face.tone)
-    this.tooltip.classList.add('is-visible')
-  }
-
-  private hideTooltip(): void {
-    this.tooltip.classList.remove('is-visible')
   }
 
   /** Highlights the currently armed toggle skill (null = plain basic mode). */

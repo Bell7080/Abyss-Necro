@@ -9,7 +9,7 @@ const LEAVE_FADE_MS = 700
 const ENTER_FADE_MS = 900
 // Firefly count and how much of the screen's lower band they scatter across
 // ("물결 아래" — beneath/among the water ripple, not up near the title art).
-const FIREFLY_COUNT = 16
+const FIREFLY_COUNT = 26
 
 /** A scatter of tiny drifting, twinkling motes across the title screen's
  * lower band — each carries its own size/duration/delay/drift as inline
@@ -18,10 +18,10 @@ function firefliesHtml(): string {
   return Array.from({ length: FIREFLY_COUNT }, () => {
     const left = Math.random() * 100
     const top = 42 + Math.random() * 54
-    const size = 2 + Math.random() * 2.2
-    const duration = 6 + Math.random() * 7
+    const size = 3 + Math.random() * 4
+    const duration = 5 + Math.random() * 6
     const delay = Math.random() * 9
-    const drift = -36 + Math.random() * 72
+    const drift = -60 + Math.random() * 120
     return `<span class="intro-firefly" style="left:${left.toFixed(1)}%;top:${top.toFixed(1)}%;--firefly-size:${size.toFixed(1)}px;--firefly-duration:${duration.toFixed(1)}s;--firefly-delay:${delay.toFixed(1)}s;--firefly-drift:${drift.toFixed(0)}px"></span>`
   }).join('')
 }

@@ -206,7 +206,9 @@ body {
   position: absolute;
   top: 46%;
   left: 50%;
-  transform: translate(-50%, -56%);
+  /* Nudged left of dead-center so the player's room reads as snug against the
+     screen's left wall instead of floating mid-screen. */
+  transform: translate(calc(-50% - 60px), -56%);
   perspective: 1900px;
   perspective-origin: 50% -14%;
 }
@@ -251,8 +253,12 @@ body {
   border-radius: 40px;
   background: linear-gradient(160deg, rgba(70, 46, 112, 0.45), rgba(14, 10, 26, 0.8));
   border: 0;
+  /* Inset top shadow matches the grid cells' recessed-into-the-floor look
+     (they were missing here, which read as the room floating above the
+     board instead of sitting in it); a small downward nudge grounds it further. */
   box-shadow:
     inset 0 0 0 1px rgba(180, 220, 255, 0.16),
+    inset 0 6px 22px rgba(0, 0, 0, 0.3),
     0 0 34px rgba(150, 205, 255, 0.18),
     0 22px 36px var(--abyss-shadow);
   display: flex;
@@ -261,6 +267,7 @@ body {
   color: var(--abyss-lavender-bright);
   cursor: pointer;
   transform-style: preserve-3d;
+  transform: translateY(14px);
   transition: box-shadow 0.18s ease;
 }
 
@@ -269,6 +276,7 @@ body {
 .board-player-cell:hover {
   box-shadow:
     inset 0 0 0 1px rgba(235, 190, 255, 0.45),
+    inset 0 6px 22px rgba(0, 0, 0, 0.3),
     0 0 34px rgba(180, 205, 255, 0.26),
     0 22px 36px var(--abyss-shadow);
 }
@@ -276,6 +284,7 @@ body {
 .board-player-cell.is-placement-targetable {
   box-shadow:
     inset 0 0 0 1px rgba(255, 190, 130, 0.4),
+    inset 0 6px 22px rgba(0, 0, 0, 0.3),
     0 0 34px rgba(255, 180, 120, 0.16),
     0 22px 36px var(--abyss-shadow);
 }
@@ -283,6 +292,7 @@ body {
 .board-player-cell.is-placement-targetable:hover {
   box-shadow:
     inset 0 0 0 1px rgba(255, 210, 160, 0.6),
+    inset 0 6px 22px rgba(0, 0, 0, 0.3),
     0 0 34px rgba(255, 190, 130, 0.28),
     0 22px 36px var(--abyss-shadow);
 }
@@ -1824,8 +1834,10 @@ body {
   width: var(--firefly-size, 3px);
   height: var(--firefly-size, 3px);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 246, 205, 0.95), rgba(255, 220, 140, 0.5) 60%, transparent 80%);
-  box-shadow: 0 0 6px rgba(255, 230, 160, 0.75);
+  background: radial-gradient(circle, rgba(255, 250, 220, 1), rgba(255, 220, 140, 0.65) 55%, transparent 78%);
+  box-shadow:
+    0 0 10px rgba(255, 235, 170, 0.9),
+    0 0 22px rgba(255, 210, 130, 0.55);
   opacity: 0;
   animation: firefly-drift var(--firefly-duration, 8s) ease-in-out var(--firefly-delay, 0s) infinite;
 }
@@ -1834,17 +1846,19 @@ body {
   0%,
   100% {
     opacity: 0;
-    transform: translate(0, 0);
+    transform: translate(0, 0) scale(0.8);
   }
   15% {
-    opacity: 0.9;
+    opacity: 1;
+    transform: translate(calc(var(--firefly-drift, 20px) * 0.3), -8px) scale(1.15);
   }
   50% {
-    opacity: 0.3;
-    transform: translate(var(--firefly-drift, 20px), -16px);
+    opacity: 0.45;
+    transform: translate(var(--firefly-drift, 20px), -26px) scale(0.9);
   }
   85% {
-    opacity: 0.85;
+    opacity: 1;
+    transform: translate(calc(var(--firefly-drift, 20px) * 0.6), -14px) scale(1.2);
   }
 }
 
@@ -1995,7 +2009,7 @@ body {
 
 .intro-dlg-name {
   text-align: center;
-  font-size: 23px;
+  font-size: 30px;
   font-weight: 900;
   letter-spacing: 0.06em;
   color: #cdeaff;
@@ -2016,12 +2030,48 @@ body {
 
 .intro-dlg-text {
   text-align: center;
-  font-size: 19px;
+  font-size: 24px;
   line-height: 1.65;
   color: #eaf3ff;
   min-height: 2.6em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
   transition: text-align 0.4s ease;
+}
+
+.intro-dlg-char {
+  display: inline-block;
+  animation: intro-dlg-char-pop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes intro-dlg-char-pop {
+  0% {
+    transform: translateY(10px) scale(0.4);
+    opacity: 0;
+  }
+  55% {
+    transform: translateY(-4px) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Once a line's fully typed, a gentle idle bob keeps the box feeling alive
+   instead of going static while the player reads. */
+.intro-dlg-text.is-line-settled {
+  animation: intro-dlg-text-float 2.6s ease-in-out infinite;
+}
+
+@keyframes intro-dlg-text-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
 .intro-dialogue.is-shifted .intro-dlg-name,
@@ -2037,10 +2087,10 @@ body {
 .intro-dlg-stage {
   position: absolute;
   left: 50%;
-  bottom: 208px;
+  bottom: 160px;
   transform: translateX(-50%);
-  width: 260px;
-  height: 340px;
+  width: 520px;
+  height: 680px;
   pointer-events: none;
   transition: left 0.6s ease;
 }
@@ -2066,7 +2116,7 @@ body {
 
 .intro-dlg-portrait-shadow {
   z-index: 0;
-  transform: translateX(-22px);
+  transform: translateX(-36px);
   opacity: 0;
   filter: blur(1px) brightness(0.55) saturate(0.7);
   transition: opacity 0.4s ease;
@@ -3148,57 +3198,6 @@ body {
   z-index: 74;
 }
 
-/* Hover info panel — replaces the hex's old native title tooltip. Sits fixed
-   to the right of the whole hive (not per-hex) so it never has to reposition
-   itself as different hexes are hovered. */
-.hive-tooltip {
-  position: absolute;
-  top: 50%;
-  left: 100%;
-  margin-left: 18px;
-  width: 190px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 16px;
-  border-radius: 14px;
-  background: rgba(8, 6, 18, 0.82);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--tooltip-tone, #9b6cff) 45%, transparent),
-    0 10px 24px rgba(0, 0, 0, 0.5);
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity 0.14s ease,
-    transform 0.14s ease;
-  transform: translateY(-50%) translateX(-6px);
-}
-
-.hive-tooltip.is-visible {
-  opacity: 1;
-  transform: translateY(-50%) translateX(0);
-}
-
-.hive-tooltip-name {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  color: #f2ecff;
-}
-
-.hive-tooltip-hint {
-  font-size: 12.5px;
-  font-style: italic;
-  color: rgba(214, 224, 252, 0.82);
-}
-
-.hive-tooltip-cost {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--tooltip-tone, #8fdcff);
-}
-
 .hive-plane {
   display: flex;
   flex-direction: column;
@@ -3212,49 +3211,6 @@ body {
   flex-direction: row;
   align-items: flex-end;
   gap: 40px;
-}
-
-/* One soft dark-violet glow panel behind the row (no busy repeating dot
-   texture) plus a handful of deliberately-placed constellation sparkles —
-   the same 4-point mark and twinkle as the board's own stars, just a few of
-   them instead of a tiled pattern. */
-.hive-backdrop {
-  position: absolute;
-  inset: -26px -22px;
-  z-index: -1;
-  border-radius: 36px;
-  background: radial-gradient(ellipse 88% 100% at 50% 50%, rgba(72, 50, 122, 0.4), rgba(8, 5, 16, 0.14) 68%, transparent 100%);
-  box-shadow: inset 0 0 0 1px rgba(150, 120, 220, 0.14);
-}
-
-.hive-spark {
-  position: absolute;
-  color: rgba(205, 225, 255, 0.6);
-  filter: drop-shadow(0 0 4px rgba(160, 205, 255, 0.65));
-  animation: star-twinkle 3.2s ease-in-out infinite;
-}
-
-.hive-spark svg {
-  width: 9px;
-  height: 9px;
-  display: block;
-}
-
-.hive-spark--a {
-  top: 6%;
-  left: 8%;
-}
-
-.hive-spark--b {
-  top: 74%;
-  left: 47%;
-  animation-delay: 1.1s;
-}
-
-.hive-spark--c {
-  top: 16%;
-  left: 88%;
-  animation-delay: 2.1s;
 }
 
 .skill-hex {
@@ -3290,9 +3246,16 @@ body {
   z-index: 0;
   clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   background: radial-gradient(circle at 50% 32%, rgba(58, 46, 96, 0.94), rgba(15, 11, 26, 0.97));
-  box-shadow:
-    inset 0 0 0 1px rgba(150, 130, 220, 0.34),
-    0 6px 16px rgba(0, 0, 0, 0.55);
+  /* Only the INSET ring lives in box-shadow — clip-path clips box-shadow
+     output to the hex polygon, so any outward-facing glow written as
+     box-shadow gets hard-cut right at the edge (a faint ghost sliver where
+     the blur should have faded out smoothly). filter: drop-shadow() isn't
+     clipped the same way — it shadows the element's actual (already
+     clipped) rendered silhouette, so it bleeds outward cleanly. Every
+     outward glow below (armed/ready/primed/etc.) uses filter for this
+     reason, box-shadow only for insets. */
+  box-shadow: inset 0 0 0 1px rgba(150, 130, 220, 0.34);
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.55));
 }
 
 /* When skill_00N art exists (has-art), it fills the hex as a cover background,
@@ -3316,10 +3279,8 @@ body {
 .skill-hex--raise:not(.is-disabled):not(.is-armed) .hex-face,
 .skill-hex--raise-all:not(.is-disabled):not(.is-armed) .hex-face,
 .skill-hex--capture:not(.is-disabled):not(.is-armed) .hex-face {
-  box-shadow:
-    inset 0 0 0 1px rgba(150, 225, 255, 0.55),
-    0 0 16px rgba(90, 190, 255, 0.4),
-    0 6px 16px rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(150, 225, 255, 0.55);
+  filter: drop-shadow(0 0 16px rgba(90, 190, 255, 0.4)) drop-shadow(0 6px 16px rgba(0, 0, 0, 0.55));
 }
 
 /* 전체 기상/저격 (raise-all, capture) — the two rarest, highest-impact casts —
@@ -3335,9 +3296,8 @@ body {
   position: absolute;
   inset: 0;
   clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 214, 140, 0.9),
-    0 0 22px rgba(255, 190, 110, 0.75);
+  box-shadow: inset 0 0 0 2px rgba(255, 214, 140, 0.9);
+  filter: drop-shadow(0 0 22px rgba(255, 190, 110, 0.75));
   pointer-events: none;
   animation: hex-primed-afterimage 1.6s ease-out infinite;
 }
@@ -3406,8 +3366,8 @@ body {
     rgba(150, 225, 255, 0.16) 200deg,
     rgba(150, 225, 255, 0.16) 360deg
   );
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M50 0 L100 25 L100 75 L50 100 L0 75 L0 25 Z M50 18 L82 34 L82 66 L50 82 L18 66 L18 34 Z' fill='white'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M50 0 L100 25 L100 75 L50 100 L0 75 L0 25 Z M50 18 L82 34 L82 66 L50 82 L18 66 L18 34 Z' fill='white'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M50 0 L100 25 L100 75 L50 100 L0 75 L0 25 Z M50 9 L91 29.5 L91 70.5 L50 91 L9 70.5 L9 29.5 Z' fill='white'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M50 0 L100 25 L100 75 L50 100 L0 75 L0 25 Z M50 9 L91 29.5 L91 70.5 L50 91 L9 70.5 L9 29.5 Z' fill='white'/%3E%3C/svg%3E");
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
@@ -3456,10 +3416,8 @@ body {
   transform: scale(1.14);
 }
 .skill-hex.is-armed .hex-face {
-  box-shadow:
-    inset 0 0 0 2px rgba(200, 240, 255, 0.95),
-    0 0 30px rgba(150, 225, 255, 0.95),
-    0 0 58px rgba(150, 225, 255, 0.55);
+  box-shadow: inset 0 0 0 2px rgba(200, 240, 255, 0.95);
+  filter: drop-shadow(0 0 30px rgba(150, 225, 255, 0.95)) drop-shadow(0 0 58px rgba(150, 225, 255, 0.55));
 }
 
 /* Clearly "off" but like a light switched off, not the hex vanishing — the
@@ -3471,9 +3429,8 @@ body {
   cursor: default;
 }
 .skill-hex.is-disabled .hex-face {
-  box-shadow:
-    inset 0 0 0 1px rgba(120, 110, 150, 0.25),
-    0 4px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(120, 110, 150, 0.25);
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
 }
 
 /* "팅!" — a skill just became affordable: a bright pop + flash ring that
@@ -3510,20 +3467,16 @@ body {
 }
 @keyframes hex-ready-pop-ring {
   0% {
-    box-shadow:
-      inset 0 0 0 1px rgba(150, 225, 255, 0.55),
-      0 0 16px rgba(90, 190, 255, 0.4);
+    box-shadow: inset 0 0 0 1px rgba(150, 225, 255, 0.55);
+    filter: drop-shadow(0 0 16px rgba(90, 190, 255, 0.4));
   }
   35% {
-    box-shadow:
-      inset 0 0 0 2px rgba(220, 245, 255, 1),
-      0 0 40px rgba(150, 225, 255, 1),
-      0 0 70px rgba(150, 225, 255, 0.6);
+    box-shadow: inset 0 0 0 2px rgba(220, 245, 255, 1);
+    filter: drop-shadow(0 0 40px rgba(150, 225, 255, 1)) drop-shadow(0 0 70px rgba(150, 225, 255, 0.6));
   }
   100% {
-    box-shadow:
-      inset 0 0 0 1px rgba(150, 225, 255, 0.55),
-      0 0 16px rgba(90, 190, 255, 0.4);
+    box-shadow: inset 0 0 0 1px rgba(150, 225, 255, 0.55);
+    filter: drop-shadow(0 0 16px rgba(90, 190, 255, 0.4));
   }
 }
 
@@ -4558,7 +4511,7 @@ body {
 .skill-cast {
   position: fixed;
   left: 0;
-  top: 50%;
+  top: 42%;
   width: 300px;
   height: min(430px, 62vh);
   transform: translateY(-50%) translateX(-32px);

@@ -171,6 +171,8 @@ export class BoardRenderer {
   syncCells(): void {
     const enemyCells = this.waveSystem.getCells()
     const allyCells = this.defenderSystem.getCells()
+    const bossEnemies = this.waveSystem.getBossEnemies()
+    const bossAllies = this.defenderSystem.getBossAllies()
 
     enemyCells.forEach((list, i) => this.cellEls[i]?.classList.toggle('has-enemy', list.length > 0))
     allyCells.forEach((list, i) => this.cellEls[i]?.classList.toggle('has-ally', list.length > 0))
@@ -182,10 +184,24 @@ export class BoardRenderer {
       this.syncCellEffect(cell, i, count)
     })
 
+    // A unit crossing from the grid into the boss room switches DOM parents
+    // (gridEl → playerCellEl) and token Maps, so its old element is about to
+    // be pruned and a brand-new one created — with no shared element, a plain
+    // CSS transition can't carry it across, which read as a teleport. Capture
+    // its last on-screen rect here, BEFORE syncGridRole prunes that old
+    // token, so syncBossRole can seed the new token at that exact spot
+    // instead of a phantom column local to the room.
+    const enemyCrossRects = new Map(
+      bossEnemies.map((o) => [o.id, this.enemyTokens.get(o.id)?.getBoundingClientRect()] as const)
+    )
+    const allyCrossRects = new Map(
+      bossAllies.map((o) => [o.id, this.allyTokens.get(o.id)?.getBoundingClientRect()] as const)
+    )
+
     this.syncGridRole(this.enemyTokens, enemyCells, 'enemy')
     this.syncGridRole(this.allyTokens, allyCells, 'ally')
-    this.syncBossRole(this.bossEnemyTokens, this.waveSystem.getBossEnemies(), 'enemy')
-    this.syncBossRole(this.bossAllyTokens, this.defenderSystem.getBossAllies(), 'ally')
+    this.syncBossRole(this.bossEnemyTokens, bossEnemies, 'enemy', enemyCrossRects)
+    this.syncBossRole(this.bossAllyTokens, bossAllies, 'ally', allyCrossRects)
   }
 
   /** Faint raisable corpse markers, one per corpse, stacked per cell. Purely
@@ -344,22 +360,38 @@ export class BoardRenderer {
   private syncBossRole(
     tokens: Map<string, HTMLElement>,
     rawList: readonly Occupant[],
-    role: 'enemy' | 'ally'
+    role: 'enemy' | 'ally',
+    crossRects?: ReadonlyMap<string, DOMRect | undefined>
   ): void {
     const seen = new Set<string>()
     const x = role === 'ally' ? BOSS_ALLY_OFFSET_X : BOSS_ENEMY_OFFSET_X
     const list = [...rawList].sort(
       (a, b) => (a.tier ?? 1) - (b.tier ?? 1) || (a.attack ?? 0) - (b.attack ?? 0)
     )
-    // An enemy crossing into the boss room slides in from the grid side
-    // instead of popping in — the same phantom-entry idiom a wave's first
-    // spawn already uses (see syncGridRole's spawnFromX).
-    const spawnFromX = role === 'enemy' ? x + CELL_SIZE + CELL_GAP : undefined
 
     list.forEach((occupant, i) => {
       seen.add(occupant.id)
       const y = (i - (list.length - 1) / 2) * STACK_GAP_Y
-      this.upsertToken(tokens, this.playerCellEl, occupant, role, x, y, spawnFromX)
+      let spawnFromX: number | undefined
+      let spawnFromY: number | undefined
+      if (!tokens.has(occupant.id)) {
+        // Crossing over from the grid: seed at the exact spot its old grid
+        // token was actually rendered (captured in syncCells, before that
+        // token got pruned), converted into this room's own local space —
+        // a real continuation of its march, not a phantom column.
+        const rect = crossRects?.get(occupant.id)
+        if (rect) {
+          const hostRect = this.playerCellEl.getBoundingClientRect()
+          spawnFromX = rect.left - hostRect.left
+          spawnFromY = rect.top - hostRect.top
+        } else if (role === 'enemy') {
+          // First-ever appearance in the boss room with no captured rect
+          // (e.g. spawned directly here) — fall back to the old phantom
+          // column just past the room's edge.
+          spawnFromX = x + CELL_SIZE + CELL_GAP
+        }
+      }
+      this.upsertToken(tokens, this.playerCellEl, occupant, role, x, y, spawnFromX, false, spawnFromY)
     })
 
     this.pruneTokens(tokens, seen)
@@ -373,7 +405,8 @@ export class BoardRenderer {
     x: number,
     y: number,
     spawnFromX?: number,
-    isLongApproach?: boolean
+    isLongApproach?: boolean,
+    spawnFromY?: number
   ): void {
     const existing = tokens.get(occupant.id)
     if (existing) {
@@ -402,7 +435,7 @@ export class BoardRenderer {
     // Custom properties (not a direct transform) so the lunge keyframe can
     // layer an extra offset on top without fighting the slide transition.
     el.style.setProperty('--token-x', `${spawnFromX ?? x}px`)
-    el.style.setProperty('--token-y', `${y}px`)
+    el.style.setProperty('--token-y', `${spawnFromY ?? y}px`)
     el.dataset.hp = `${occupant.hp}`
     const creature = occupant.creatureId ? getCreature(occupant.creatureId) : undefined
     const imageUrl = creature
@@ -442,6 +475,7 @@ export class BoardRenderer {
       }
       requestAnimationFrame(() => {
         el.style.setProperty('--token-x', `${x}px`)
+        el.style.setProperty('--token-y', `${y}px`)
       })
     }
   }

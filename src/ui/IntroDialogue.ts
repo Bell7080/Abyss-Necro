@@ -34,7 +34,7 @@ const NAME = '넥슈'
 // revealing: ignored for ADVANCE_LOCK_MS, then a click (or ADVANCE_TIMEOUT_MS
 // with no click at all) moves on.
 const TYPE_MS = 32
-const ADVANCE_LOCK_MS = 2000
+const ADVANCE_LOCK_MS = 750
 const ADVANCE_TIMEOUT_MS = 6000
 const PORTRAIT_SWAP_OUT_MS = 110
 const PORTRAIT_SWAP_IN_MS = 260
@@ -220,6 +220,7 @@ export class IntroDialogue {
   private async showLine(line: ScriptLine): Promise<void> {
     this.setPortrait(line.portrait)
     this.textEl.textContent = ''
+    this.textEl.classList.remove('is-line-settled')
 
     const full = line.text
     let revealed = 0
@@ -230,11 +231,24 @@ export class IntroDialogue {
         fastForward = true
       }
       const timer = window.setInterval(() => {
-        revealed = fastForward ? full.length : revealed + 1
-        this.textEl.textContent = full.slice(0, revealed)
+        const target = fastForward ? full.length : revealed + 1
+        while (revealed < target) {
+          // Each char pops in on its own (see .intro-dlg-char) — appending it
+          // at the moment it's revealed is what gives the typewriter its
+          // "다라라락 띠용띠용" staggered bounce, no extra delay math needed.
+          const span = document.createElement('span')
+          span.className = 'intro-dlg-char'
+          // inline-block trims a solitary space char as leading/trailing
+          // whitespace of its own mini formatting context — swap in a
+          // non-breaking space so word gaps survive the per-char wrap.
+          span.textContent = full[revealed] === ' ' ? ' ' : full[revealed]
+          this.textEl.appendChild(span)
+          revealed++
+        }
         if (revealed >= full.length) {
           window.clearInterval(timer)
           this.skipTyping = null
+          this.textEl.classList.add('is-line-settled')
           resolve()
         }
       }, TYPE_MS)
