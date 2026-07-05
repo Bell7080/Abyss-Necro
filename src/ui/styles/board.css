@@ -429,9 +429,12 @@ body {
    Duration must match SPAWN_APPROACH_MS (BoardConstants.ts) — the model holds
    the token out of movement/combat for exactly this window. linear (not
    ease-in-out) keeps the whole crawl at one even pace instead of whipping
-   through the middle. */
+   through the middle. Deliberately NOT scaled by aim-mode slow motion — the
+   model's hold gate and the class-removal timer both run in real time, and
+   an approaching enemy can't act anyway; scaling only the visual left the
+   three clocks disagreeing (mid-crawl snaps, clumped arrivals after aiming). */
 .board-token.is-spawning-approach {
-  transition-duration: calc(3.8s / var(--time-scale, 1));
+  transition-duration: 3.8s;
   transition-timing-function: linear;
 }
 
@@ -3078,15 +3081,17 @@ body {
 }
 
 /* Cards spread wide across the board with generous air between them. */
+/* Eight offers, two roomy rows of four. */
 .shop-cards {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, auto);
   justify-content: center;
-  gap: clamp(30px, 5vw, 74px);
+  gap: clamp(22px, 3.5vh, 40px) clamp(28px, 4vw, 60px);
 }
 
 .shop-card {
   position: relative;
-  width: clamp(180px, 15vw, 224px);
+  width: clamp(150px, 11.5vw, 190px);
   aspect-ratio: 3 / 4;
   padding: 0;
   border: 0;
