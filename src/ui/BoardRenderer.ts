@@ -38,6 +38,9 @@ const SLIDE_SETTLE_MS = 880
 // .board-token's transform transition (0.85s) — used to interpolate where a
 // dying enemy visually was so its corpse can pick up the remaining slide.
 const CORPSE_SLIDE_MS = 850
+// Matches the corpse-leave keyframe — keep the element alive long enough to play
+// the fade/flicker/pop before pulling it from the DOM.
+const CORPSE_LEAVE_MS = 880
 
 interface Occupant {
   id: string
@@ -220,7 +223,9 @@ export class BoardRenderer {
 
     for (const [id, el] of this.corpseTokens) {
       if (!seen.has(id)) {
-        el.remove()
+        // Rot-away exit: fade/flicker/pop, then pull it from the DOM.
+        el.classList.add('is-leaving')
+        window.setTimeout(() => el.remove(), CORPSE_LEAVE_MS)
         this.corpseTokens.delete(id)
       }
     }

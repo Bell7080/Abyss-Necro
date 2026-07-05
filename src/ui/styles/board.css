@@ -2819,40 +2819,126 @@ body {
    the desaturate/dim lives on the IMG's own filter. */
 .board-corpse-figure {
   position: relative;
-  opacity: 0.55;
+  opacity: 0.82;
   animation: corpse-waver 2.4s ease-in-out infinite;
 }
 
-/* Soft diamond-ish glow halo behind the body. */
+/* Soft glow halo behind the body. */
 .board-corpse-figure::before {
   content: '';
   position: absolute;
-  inset: -20%;
+  inset: -22%;
   background: radial-gradient(
     circle,
-    rgba(190, 140, 255, 0.62) 0%,
-    rgba(150, 110, 255, 0.3) 42%,
-    transparent 66%
+    rgba(196, 140, 255, 0.72) 0%,
+    rgba(150, 105, 255, 0.36) 44%,
+    transparent 68%
   );
   z-index: -1;
   pointer-events: none;
 }
 
+/* Ominous sticky violet aura seeping upward off the body. */
+.board-corpse-figure::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 22%;
+  width: 66%;
+  height: 150%;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    to top,
+    rgba(158, 96, 236, 0.6) 0%,
+    rgba(126, 74, 214, 0.34) 38%,
+    rgba(120, 70, 210, 0.12) 66%,
+    transparent 86%
+  );
+  filter: blur(6px);
+  border-radius: 50% 50% 44% 44% / 60% 60% 40% 40%;
+  z-index: -2;
+  pointer-events: none;
+  animation: corpse-aura-rise 2.6s ease-in-out infinite;
+}
+
+@keyframes corpse-aura-rise {
+  0% {
+    opacity: 0.22;
+    transform: translateX(-50%) translateY(8px) scaleY(0.9) scaleX(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateX(-50%) translateY(-10px) scaleY(1.14) scaleX(0.92);
+  }
+  100% {
+    opacity: 0.18;
+    transform: translateX(-50%) translateY(-26px) scaleY(1) scaleX(1.02);
+  }
+}
+
+/* The creature masked into a tall, curved, four-pointed diamond (SVG mask —
+   concave edges + sharp cardinal points; the taller box stretches it long). */
 .board-corpse-figure img {
-  width: 120px;
-  height: 120px;
+  width: 116px;
+  height: 158px;
   object-fit: cover;
-  clip-path: polygon(50% 1%, 99% 50%, 50% 99%, 1% 50%);
-  filter: grayscale(0.5) brightness(0.72);
+  object-position: center 42%;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M50 1 Q57 41 98 50 Q57 59 50 99 Q43 59 2 50 Q43 41 50 1 Z' fill='white'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M50 1 Q57 41 98 50 Q57 59 50 99 Q43 59 2 50 Q43 41 50 1 Z' fill='white'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  filter: grayscale(0.42) brightness(0.82);
 }
 
 @keyframes corpse-waver {
   0%,
   100% {
-    opacity: 0.46;
+    opacity: 0.72;
   }
   50% {
-    opacity: 0.64;
+    opacity: 0.9;
+  }
+}
+
+/* Rot-away exit: fade + blur, a stuttering flicker (깜빡깜빡), then a quick pop. */
+.board-corpse.is-leaving .board-corpse-figure {
+  animation: corpse-leave 0.86s ease-in forwards;
+}
+
+@keyframes corpse-leave {
+  0% {
+    opacity: 0.82;
+    filter: blur(0);
+  }
+  34% {
+    opacity: 0.4;
+    filter: blur(2px);
+  }
+  44% {
+    opacity: 0.58;
+  }
+  51% {
+    opacity: 0.08;
+  }
+  58% {
+    opacity: 0.5;
+  }
+  65% {
+    opacity: 0.05;
+  }
+  72% {
+    opacity: 0.36;
+    filter: blur(3px);
+  }
+  80% {
+    opacity: 0.03;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.55);
+    filter: blur(5px);
   }
 }
 
