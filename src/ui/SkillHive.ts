@@ -1,5 +1,6 @@
 import type { AbilitySystem, AbilityId } from '@systems/AbilitySystem'
 import { SKILL_FACES, getSkillArt } from '@ui/SkillArt'
+import { Icons } from '@ui/Icons'
 
 // Basic first (always-on default), then the three toggle skills — laid out
 // left-to-right. Order/names/hints come from the shared SKILL_FACES map
@@ -20,6 +21,7 @@ export interface SkillHiveHandlers {
 export class SkillHive {
   private readonly hexes = new Map<AbilityId, HTMLButtonElement>()
   private readonly gaugeFill: HTMLElement
+  private readonly gaugeTicks: HTMLElement
   private readonly tooltip: HTMLElement
   private readonly tooltipName: HTMLElement
   private readonly tooltipHint: HTMLElement
@@ -37,6 +39,12 @@ export class SkillHive {
 
     const hexes = document.createElement('div')
     hexes.className = 'hive-hexes'
+    hexes.innerHTML = `
+      <div class="hive-backdrop" aria-hidden="true">
+        <span class="hive-spark hive-spark--a">${Icons.coinSparkle()}</span>
+        <span class="hive-spark hive-spark--b">${Icons.coinSparkle()}</span>
+        <span class="hive-spark hive-spark--c">${Icons.coinSparkle()}</span>
+      </div>`
     for (const id of HEX_ORDER) {
       const face = SKILL_FACES[id]
       const art = getSkillArt(id)
@@ -63,6 +71,7 @@ export class SkillHive {
         <div class="hive-gauge-ticks"></div>
       </div>`
     this.gaugeFill = gauge.querySelector('.hive-gauge-fill') as HTMLElement
+    this.gaugeTicks = gauge.querySelector('.hive-gauge-ticks') as HTMLElement
 
     plane.appendChild(hexes)
     plane.appendChild(gauge)
@@ -134,6 +143,7 @@ export class SkillHive {
   }
 
   render(): void {
+    this.gaugeTicks.style.setProperty('--gauge-segments', `${this.ability.getMaxGauge()}`)
     for (const [aid, btn] of this.hexes) {
       const can = this.ability.canCast(aid)
       btn.classList.toggle('is-disabled', !can)
