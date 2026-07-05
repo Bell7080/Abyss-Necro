@@ -46,6 +46,7 @@ import type { Relic } from '@entities/Relic'
 
 const BASIC_ATTACK_DAMAGE = 4
 const RELIC_CHOICE_COUNT = 3
+const EMPTY_ID_SET: ReadonlySet<string> = new Set()
 // While a hand card is held or a skill is armed the whole game clock crawls,
 // giving the player a slow-motion beat to read the board and aim.
 const AIM_TIME_SCALE = 0.3
@@ -149,7 +150,7 @@ export class Game {
 
     this.waveSystem.onChange(() => {
       this.board.syncCells()
-      this.refreshCaptureMarkers()
+      this.refreshAimTargets()
     })
     this.waveSystem.onEncounter((result) => this.handleEncounter(result))
     this.waveSystem.onCheckpoint((info) => this.handleCheckpoint(info))
@@ -167,7 +168,10 @@ export class Game {
     })
     this.defenderSystem.onAllyDeath((e) => this.handleAllyDeath(e))
     this.graveyardSystem.onChange(() => this.cosmos.render(this.graveyardSystem.getSouls()))
-    this.corpseSystem.onChange(() => this.board.syncCorpses(this.corpseSystem.getCorpses()))
+    this.corpseSystem.onChange(() => {
+      this.board.syncCorpses(this.corpseSystem.getCorpses())
+      if (this.armedAbility === 'raise') this.refreshAimTargets()
+    })
     this.corpseSystem.onDecayShard((c) => this.handleCorpseShard(c))
     this.handSystem.onChange(() => this.handleHandChange())
     this.relicSystem.onChange((relics) => this.relics.render(relics))
@@ -245,7 +249,7 @@ export class Game {
     this.armedAbility = id
     this.hive.setArmed(id)
     this.updateAimState()
-    this.refreshCaptureMarkers()
+    this.refreshAimTargets()
   }
 
   private disarmSkill(): void {
@@ -253,18 +257,34 @@ export class Game {
     this.armedAbility = null
     this.hive.setArmed(null)
     this.updateAimState()
-    this.refreshCaptureMarkers()
+    this.refreshAimTargets()
   }
 
-  /** While 포획 is armed, mark every cell whose front enemy is weak enough to
-   * claim (bosses need a stricter cut); otherwise clear all markers. */
-  private refreshCaptureMarkers(): void {
-    if (this.armedAbility !== 'capture') {
-      this.board.setCaptureMarkers([])
-      return
+  /** Aim-mode target emphasis. 포획 lights the weak-enough ENEMIES themselves
+   * (bosses need a stricter cut); 급조 rings the floor tiles that actually hold
+   * raisable corpses. Both clear when their skill isn't armed. */
+  private refreshAimTargets(): void {
+    if (this.armedAbility === 'capture') {
+      const ids = new Set<string>()
+      for (const idx of this.waveSystem.getAliveCellIndices()) {
+        if (!this.waveSystem.isCapturable(idx)) continue
+        const front = this.waveSystem.getFrontEnemy(idx)
+        if (front) ids.add(front.id)
+      }
+      this.board.setCaptureTargets(ids)
+    } else {
+      this.board.setCaptureTargets(EMPTY_ID_SET)
     }
-    const marks = this.waveSystem.getAliveCellIndices().filter((idx) => this.waveSystem.isCapturable(idx))
-    this.board.setCaptureMarkers(marks)
+
+    if (this.armedAbility === 'raise') {
+      const cells = this.corpseSystem
+        .getCorpses()
+        .map((c) => c.cellIndex)
+        .filter((idx) => this.defenderSystem.freeSlots(idx) > 0)
+      this.board.setRaiseTargets(cells)
+    } else {
+      this.board.setRaiseTargets([])
+    }
   }
 
   boot(): void {
@@ -390,14 +410,14 @@ export class Game {
   private castRaise(cellIndex: number): void {
     const capacity = this.defenderSystem.freeSlots(cellIndex)
     const available = this.corpseSystem.corpsesInCell(cellIndex).length
-    if (available === 0 || capacity === 0) {
-      this.disarmSkill()
-      return
-    }
+    // Missed the target tile (no corpse / no room) — stay armed so the marked
+    // cell can still be clicked, rather than silently cancelling the skill.
+    if (available === 0 || capacity === 0) return
     if (!this.abilitySystem.tryCast('raise')) {
       this.disarmSkill()
       return
     }
+    this.board.playerCast('hop')
     for (const corpse of this.corpseSystem.takeCell(cellIndex, capacity)) {
       this.defenderSystem.placeRaised(cellIndex, getCreature(corpse.creatureId)?.label ?? corpse.label, corpse.creatureId)
     }
@@ -411,6 +431,7 @@ export class Game {
     if (!this.runStarted || this.waveSystem.isPaused()) return
     if (!this.corpseSystem.hasAny()) return
     if (!this.abilitySystem.tryCast('raise-all')) return
+    this.board.playerCast('hop')
     for (const corpse of this.corpseSystem.takeAll()) {
       if (this.defenderSystem.freeSlots(corpse.cellIndex) <= 0) continue
       this.defenderSystem.placeRaised(corpse.cellIndex, getCreature(corpse.creatureId)?.label ?? corpse.label, corpse.creatureId)
@@ -429,6 +450,15 @@ export class Game {
     if (!this.abilitySystem.tryCast('capture')) {
       this.disarmSkill()
       return
+    }
+    // 저격 — recoil and fire a bolt from the card at the marked enemy.
+    this.board.playerCast('recoil')
+    const muzzle = this.board.getPlayerCardRect() ?? this.board.getPlayerRect()
+    const targetRect = this.board.getCellRect(cellIndex)
+    if (muzzle && targetRect) {
+      const o = centerOf(muzzle)
+      const t = centerOf(targetRect)
+      BubbleBolt.fire(o.x, o.y, t.x, t.y, { duration: 260 })
     }
     const captured = this.waveSystem.captureFrontEnemy(cellIndex)
     if (captured) {
@@ -522,13 +552,14 @@ export class Game {
   }
 
   private castBasicAttack(cellIndex: number): void {
-    const originRect = this.board.getPlayerRect()
+    const originRect = this.board.getPlayerCardRect() ?? this.board.getPlayerRect()
     const targetRect = this.board.getCellRect(cellIndex)
     if (!originRect || !targetRect) return
 
     const origin = centerOf(originRect)
     const target = centerOf(targetRect)
 
+    this.board.playerCast('recoil')
     BubbleBolt.fire(origin.x, origin.y, target.x, target.y, {
       onImpact: () => {
         const result = this.waveSystem.applyDamage(cellIndex, BASIC_ATTACK_DAMAGE + this.basicDamageBonus)

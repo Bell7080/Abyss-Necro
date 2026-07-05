@@ -381,8 +381,6 @@ body {
   color: rgba(140, 210, 255, 0.65);
   cursor: pointer;
   transform-style: preserve-3d;
-  /* Sunk behind the figures so standee glows never clip on the floor tiles. */
-  transform: translateZ(var(--floor-depth, -72px));
   transition: box-shadow 0.18s ease;
 }
 
@@ -444,8 +442,6 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  /* Rides with the floor tiles (same depth) so lines/stars stay aligned. */
-  transform: translateZ(var(--floor-depth, -72px));
 }
 
 .board-constellation svg {
@@ -595,6 +591,10 @@ body {
   --board-figure-shift-x: 0px;
   --figure-lean: 15deg;
   --figure-rise: -105px;
+  /* How far the standee floats toward the viewer off the floor tiles. Kept
+     high enough that the card's soft outer glow clears the tiles in the 3D
+     z-sort instead of being sliced by them (was 58px, which let the glow clip). */
+  --figure-z: 100px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -609,7 +609,7 @@ body {
      lean's foreshortening compresses so the standee reads tall, not pressed. */
   transform-origin: 50% 100%;
   transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 - var(--figure-lean)))
-    translateZ(58px) translateX(var(--board-figure-shift-x)) scaleY(1.16);
+    translateZ(var(--figure-z, 130px)) translateX(var(--board-figure-shift-x)) scaleY(1.16);
   transition: transform 0.18s ease;
 }
 
@@ -637,6 +637,47 @@ body {
   --figure-rise: -235px;
 }
 
+/* Cast feedback — animates the player CARD inside the standee (not the figure)
+   so the standee's own 3D lean/lift is untouched. 공격/포획 kick back like
+   recoil; 급조/기상 hop up like a summon. */
+.board-figure--boss-player.is-casting-recoil .entity-card {
+  animation: player-recoil 0.44s cubic-bezier(0.2, 0.85, 0.3, 1);
+}
+
+@keyframes player-recoil {
+  0% {
+    transform: translateX(0) scale(1);
+  }
+  22% {
+    transform: translateX(-22px) scaleX(1.04) scaleY(0.95);
+  }
+  55% {
+    transform: translateX(9px) scale(1.01);
+  }
+  100% {
+    transform: translateX(0) scale(1);
+  }
+}
+
+.board-figure--boss-player.is-casting-hop .entity-card {
+  animation: player-hop 0.46s cubic-bezier(0.25, 0.9, 0.3, 1);
+}
+
+@keyframes player-hop {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: translateY(-28px) scaleY(1.06) scaleX(0.97);
+  }
+  62% {
+    transform: translateY(5px) scaleY(0.95) scaleX(1.03);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
 .board-figure.is-arrived {
   animation: figure-pop 0.32s ease-out;
 }
@@ -644,12 +685,12 @@ body {
 @keyframes figure-pop {
   0% {
     transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 - var(--figure-lean)))
-      translateZ(58px) translateX(var(--board-figure-shift-x)) scaleY(1.16) scale(0.4);
+      translateZ(var(--figure-z, 130px)) translateX(var(--board-figure-shift-x)) scaleY(1.16) scale(0.4);
     opacity: 0;
   }
   100% {
     transform: translateY(var(--figure-rise)) rotateX(calc(var(--board-tilt) * -1 - var(--figure-lean)))
-      translateZ(58px) translateX(var(--board-figure-shift-x)) scaleY(1.16) scale(1);
+      translateZ(var(--figure-z, 130px)) translateX(var(--board-figure-shift-x)) scaleY(1.16) scale(1);
     opacity: 1;
   }
 }
@@ -2870,16 +2911,17 @@ body {
   }
 }
 
-/* ---------- Capture marker (넌 내꺼야! — weak-enough enemies) ---------- */
+/* ---------- Capture targeting (넌 내꺼야! — weak-enough enemies) ---------- */
+/* Skull badge floating just above a capturable enemy's card (rides the standee). */
 .capture-marker {
   position: absolute;
-  top: 14px;
+  top: -34px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 6;
-  color: #d6a2ff;
+  color: #e6b8ff;
   pointer-events: none;
-  filter: drop-shadow(0 0 9px rgba(196, 132, 255, 0.95));
+  filter: drop-shadow(0 0 10px rgba(206, 140, 255, 0.98));
   animation: capture-pulse 1s ease-in-out infinite;
 }
 
@@ -2890,7 +2932,83 @@ body {
     opacity: 0.82;
   }
   50% {
-    transform: translateX(-50%) scale(1.2);
+    transform: translateX(-50%) scale(1.24);
+    opacity: 1;
+  }
+}
+
+/* The real emphasis: the enemy CARD itself pulses in a violet capture aura, so
+   the snipe target reads on the creature, not the floor tile. */
+.board-token.is-capture-target .entity-card {
+  --card-ring: rgba(214, 156, 255, 0.85);
+  animation: capture-target-aura 1s ease-in-out infinite;
+}
+
+@keyframes capture-target-aura {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 2px rgba(214, 156, 255, 0.8),
+      inset 0 -10px 22px rgba(0, 0, 0, 0.5),
+      0 12px 30px rgba(0, 0, 0, 0.7),
+      0 0 26px rgba(178, 108, 255, 0.55);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 2.5px rgba(232, 190, 255, 1),
+      inset 0 -10px 22px rgba(0, 0, 0, 0.5),
+      0 12px 30px rgba(0, 0, 0, 0.7),
+      0 0 46px rgba(190, 120, 255, 0.9);
+  }
+}
+
+/* ---------- 급조 targeting (여기서 일으켜 — cells with raisable corpses) ---------- */
+/* Rings the FLOOR tile (the actual click target), since the corpse standee
+   floats above it and would otherwise be an ambiguous target. */
+.board-cell.is-raise-target {
+  box-shadow:
+    inset 0 0 0 2px rgba(150, 245, 190, 0.6),
+    inset 0 6px 22px rgba(0, 0, 0, 0.3),
+    0 0 34px rgba(120, 240, 175, 0.35);
+  animation: raise-target-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes raise-target-pulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 2px rgba(150, 245, 190, 0.5),
+      inset 0 6px 22px rgba(0, 0, 0, 0.3),
+      0 0 26px rgba(120, 240, 175, 0.28);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 2.5px rgba(180, 255, 210, 0.85),
+      inset 0 6px 22px rgba(0, 0, 0, 0.3),
+      0 0 46px rgba(120, 240, 175, 0.5);
+  }
+}
+
+.raise-marker {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  color: #b6ffd4;
+  pointer-events: none;
+  filter: drop-shadow(0 0 10px rgba(130, 245, 185, 0.95));
+  animation: raise-marker-bob 1.3s ease-in-out infinite;
+}
+
+@keyframes raise-marker-bob {
+  0%,
+  100% {
+    transform: translate(-50%, -40%);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate(-50%, -60%);
     opacity: 1;
   }
 }

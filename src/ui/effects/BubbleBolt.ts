@@ -1,11 +1,10 @@
 /**
  * BubbleBolt — the basic attack projectile ("이거나 먹어라!").
  *
- * A condensed bubble blast that streaks STRAIGHT and fast from the
- * necromancer to the target cell (no lobbed arc), then bursts like a firework
- * on impact. Flat solid-color pieces, violet-magenta family — same palette as
- * BubbleBurst/the old mortar, but the motion reads as a snapped arrow-shot
- * rather than artillery. Calls `onImpact` exactly when the lead orb lands.
+ * A short water-jet: 7~9 solid glowing orbs strung along the line from the
+ * necromancer to the target, staggered so they read as one long stream drawing
+ * a slight tail. Colors run blue→purple, dark→bright. No shadows or frames —
+ * each orb is just a lit circle. The lead orb bursts into a small 팡 on impact.
  */
 
 export interface BubbleBoltOptions {
@@ -17,11 +16,10 @@ export interface BubbleBoltOptions {
 const OVERLAY_ID = 'bubble-bolt-overlay'
 const STYLE_ID = 'bubble-bolt-styles'
 
-const PALETTE = ['#4a1a6a', '#8a3bc0', '#c05ae0', '#f0c7ff']
-const EASING = 'cubic-bezier(0.2, 0.65, 0.3, 1)'
-// Lead orb + this many tail bubbles strung out behind it along the line.
-const TAIL_COUNT = 4
-const TAIL_STEP_MS = 26
+// Blue → purple, dark → bright — mixed so the stream shimmers between hues.
+const PALETTE = ['#3f57c8', '#5a6fe6', '#6f7bff', '#8a6cf0', '#a06cff', '#c19bff', '#7fc6ff', '#d8c6ff']
+const EASING = 'cubic-bezier(0.22, 0.62, 0.3, 1)'
+const STEP_MS = 22
 
 function getOverlay(): HTMLElement {
   let el = document.getElementById(OVERLAY_ID)
@@ -45,7 +43,7 @@ function ensureStyles(): void {
   pointer-events: none;
   overflow: visible;
 }
-.bubble-bolt-piece {
+.bubble-bolt-orb {
   position: absolute;
   border-radius: 50%;
   will-change: transform, opacity;
@@ -59,35 +57,45 @@ function rand(min: number, max: number): number {
   return min + Math.random() * (max - min)
 }
 
-/** Firework 팡 splash where the lead bubble lands — brighter and wider than
- * the old mortar splash so the shot pays off. */
-function spawnBurst(overlay: HTMLElement, x: number, y: number): void {
-  const count = Math.floor(rand(10, 14))
-  for (let i = 0; i < count; i += 1) {
-    const piece = document.createElement('div')
-    piece.className = 'bubble-bolt-piece'
-    const size = rand(6, 13)
-    const angle = (i / count) * Math.PI * 2 + rand(-0.2, 0.2)
-    const distance = rand(24, 58)
-    const dx = Math.cos(angle) * distance
-    const dy = Math.sin(angle) * distance
-    piece.style.width = `${size}px`
-    piece.style.height = `${size}px`
-    piece.style.left = `${x - size / 2}px`
-    piece.style.top = `${y - size / 2}px`
-    piece.style.background = PALETTE[Math.floor(Math.random() * PALETTE.length)]
-    overlay.appendChild(piece)
+function pick(): string {
+  return PALETTE[Math.floor(Math.random() * PALETTE.length)]
+}
 
-    const anim = piece.animate(
+/** Glow-only styling: the orb is a solid disc wrapped in two soft same-hue
+ * halos — no dark shadow, so it reads as a lit water bead. */
+function litOrb(size: number, color: string): HTMLElement {
+  const orb = document.createElement('div')
+  orb.className = 'bubble-bolt-orb'
+  orb.style.width = `${size}px`
+  orb.style.height = `${size}px`
+  orb.style.background = color
+  orb.style.boxShadow = `0 0 ${size * 0.9}px ${color}, 0 0 ${size * 2}px ${color}aa`
+  return orb
+}
+
+/** Small 팡 where the lead orb lands — a few lit orbs bursting outward. */
+function spawnPop(overlay: HTMLElement, x: number, y: number): void {
+  const count = Math.floor(rand(7, 10))
+  for (let i = 0; i < count; i += 1) {
+    const size = rand(7, 13)
+    const orb = litOrb(size, pick())
+    orb.style.left = `${x - size / 2}px`
+    orb.style.top = `${y - size / 2}px`
+    overlay.appendChild(orb)
+    const angle = (i / count) * Math.PI * 2 + rand(-0.2, 0.2)
+    const dist = rand(20, 52)
+    const dx = Math.cos(angle) * dist
+    const dy = Math.sin(angle) * dist
+    const anim = orb.animate(
       [
-        { transform: 'translate(0px, 0px) scale(0.4)', opacity: 1 },
-        { transform: `translate(${dx * 0.6}px, ${dy * 0.6}px) scale(1)`, opacity: 0.95, offset: 0.4 },
-        { transform: `translate(${dx}px, ${dy}px) scale(0.7)`, opacity: 0 },
+        { transform: 'translate(0,0) scale(0.5)', opacity: 1 },
+        { transform: `translate(${dx * 0.6}px, ${dy * 0.6}px) scale(1)`, opacity: 0.9, offset: 0.45 },
+        { transform: `translate(${dx}px, ${dy}px) scale(0.6)`, opacity: 0 },
       ],
-      { duration: 380, easing: 'cubic-bezier(0.15, 0.8, 0.25, 1)', fill: 'forwards' }
+      { duration: 360, easing: 'cubic-bezier(0.15, 0.8, 0.25, 1)', fill: 'forwards' }
     )
-    anim.onfinish = () => piece.remove()
-    window.setTimeout(() => piece.remove(), 560)
+    anim.onfinish = () => orb.remove()
+    window.setTimeout(() => orb.remove(), 520)
   }
 }
 
@@ -100,40 +108,38 @@ export const BubbleBolt = {
     const dx = targetX - originX
     const dy = targetY - originY
 
-    for (let i = 0; i <= TAIL_COUNT; i += 1) {
+    const count = Math.floor(rand(7, 10)) // 7~9 orbs
+    for (let i = 0; i < count; i += 1) {
       const isLead = i === 0
-      const size = isLead ? 22 : 14 - i * 2
-      const bubble = document.createElement('div')
-      bubble.className = 'bubble-bolt-piece'
-      bubble.style.width = `${size}px`
-      bubble.style.height = `${size}px`
-      bubble.style.left = `${originX - size / 2}px`
-      bubble.style.top = `${originY - size / 2}px`
-      bubble.style.background = isLead ? PALETTE[3] : PALETTE[Math.floor(rand(0, 3))]
-      overlay.appendChild(bubble)
+      // Lead is largest; the trailing orbs taper down to draw the stream's tail.
+      const size = isLead ? 21 : Math.max(6, 19 - i * 1.9)
+      const orb = litOrb(size, isLead ? '#d8c6ff' : pick())
+      orb.style.left = `${originX - size / 2}px`
+      orb.style.top = `${originY - size / 2}px`
+      overlay.appendChild(orb)
 
-      const pieceDelay = delay + i * TAIL_STEP_MS
-      const anim = bubble.animate(
+      const orbDelay = delay + i * STEP_MS
+      const anim = orb.animate(
         [
-          { transform: 'translate(0px, 0px) scale(0.6)', opacity: isLead ? 1 : 0.8 },
+          { transform: 'translate(0,0) scale(0.7)', opacity: isLead ? 1 : 0.85 },
           {
-            transform: `translate(${dx}px, ${dy}px) scale(${isLead ? 1 : 0.35})`,
+            transform: `translate(${dx}px, ${dy}px) scale(${isLead ? 1 : 0.4})`,
             opacity: isLead ? 1 : 0,
           },
         ],
-        { duration, delay: pieceDelay, easing: EASING, fill: 'forwards' }
+        { duration, delay: orbDelay, easing: EASING, fill: 'forwards' }
       )
 
       if (isLead) {
         anim.onfinish = () => {
-          bubble.remove()
-          spawnBurst(overlay, targetX, targetY)
+          orb.remove()
+          spawnPop(overlay, targetX, targetY)
           opts.onImpact?.()
         }
       } else {
-        anim.onfinish = () => bubble.remove()
+        anim.onfinish = () => orb.remove()
       }
-      window.setTimeout(() => bubble.remove(), duration + pieceDelay + 250)
+      window.setTimeout(() => orb.remove(), duration + orbDelay + 240)
     }
   },
 }
