@@ -6,7 +6,7 @@ const DISMISS_MS = 600
 // Full-screen title scene shown once at boot: a completely black screen fades
 // in over the title art (bg_002) — rippling caustics + a heavy vignette sell
 // the deep-sea mood. Only once fully revealed does `onRevealed` fire (the OST
-// starts here, not before), and a blinking "클릭 투 스타트" prompt invites the
+// starts here, not before), and a blinking click-to-start prompt invites the
 // player to actually start the run — no enemies move or spawn until they
 // click through (see Game.startRun()).
 export class IntroOverlay {
@@ -22,7 +22,7 @@ export class IntroOverlay {
       <div class="abyss-caustic abyss-caustic--c"></div>
       <div class="intro-title-vignette"></div>
       <div class="intro-black-veil"></div>
-      <div class="intro-prompt">클릭 투 스타트</div>`
+      <div class="intro-prompt">화면을 눌러 심해의 친구들을 사귀러 떠나기!</div>`
     root.appendChild(this.overlay)
 
     const dismiss = (): void => {

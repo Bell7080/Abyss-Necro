@@ -1744,11 +1744,12 @@ body {
   bottom: 64px;
   transform: translateX(-50%);
   z-index: 3;
-  font-size: 20px;
+  width: max-content;
+  max-width: 90vw;
+  text-align: center;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.38em;
-  /* Re-center: tracking pads the right edge of the last glyph. */
-  padding-left: 0.38em;
+  letter-spacing: 0.06em;
   color: var(--abyss-lavender-bright);
   text-shadow: 0 0 16px rgba(180, 150, 255, 0.55);
   opacity: 0;
