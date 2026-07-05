@@ -71,7 +71,7 @@ export class CodexOverlay {
               <span class="codex-figure-tag codex-figure-tag--before">적</span>
               <h3 class="codex-figure-name">${c.label}</h3>
               ${statsRow(es.attack, es.hp)}
-              <p class="codex-figure-desc">${c.enemyDesc}</p>
+              <p class="codex-figure-desc">${c.enemyPassive}</p>
             </div>
           </article>
           <div class="codex-transform" aria-hidden="true">

@@ -11,6 +11,8 @@ const ENTRY_COL = COLS - 1 // rightmost column — entrance, opposite the boss r
 // Fallback per-tick enemy attack, only if a token carries none (all spawned
 // enemies now carry their creature-level attack).
 const ENEMY_ATTACK_DAMAGE = 1
+// Enemy 'regen' passive: hp knit back per free (unengaged) march tick.
+const ENEMY_REGEN = 2
 // The run is a bounded 5 rounds (3 waves each). Rounds 1–4 each end in a
 // checkpoint reward (shop/relic); every round is capped by an elite mini-boss,
 // and round 5 opens on the final boss (상어). Elites spawn at a fixed wave; the
@@ -394,7 +396,9 @@ export class WaveSystem {
     // 감전 점막: a jelly-amp ally in this cell adds to every hit landed here,
     // and sparks a passive blast so the boost reads on screen.
     const amp = this.defenders?.getDamageAmp(cellIndex) ?? 0
-    const total = amount + amp
+    // Enemy passive 'armor': shelled/tanky foes shrug off 1 damage per hit.
+    const armor = getCreature(enemy.creatureId)?.enemyPassiveId === 'armor' ? 1 : 0
+    const total = Math.max(1, amount + amp - armor)
     if (amp > 0) this.emitPassive({ passiveId: 'jelly-amp', cellIndex })
 
     enemy.hp -= total
@@ -518,6 +522,12 @@ export class WaveSystem {
     // how a placed defender plugs the lane and stops the march.
     if (this.defenders?.getHp(index) != null) return
 
+    // Enemy passive 'regen': while marching free (not engaged), soft/regenerating
+    // foes knit their wounds — makes chipping them down mid-lane less reliable.
+    if (getCreature(enemy.creatureId)?.enemyPassiveId === 'regen' && enemy.hp < enemy.maxHp) {
+      enemy.hp = Math.min(enemy.maxHp, enemy.hp + ENEMY_REGEN)
+    }
+
     const list = this.cells[index]
     // Lane rush: march one cell toward the boss room every tick, staying in
     // the same lane (row). No wandering — the pressure is the point.
@@ -560,13 +570,16 @@ export class WaveSystem {
     const enemy = enemyList[0]
     if (!enemy) return
     const defenderHp = this.defenders?.getHp(cellIndex)
+    // Enemy passive 'ferocious': predators hit +1 on every strike (ally or player).
+    const ferocious = getCreature(enemy.creatureId)?.enemyPassiveId === 'ferocious' ? 1 : 0
+    const enemyDamage = (enemy.attack ?? ENEMY_ATTACK_DAMAGE) + ferocious
 
     if (defenderHp === null || defenderHp === undefined) {
       // No defender in the player room — the front enemy strikes the
       // necromancer directly. Game routes this into PlayerSystem; defeat
       // handling lives there. Grid cells without defenders stay peaceful.
       if (cellIndex === BOSS_CELL_INDEX) {
-        this.emitPlayerHit({ damage: enemy.attack ?? ENEMY_ATTACK_DAMAGE })
+        this.emitPlayerHit({ damage: enemyDamage })
         this.emitClash({ cellIndex })
       }
       return
@@ -575,7 +588,7 @@ export class WaveSystem {
     // Placed defenders and summons alike report their own attack — a weak
     // summon should hit lighter than a placed card, a strong one harder.
     const allyAttack = this.defenders?.getAttack(cellIndex) ?? ALLY_COUNTER_DAMAGE
-    this.defenders?.damage(cellIndex, enemy.attack ?? ENEMY_ATTACK_DAMAGE)
+    this.defenders?.damage(cellIndex, enemyDamage)
     this.damageEnemy(enemyList, cellIndex, enemy, allyAttack, cellIndex === BOSS_CELL_INDEX)
     this.emitClash({ cellIndex })
   }

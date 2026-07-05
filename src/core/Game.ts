@@ -309,7 +309,7 @@ export class Game {
           { label: '공격', value: `${enemy.attack ?? this.waveSystem.getEnemyAttack()}` },
           { label: '체력', value: `${enemy.hp}/${enemy.maxHp}` },
         ],
-        passive: creature?.passive,
+        passive: creature?.enemyPassive,
         buffs,
       }
     }
