@@ -2578,10 +2578,10 @@ body {
    gauge on their inner edge, hugging the left of the board where the
    necromancer stands. Basic is the resting default; raise/capture light
    amber when armed. */
-/* No backdrop panel — the hexes + gauge column hug the right flank of the
-   player card. Its position is welded to the live card rect in JS (SkillHive
-   .anchorTo), so it tracks the card at any window size. The initial left/top is
-   just a first-paint fallback before the JS anchor runs. */
+/* No backdrop panel — the hexes + gauge column sit just to the LEFT of the
+   player card (beside it, not over its face). Its position is welded to the live
+   card rect in JS (SkillHive.anchorTo), so it tracks the card at any window
+   size. The initial left/top is just a first-paint fallback before JS anchors. */
 .skill-hive {
   position: absolute;
   left: 158px;
