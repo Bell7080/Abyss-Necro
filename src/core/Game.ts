@@ -19,6 +19,7 @@ import { BlastManager } from '@ui/effects/BlastManager'
 import { BubbleBolt } from '@ui/effects/BubbleBolt'
 import { showDamageNumber, showFloatingLabel } from '@ui/effects/FloatingDamage'
 import { AbilitySystem, type AbilityId } from '@systems/AbilitySystem'
+import { AudioManager } from '@systems/AudioManager'
 import { CoinSystem } from '@systems/CoinSystem'
 import { CorpseSystem, type Corpse } from '@systems/CorpseSystem'
 import { DefenderSystem, type AllyDeath } from '@systems/DefenderSystem'
@@ -63,6 +64,7 @@ export class Game {
   private readonly waveSystem = new WaveSystem(this.defenderSystem)
   private readonly abilitySystem = new AbilitySystem()
   private readonly tickManager = new TickManager()
+  private readonly audio = new AudioManager()
   private readonly blast = new BlastManager()
   private readonly board: BoardRenderer
   private readonly hand: CardHand
@@ -292,6 +294,10 @@ export class Game {
 
   boot(): void {
     this.board.render()
+    // Entering the game: the OST fades in from its 40s mark over the intro veil.
+    // In the browser this may wait for the first click (autoplay gate); the
+    // packaged Electron app plays it immediately (autoplayPolicy override).
+    this.audio.playOst()
   }
 
   /** Hover-to-inspect on the board. Ignored while aiming (the selected hand
@@ -378,6 +384,8 @@ export class Game {
    * or moves before this. */
   private startRun(): void {
     this.runStarted = true
+    // Pressing 시작하기 hands off from the OST to a random battle loop.
+    this.audio.startBattle()
     this.waveSystem.start(this.tickManager)
     this.abilitySystem.start(this.tickManager)
     this.tickManager.start()
@@ -628,6 +636,8 @@ export class Game {
     this.tickManager.stop()
     this.waveSystem.halt()
     this.disarmSkill()
+    // Victory returns to the OST (again from its 40s mark).
+    this.audio.playOst()
     window.setTimeout(() => this.victoryOverlay.show(), 700)
   }
 
@@ -754,6 +764,8 @@ export class Game {
   private handleDefeat(): void {
     this.tickManager.stop()
     this.waveSystem.halt()
+    // Death fades the battle music out and stops it (a fresh run restarts it).
+    this.audio.stopMusic()
     this.defeatOverlay.show()
   }
 

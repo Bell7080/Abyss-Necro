@@ -15,6 +15,9 @@ function createWindow(): void {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // Packaged desktop app has no browser autoplay gate — the OST can fade in
+      // the moment the game opens, without waiting for a first click.
+      autoplayPolicy: 'no-user-gesture-required',
     },
   })
 
