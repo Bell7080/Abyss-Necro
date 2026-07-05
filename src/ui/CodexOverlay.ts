@@ -1,4 +1,4 @@
-import { CREATURES } from '@data/CreatureDefinitions'
+import { CREATURES, getAllyArt, getCreature } from '@data/CreatureDefinitions'
 import { allyStatsForLevel, enemyStatsForLevel } from '@data/Tiers'
 import { Icons } from '@ui/Icons'
 
@@ -53,6 +53,14 @@ export class CodexOverlay {
     this.downBtn.addEventListener('click', () => this.goTo(this.index + 1))
     // Keep the counter/buttons in sync when the user scroll-snaps by hand.
     this.track.addEventListener('scroll', () => this.syncIndexFromScroll())
+    // Tier tabs (★/★★/★★★) live on every after-figure — one delegated
+    // listener handles all of them instead of one per page.
+    this.track.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.codex-tier-btn')
+      if (!btn) return
+      const article = btn.closest<HTMLElement>('.codex-figure--after')
+      if (article) this.setTier(article, Number(btn.dataset.tier))
+    })
     this.updateNav()
   }
 
@@ -78,13 +86,18 @@ export class CodexOverlay {
             <span class="codex-transform-icon">${Icons.necroArrow()}</span>
             <span class="codex-transform-word">사령</span>
           </div>
-          <article class="codex-figure codex-figure--after">
-            ${figureArt(c.allyArt, `${c.label} (사령)`)}
+          <article class="codex-figure codex-figure--after" data-creature-id="${c.id}">
+            <div class="codex-tier-tabs" role="tablist" aria-label="사령 등급">
+              <button type="button" class="codex-tier-btn is-active" data-tier="1" aria-label="1성">★</button>
+              <button type="button" class="codex-tier-btn" data-tier="2" aria-label="2성">★★</button>
+              <button type="button" class="codex-tier-btn" data-tier="3" aria-label="3성">★★★</button>
+            </div>
+            <div class="codex-figure-art-slot">${figureArt(c.allyArt, `${c.label} (사령 1성)`)}</div>
             <div class="codex-figure-scrim" aria-hidden="true"></div>
             <div class="codex-figure-info">
               <span class="codex-figure-tag codex-figure-tag--after">사령</span>
               <h3 class="codex-figure-name">${c.label}</h3>
-              ${statsRow(as.attack, allyHp)}
+              <div class="codex-figure-stats-slot">${statsRow(as.attack, allyHp)}</div>
               <p class="codex-figure-desc">${c.passive}</p>
             </div>
           </article>
@@ -108,6 +121,26 @@ export class CodexOverlay {
           <button type="button" class="codex-nav-btn codex-nav-down" aria-label="다음">${Icons.chevronDown()}</button>
         </div>
       </div>`
+  }
+
+  /** Switches an after-figure's art + stats to the picked tier (passive text
+   * doesn't change — only power scales with 성). */
+  private setTier(article: HTMLElement, tier: number): void {
+    const id = article.dataset.creatureId
+    const creature = id ? getCreature(id) : undefined
+    if (!creature) return
+
+    article
+      .querySelectorAll<HTMLButtonElement>('.codex-tier-btn')
+      .forEach((b) => b.classList.toggle('is-active', Number(b.dataset.tier) === tier))
+
+    const artSlot = article.querySelector('.codex-figure-art-slot')
+    if (artSlot) artSlot.innerHTML = figureArt(getAllyArt(creature.id, tier), `${creature.label} (사령 ${tier}성)`)
+
+    const as = allyStatsForLevel(creature.level, tier)
+    const allyHp = as.hp + (creature.passiveId === 'crab-guard' ? CRAB_GUARD_BONUS_HP : 0)
+    const statsSlot = article.querySelector('.codex-figure-stats-slot')
+    if (statsSlot) statsSlot.innerHTML = statsRow(as.attack, allyHp)
   }
 
   /** Scroll a specific creature-slide into view and refresh the nav state. */
@@ -138,9 +171,12 @@ export class CodexOverlay {
 
   private open(): void {
     this.overlay.classList.add('is-visible')
-    // Always open on the first creature.
+    // Always open on the first creature, every after-figure reset to 1성.
     this.track.scrollTop = 0
     this.index = 0
+    for (const article of this.overlay.querySelectorAll<HTMLElement>('.codex-figure--after')) {
+      this.setTier(article, 1)
+    }
     this.updateNav()
   }
 

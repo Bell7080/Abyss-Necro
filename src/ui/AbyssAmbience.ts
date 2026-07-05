@@ -11,7 +11,8 @@ export class AbyssAmbience {
       <div class="abyss-caustic abyss-caustic--a"></div>
       <div class="abyss-caustic abyss-caustic--b"></div>
       <div class="abyss-caustic abyss-caustic--c"></div>
-      <div class="abyss-ambience-vignette"></div>`
+      <div class="abyss-ambience-vignette"></div>
+      <div class="abyss-ambience-rightfog"></div>`
     root.appendChild(el)
   }
 }

@@ -1,7 +1,7 @@
 import type { WaveSystem } from '@systems/WaveSystem'
 import type { DefenderSystem } from '@systems/DefenderSystem'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
-import { getCreature } from '@data/CreatureDefinitions'
+import { getCreature, getAllyArt } from '@data/CreatureDefinitions'
 import playerArt from '@/assets/sprites/player_001.webp'
 import { Icons } from '@ui/Icons'
 import { entityCardHtml } from '@ui/EntityCard'
@@ -11,14 +11,13 @@ const GRID_ROWS = 3 // lanes — one horizontal row per lane (matches WaveSystem
 const CELL_COUNT = GRID_COLS * GRID_ROWS
 // Must match .board-grid's grid-template-columns/rows/gap in board.css —
 // tokens are positioned by pixel math instead of CSS grid placement so their
-// movement between cells can transition smoothly. Cells shrank again when the
-// grid gained a 5th column so the wider board still fits the viewport.
-const CELL_SIZE = 180
-const CELL_GAP = 28
+// movement between cells can transition smoothly.
+const CELL_SIZE = 200
+const CELL_GAP = 34
 // Allies sit slightly left of a cell's center, enemies slightly right, so
 // a shared cell reads as a face-off instead of a pile. Multiple occupants
 // on the same side stack with a small vertical offset.
-const GRID_ROLE_OFFSET_X = 52
+const GRID_ROLE_OFFSET_X = 58
 const STACK_GAP_Y = 34
 // In the boss/player cell: player pushed well back toward the room's far
 // (left) edge — see --board-figure-shift-x — with allies trailing at a
@@ -45,6 +44,13 @@ const CORPSE_LEAVE_MS = 880
 // Covers the spawn pop-in + the slowest bubble's rise-and-fade before the
 // one-shot spawn fx elements are cleared out.
 const CORPSE_SPAWN_FX_MS = 780
+// A wave's first-ever spawn on a lane starts this many phantom columns past
+// the visible entry column — off in the fog beyond the rail — and the
+// .is-spawning-approach class (see board.css) stretches its slide transition
+// to SPAWN_APPROACH_MS so it reads as a long, slow creep the player can see
+// coming and react to, instead of just popping in one cell over.
+const SPAWN_APPROACH_COLUMNS = 3
+const SPAWN_APPROACH_MS = 2600
 
 interface Occupant {
   id: string
@@ -323,10 +329,12 @@ export class BoardRenderer {
       list.forEach((occupant, i) => {
         seen.add(occupant.id)
         const y = baseY + (i - (list.length - 1) / 2) * STACK_GAP_Y
-        // Freshly-spawned enemies walk in from a phantom column just past
-        // the entry edge instead of popping into place on the grid.
-        const spawnFromX = role === 'enemy' ? baseX + CELL_SIZE + CELL_GAP : undefined
-        this.upsertToken(tokens, this.gridEl, occupant, role, baseX, y, spawnFromX)
+        // Freshly-spawned enemies walk in from well beyond the entry edge —
+        // off past the visible rail into the fog — instead of popping in one
+        // cell over, so the approach is visible early and gives the player
+        // time to react (see .is-spawning-approach in board.css).
+        const spawnFromX = role === 'enemy' ? baseX + SPAWN_APPROACH_COLUMNS * (CELL_SIZE + CELL_GAP) : undefined
+        this.upsertToken(tokens, this.gridEl, occupant, role, baseX, y, spawnFromX, role === 'enemy')
       })
     })
 
@@ -364,7 +372,8 @@ export class BoardRenderer {
     variant: 'enemy' | 'ally',
     x: number,
     y: number,
-    spawnFromX?: number
+    spawnFromX?: number,
+    isLongApproach?: boolean
   ): void {
     const existing = tokens.get(occupant.id)
     if (existing) {
@@ -396,7 +405,11 @@ export class BoardRenderer {
     el.style.setProperty('--token-y', `${y}px`)
     el.dataset.hp = `${occupant.hp}`
     const creature = occupant.creatureId ? getCreature(occupant.creatureId) : undefined
-    const imageUrl = creature ? (variant === 'ally' ? creature.allyArt : creature.enemyArt) : undefined
+    const imageUrl = creature
+      ? variant === 'ally'
+        ? getAllyArt(creature.id, occupant.tier ?? 1)
+        : creature.enemyArt
+      : undefined
     const tierClass = occupant.tier === 3 ? ' is-tier3' : occupant.tier === 2 ? ' is-tier2' : ''
     const raisedClass = occupant.raised ? ' is-raised' : ''
     if (occupant.isBoss) el.classList.add('is-boss')
@@ -423,6 +436,10 @@ export class BoardRenderer {
       // Land on the phantom column first, then let the transition slide it
       // in to its real cell position on the next frame.
       el.dataset.movedAt = `${Date.now()}`
+      if (isLongApproach) {
+        el.classList.add('is-spawning-approach')
+        window.setTimeout(() => el.classList.remove('is-spawning-approach'), SPAWN_APPROACH_MS)
+      }
       requestAnimationFrame(() => {
         el.style.setProperty('--token-x', `${x}px`)
       })

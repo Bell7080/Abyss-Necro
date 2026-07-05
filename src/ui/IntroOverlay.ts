@@ -8,6 +8,24 @@ const LEAVE_FADE_MS = 700
 // .is-entering's transition.
 const ENTER_FADE_MS = 900
 const DISMISS_MS = 500
+// Firefly count and how much of the screen's lower band they scatter across
+// ("물결 아래" — beneath/among the water ripple, not up near the title art).
+const FIREFLY_COUNT = 16
+
+/** A scatter of tiny drifting, twinkling motes across the title screen's
+ * lower band — each carries its own size/duration/delay/drift as inline
+ * custom properties so the CSS keyframe stays one shared rule. */
+function firefliesHtml(): string {
+  return Array.from({ length: FIREFLY_COUNT }, () => {
+    const left = Math.random() * 100
+    const top = 42 + Math.random() * 54
+    const size = 2 + Math.random() * 2.2
+    const duration = 6 + Math.random() * 7
+    const delay = Math.random() * 9
+    const drift = -36 + Math.random() * 72
+    return `<span class="intro-firefly" style="left:${left.toFixed(1)}%;top:${top.toFixed(1)}%;--firefly-size:${size.toFixed(1)}px;--firefly-duration:${duration.toFixed(1)}s;--firefly-delay:${delay.toFixed(1)}s;--firefly-drift:${drift.toFixed(0)}px"></span>`
+  }).join('')
+}
 
 // Full-screen title scene shown once at boot: a completely black screen fades
 // in over the title art (bg_002) — rippling caustics + a heavy vignette sell
@@ -35,6 +53,7 @@ export class IntroOverlay {
       <div class="abyss-caustic abyss-caustic--b"></div>
       <div class="abyss-caustic abyss-caustic--c"></div>
       <div class="intro-title-vignette"></div>
+      <div class="intro-fireflies" aria-hidden="true">${firefliesHtml()}</div>
       <div class="intro-black-veil"></div>
       <div class="intro-prompt">화면을 눌러 심해의 친구들을 사귀러 떠나기!</div>
       <div class="intro-start-invite"><button type="button" class="intro-start-button">시작하기</button></div>`

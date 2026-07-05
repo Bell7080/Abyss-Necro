@@ -20,6 +20,10 @@ export interface SkillHiveHandlers {
 export class SkillHive {
   private readonly hexes = new Map<AbilityId, HTMLButtonElement>()
   private readonly gaugeFill: HTMLElement
+  private readonly tooltip: HTMLElement
+  private readonly tooltipName: HTMLElement
+  private readonly tooltipHint: HTMLElement
+  private readonly tooltipCost: HTMLElement
 
   constructor(
     root: HTMLElement,
@@ -39,11 +43,14 @@ export class SkillHive {
       const btn = document.createElement('button')
       btn.type = 'button'
       btn.className = `skill-hex skill-hex--${id}${art ? ' has-art' : ''}`
-      btn.title = face.hint
       btn.style.setProperty('--hex-tone', face.tone)
       if (art) btn.style.setProperty('--hex-art', `url('${art}')`)
       btn.innerHTML = `<span class="hex-face" aria-hidden="true"><span class="hex-art-scrim" aria-hidden="true"></span></span><span class="hex-name">${face.name}</span><span class="hex-cost">${this.ability.costOf(id)}</span>`
       btn.addEventListener('click', () => handlers.onSkill(id))
+      // Custom themed panel to the right of the hive replaces the browser's
+      // native title tooltip — instant, and matches the rest of the UI.
+      btn.addEventListener('mouseenter', () => this.showTooltip(id))
+      btn.addEventListener('mouseleave', () => this.hideTooltip())
       hexes.appendChild(btn)
       this.hexes.set(id, btn)
     }
@@ -60,6 +67,20 @@ export class SkillHive {
     plane.appendChild(hexes)
     plane.appendChild(gauge)
     wrap.appendChild(plane)
+
+    const tooltip = document.createElement('div')
+    tooltip.className = 'hive-tooltip'
+    tooltip.setAttribute('aria-hidden', 'true')
+    tooltip.innerHTML = `
+      <span class="hive-tooltip-name"></span>
+      <span class="hive-tooltip-hint"></span>
+      <span class="hive-tooltip-cost"></span>`
+    this.tooltip = tooltip
+    this.tooltipName = tooltip.querySelector('.hive-tooltip-name') as HTMLElement
+    this.tooltipHint = tooltip.querySelector('.hive-tooltip-hint') as HTMLElement
+    this.tooltipCost = tooltip.querySelector('.hive-tooltip-cost') as HTMLElement
+    wrap.appendChild(tooltip)
+
     root.appendChild(wrap)
 
     const tick = (): void => {
@@ -68,6 +89,21 @@ export class SkillHive {
       requestAnimationFrame(tick)
     }
     requestAnimationFrame(tick)
+  }
+
+  /** Fills and reveals the right-side info panel for a hovered hex — name,
+   * catchphrase, and gauge cost. */
+  private showTooltip(id: AbilityId): void {
+    const face = SKILL_FACES[id]
+    this.tooltipName.textContent = face.name
+    this.tooltipHint.textContent = face.hint
+    this.tooltipCost.textContent = `게이지 ${this.ability.costOf(id)}`
+    this.tooltip.style.setProperty('--tooltip-tone', face.tone)
+    this.tooltip.classList.add('is-visible')
+  }
+
+  private hideTooltip(): void {
+    this.tooltip.classList.remove('is-visible')
   }
 
   /** Highlights the currently armed toggle skill (null = plain basic mode). */
@@ -82,6 +118,19 @@ export class SkillHive {
         btn.classList.toggle('is-primed', !armed && this.ability.canCast(aid))
       }
     }
+  }
+
+  /** One-shot "just fired" flash for a skill cast via a board/corpse click
+   * rather than pressing the hex itself (기본공격/급조) — otherwise nothing on
+   * the hive shows that the click actually triggered that skill. Reuses the
+   * ready-pop enlarge+glow keyframes. */
+  flashCast(id: AbilityId): void {
+    const btn = this.hexes.get(id)
+    if (!btn) return
+    btn.classList.remove('is-cast-flash')
+    void btn.offsetWidth // restart the keyframe
+    btn.classList.add('is-cast-flash')
+    window.setTimeout(() => btn.classList.remove('is-cast-flash'), 520)
   }
 
   render(): void {
