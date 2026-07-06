@@ -2,7 +2,7 @@ import type { AllyToken } from '@entities/AllyToken'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import type { PassiveEvent } from '@systems/PassiveEvent'
 import { getCreature } from '@data/CreatureDefinitions'
-import { MAX_TIER, RAISED_STATS, allyStatsForLevel } from '@data/Tiers'
+import { MAX_TIER, allyStatsForLevel, raisedStatsForLevel } from '@data/Tiers'
 
 const ROWS = 3
 const COLS = 5 // must match WaveSystem's COLS / BoardRenderer's GRID_COLS
@@ -10,10 +10,6 @@ const CELL_COUNT = ROWS * COLS
 const MAX_ALLIES_PER_CELL = 3
 // Fallback attack for a placed ally that carries no explicit value.
 const DEFAULT_ALLY_ATTACK = allyStatsForLevel(1, 1).attack
-// Hasty undead raised from a corpse: a cheap, disposable wall. No passive,
-// purged at the lull.
-const RAISED_ALLY_HP = RAISED_STATS.hp
-const RAISED_ALLY_ATTACK = RAISED_STATS.attack
 // Sea-rabbit death-heal amount to adjacent allies.
 const RABBIT_HEAL = 2
 // Crab's hard-shell bonus hp on placement, on top of its tier stats.
@@ -92,19 +88,21 @@ export class DefenderSystem {
     return true
   }
 
-  /** Raises a corpse in place as a hasty undead wall — weak (체2/공1), no
-   * passive, marked so the lull can purge it. Returns false if the cell is
-   * full. */
+  /** Raises a corpse in place as a hasty undead wall — no passive, marked so
+   * the lull can purge it. Stats scale with the corpse's creature level
+   * (raisedStatsForLevel), still clearly below a proper deployment. Returns
+   * false if the cell is full. */
   placeRaised(cellIndex: number, label: string, creatureId: string): boolean {
     if (!this.canPlace(cellIndex)) return false
+    const stats = raisedStatsForLevel(getCreature(creatureId)?.level ?? 1)
     this.listFor(cellIndex).push({
       id: `raised-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       // Hasty undead wear a 급조 prefix so they read apart from full defenders.
       label: `급조 ${label}`,
       creatureId,
-      hp: RAISED_ALLY_HP,
-      maxHp: RAISED_ALLY_HP,
-      attack: RAISED_ALLY_ATTACK,
+      hp: stats.hp,
+      maxHp: stats.hp,
+      attack: stats.attack,
       raised: true,
     })
     this.emit()

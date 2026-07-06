@@ -68,16 +68,16 @@ const BOSS_HP_MULT = 2.6
 const BOSS_ATK_BONUS = 2
 
 // Pacing: a shop-lull every SHOP_EVERY waves, a boss leading every BOSS_EVERY.
-const SHOP_EVERY = 10
+const SHOP_EVERY = 5
 const BOSS_EVERY = 30
-// Each regular-ladder tier (from tier 2 on) lingers this many waves before the
-// next one starts — long enough to actually stack a trio of the new arrival
-// too, not just glimpse it.
-const TIER_WAVES = 4
-// Tier 1 (jellyfish) is the one exception: a deliberately longer opening run
-// (no mixing at all) so corpses/hand cards stack up enough for a first
-// triple-merge before any variety shows up. Sea-rabbit starts right after.
-const FIRST_TIER_WAVES = 8
+// Each regular-ladder tier lingers this many waves before the next one starts
+// — one full shop cycle per difficulty step, so every checkpoint boundary is
+// also a "the water got deeper" beat.
+const TIER_WAVES = 5
+// Tier 1 (jellyfish): a pure opening run (no mixing at all) so corpses/hand
+// cards stack up enough for a first triple-merge before any variety shows up.
+// Sea-rabbit starts right after.
+const FIRST_TIER_WAVES = 5
 const PURE_OPENING_WAVES = FIRST_TIER_WAVES
 // Capture ("넌 내꺼야!") cuts: an ordinary enemy is claimable at ≤25% hp, an
 // elite only at ≤10% — the harder execute that makes sacrificing it a payoff.
@@ -90,16 +90,18 @@ const ALLY_COUNTER_DAMAGE = 2
 // to raise/harvest (75%). Wave-1 enemies are pity-rigged to a card so the
 // very first kill always teaches the capture loop.
 const CARD_DROP_CHANCE = 0.33
+// Starlight (coin) is no longer a guaranteed kill drop — 1 in 3 kills pays.
+const COIN_DROP_CHANCE = 0.33
 const MOVE_TICK_MS = 1300
 // A new wave forces its way in every 30 seconds regardless of clear state —
 // this is the actual pacing mechanism, not just a display countdown. If the
 // board clears before the timer runs out, the next wave pushes immediately
 // instead of waiting out the rest of the interval (see triggerInstantPush).
 const WAVE_PUSH_INTERVAL_MS = 30 * 1000
-// The lull (shop/relic beat) follows every SHOP_EVERY-th wave; every 3rd such
-// lull offers a relic pick instead of the shop (i.e. a relic every 30 waves,
-// right after each boss).
-const CHECKPOINTS_PER_RELIC = 3
+// The lull (shop/relic beat) follows every SHOP_EVERY-th wave; every 6th such
+// lull offers a relic pick instead of the shop (i.e. still a relic every 30
+// waves, right after each boss, even with the tighter 5-wave shop cadence).
+const CHECKPOINTS_PER_RELIC = 6
 // Clearing the board no longer summons the next wave instantly — a ~5s
 // breather keeps rounds readable.
 const CLEAR_PUSH_DELAY_MS = 5000
@@ -116,7 +118,7 @@ export interface EncounterResult {
   /** 'card' hands the whole necro card to hand; 'corpse' leaves a raisable
    * body on the cell. */
   outcome: 'card' | 'corpse'
-  /** Always true — every kill drops exactly one coin. */
+  /** Whether this kill pays a starlight coin (COIN_DROP_CHANCE roll). */
   dropCoin: boolean
   viaBossRoom: boolean
   /** The slain enemy was the final boss — Game ends the run in victory. */
@@ -465,7 +467,7 @@ export class WaveSystem {
         cellIndex,
         creatureId: enemy.creatureId,
         outcome,
-        dropCoin: true,
+        dropCoin: Math.random() < COIN_DROP_CHANCE,
         viaBossRoom,
         isFinal: !!enemy.isFinal,
         fromCellIndex: enemy.lastCellIndex,
@@ -747,9 +749,9 @@ export class WaveSystem {
   }
 
   /** The "focus" creature level for a wave — the deepest regular creature the
-   * tide has reached. Tier 1 gets the longer FIRST_TIER_WAVES opening run;
-   * every tier after that climbs one step every TIER_WAVES waves (tier 2 from
-   * wave 9, tier 3 from wave 13, ...). */
+   * tide has reached. Tier 1 holds the FIRST_TIER_WAVES opening run; every
+   * tier after that climbs one step every TIER_WAVES waves (tier 2 from
+   * wave 6, tier 3 from wave 11, ...) — one difficulty step per shop cycle. */
   private focusLevel(wave: number): number {
     if (wave <= FIRST_TIER_WAVES) return 1
     return Math.max(
@@ -759,10 +761,11 @@ export class WaveSystem {
   }
 
   /** How many regular enemies a wave sends — 1:1 with the wave number (wave 1
-   * sends 1, wave 2 sends 2, ...), capped only so a very deep run doesn't spawn
-   * an unreasonable pile at once. */
+   * sends 1, wave 2 sends 2, ...), capped at a per-wave random 10~15 so deep
+   * runs stay busy without piling a fixed 20 every time — the tide breathes. */
   private waveCount(wave: number): number {
-    return Math.max(1, Math.min(20, wave))
+    const cap = 10 + Math.floor(Math.random() * 6)
+    return Math.max(1, Math.min(cap, wave))
   }
 
   /** The wave's regular roster: a new tier doesn't just switch on, it crossfades

@@ -42,7 +42,7 @@ import { TickManager } from '@core/TickManager'
 import { BOSS_CELL_INDEX } from '@systems/BoardConstants'
 import playerArtUrl from '@/assets/sprites/player_001.webp'
 import { getCreature, getAllyArt } from '@data/CreatureDefinitions'
-import { getEpicCard } from '@data/EpicCardDefinitions'
+import { getEpicCard, randomEpicCard } from '@data/EpicCardDefinitions'
 import { getItemCard, randomItemCard } from '@data/ItemCardDefinitions'
 import { summonCost } from '@data/Tiers'
 import { drawRelicOptions } from '@data/RelicPool'
@@ -55,11 +55,17 @@ const EMPTY_ID_SET: ReadonlySet<string> = new Set()
 // While a hand card is held or a skill is armed the whole game clock crawls,
 // giving the player a slow-motion beat to read the board and aim.
 const AIM_TIME_SCALE = 0.3
-// A kill has this independent, modest chance to ALSO drop a usable item card
-// (on top of whichever necro-card/corpse outcome it already rolled) — items
-// are otherwise shop-only, but a rare kill-drop sprinkle was always part of
-// the loop.
-const ITEM_DROP_CHANCE = 0.12
+// A kill has this independent, modest chance to ALSO drop a usable card (on
+// top of whichever necro-card/corpse outcome it already rolled). Kept with
+// CARD_DROP_CHANCE (33%) so the combined hand-card odds stay under 50% —
+// 33% + 15% = 48% of kills put something in the hand at most.
+const ITEM_DROP_CHANCE = 0.15
+// Within that extra-drop roll: this share comes up an epic facility card
+// instead of a plain item — epics trickle from kills too, not shop-only.
+const EPIC_DROP_SHARE = 0.3
+// Item card effect values — 심연 파동 board-wide hit / 치유 물결 cell heal.
+const ABYSS_PULSE_DAMAGE = 3
+const HEALING_BUBBLE_HEAL = 8
 
 export class Game {
   private readonly handSystem = new HandSystem()
@@ -269,10 +275,16 @@ export class Game {
   }
 
   /** Recomputes aim mode from the current card/skill selection: darken all
-   * but the board, crawl the clock, light the target cells. */
+   * but the board, crawl the clock, light the target cells. A player-buff
+   * epic (넥슈 전용) beckons ONLY the player's own cell, not the whole grid. */
   private updateAimState(): void {
     const active = this.isTargeting()
-    this.board.setPlacementTargeting(active)
+    const selected = this.handSystem.getSelectedCard()
+    const playerOnly =
+      !!selected &&
+      selected.kind === 'epic' &&
+      getEpicCard(selected.itemId ?? '')?.kind === 'player'
+    this.board.setPlacementTargeting(active, playerOnly)
     this.setAiming(active)
   }
 
@@ -673,11 +685,14 @@ export class Game {
     return this.abilitySystem.canAfford(summonCost(card.tier ?? 1))
   }
 
-  /** Epic facility cards: 함정별 needs a grid cell; the global ones apply
-   * their permanent buff wherever the click lands. */
+  /** Epic facility cards: 함정별 needs a grid cell; global ones apply their
+   * permanent buff wherever the click lands; player-buff cards (넥슈 전용)
+   * only resolve on the player's own cell — a stray grid click keeps the
+   * card selected instead of wasting it. */
   private useEpicCard(cellIndex: number, card: HandCard): void {
     const def = getEpicCard(card.itemId ?? '')
     if (!def) return
+    if (def.kind === 'player' && cellIndex !== BOSS_CELL_INDEX) return
 
     if (def.id === 'trap-star') {
       if (!this.waveSystem.addCellTrap(cellIndex)) return
@@ -703,7 +718,7 @@ export class Game {
     if (!def) return
 
     if (def.id === 'abyss-pulse') {
-      const results = this.waveSystem.damageAllEnemies(1)
+      const results = this.waveSystem.damageAllEnemies(ABYSS_PULSE_DAMAGE)
       for (const hit of results) {
         const rect = this.board.getCellRect(hit.cellIndex)
         if (rect) this.showHitNumber(hit.cellIndex, hit.amount, centerOf(rect))
@@ -713,7 +728,7 @@ export class Game {
     }
 
     if (def.id === 'healing-bubble') {
-      if (!this.defenderSystem.healCell(cellIndex, 3)) return
+      if (!this.defenderSystem.healCell(cellIndex, HEALING_BUBBLE_HEAL)) return
       const rect = this.board.getCellRect(cellIndex)
       if (rect) this.blast.clashBurst(rect)
       this.handSystem.removeCard(card.id)
@@ -775,15 +790,18 @@ export class Game {
       )
     }
 
-    // A modest independent chance to ALSO drop a usable item card, on top of
-    // whichever necro-card/corpse outcome this kill already rolled.
+    // A modest independent chance to ALSO drop a usable card, on top of
+    // whichever necro-card/corpse outcome this kill already rolled — mostly
+    // items, occasionally an epic facility card (EPIC_DROP_SHARE).
     if (rect && Math.random() < ITEM_DROP_CHANCE) {
-      const item = randomItemCard()
+      const isEpic = Math.random() < EPIC_DROP_SHARE
+      const drop = isEpic ? randomEpicCard() : randomItemCard()
+      const kind = isEpic ? ('epic' as const) : ('item' as const)
       const nextCount = this.handSystem.getCards().length + 1
       const target = this.hand.getNextSlotPoint(nextCount)
       const id = `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
       this.blast.travelDrop(rect, target, () => {
-        this.handSystem.addCard({ id, label: item.label, creatureId: '', kind: 'item', itemId: item.id })
+        this.handSystem.addCard({ id, label: drop.label, creatureId: '', kind, itemId: drop.id })
       })
     }
 

@@ -588,9 +588,11 @@ export class BoardRenderer {
     })
   }
 
-  /** Toggles the "pick a cell to deploy" affordance while a hand card is selected. */
-  setPlacementTargeting(active: boolean): void {
-    this.gridEl.classList.toggle('is-placement-targeting', active)
+  /** Toggles the "pick a cell to deploy" affordance while a hand card is
+   * selected. playerOnly (넥슈 전용 epic): only the player's own cell beckons
+   * — the grid stays dark so the valid drop target is unmistakable. */
+  setPlacementTargeting(active: boolean, playerOnly = false): void {
+    this.gridEl.classList.toggle('is-placement-targeting', active && !playerOnly)
     this.playerCellEl.classList.toggle('is-placement-targetable', active)
   }
 

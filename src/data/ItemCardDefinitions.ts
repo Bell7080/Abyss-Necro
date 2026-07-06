@@ -13,13 +13,13 @@ export const ITEM_CARDS: ItemCardDefinition[] = [
   {
     id: 'abyss-pulse',
     label: '심연 파동',
-    desc: '필드의 모든 적에게 1의 피해를 준다.',
+    desc: '필드의 모든 적에게 3의 피해를 준다.',
     targeted: false,
   },
   {
     id: 'healing-bubble',
     label: '치유 물결',
-    desc: '선택한 칸의 아군을 3 회복시킨다.',
+    desc: '선택한 칸의 아군을 8 회복시킨다.',
     targeted: true,
   },
 ]

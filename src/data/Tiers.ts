@@ -3,8 +3,19 @@ export interface TierStats {
   attack: number
 }
 
-// Hasty undead (급조) sit below everything — a disposable 체2/공1 wall.
-export const RAISED_STATS: TierStats = { hp: 2, attack: 1 }
+// Hasty undead (급조): scales with the corpse's creature level (a raised
+// shark shouldn't crumble like a raised jellyfish) at ~80% of the enemy's
+// own stats — a real temporary wall, still clearly below a proper 사령
+// deployment and purged at every lull.
+const RAISED_FACTOR = 0.8
+
+export function raisedStatsForLevel(level: number): TierStats {
+  const base = enemyStatsForLevel(level)
+  return {
+    hp: Math.max(2, Math.round(base.hp * RAISED_FACTOR)),
+    attack: Math.max(1, Math.round(base.attack * RAISED_FACTOR)),
+  }
+}
 
 export const MAX_TIER = 3
 
@@ -24,9 +35,11 @@ export function enemyStatsForLevel(level: number): TierStats {
   return { hp: LEVEL_HP[i], attack: LEVEL_ATK[i] }
 }
 
-// Merge tier multiplier on the creature's 1성 base — fusing 3 bodies (×3) is
-// worth losing the extra blockers, so each tier is ~3.5×.
-const TIER_MULT = [0, 1, 3.5, 12.25]
+// Merge tier multiplier on the creature's 1성 base. Each step is ×2.6 —
+// deliberately UNDER the ×3 raw-stat break-even of fusing 3 bodies (the old
+// ×3.5 made 2·3성 towers steamroll everything): what a merge buys is slot
+// concentration (one card holds a lane cell), not free extra stats.
+const TIER_MULT = [0, 1, 2.6, 6.8]
 
 /** Necromanced-ally stats for a creature's level at a merge tier. The sacral
  * form is tankier and actually deals damage (the reward for capturing), and

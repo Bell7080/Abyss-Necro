@@ -60,45 +60,23 @@ export class CardHand {
     this.initHoverSpread()
   }
 
+  // Last mousemove clientX while over the hand — render() re-aims the spread
+  // here after an incremental update, so a card dropping in under a resting
+  // cursor doesn't collapse the fan until the mouse happens to move.
+  private lastPointerX: number | null = null
+
   /** Cursor-tracked fan spread — the relic dock's mechanism, applied to the
    * hand: the card under the pointer pins as the pivot (lifts, straightens,
    * comes to front) and its neighbours part aside so an overlapped hand can
-   * be read card by card without clicking. The pivot comes from the fan's
-   * own layout math (not the cursor's fraction of the container, which is
-   * wider than the fan), and the push is capped so a deep hand's edge cards
-   * don't fly off. Listeners live on the persistent container, so rebuilds
-   * in render() need no re-attach. */
+   * be read card by card without clicking. Listeners live on the persistent
+   * container, so re-renders need no re-attach. */
   private initHoverSpread(): void {
-    const applyFocus = (ev: MouseEvent): void => {
-      const els = Array.from(this.container.querySelectorAll<HTMLElement>('.hand-card'))
-      const n = els.length
-      if (n < 2) return
-      const rect = this.container.getBoundingClientRect()
-      const centerX = rect.left + rect.width / 2
-      const step = Math.min(74, 620 / (n - 1))
-      const spreadPx = step * (n - 1)
-      const idx = Math.round((ev.clientX - centerX + spreadPx / 2) / step)
-      const pivotIdx = Math.max(0, Math.min(n - 1, idx))
-      els.forEach((el, i) => {
-        const dist = i - pivotIdx
-        const isPivot = dist === 0
-        // Part the curtain around the cursor: strong push on immediate
-        // neighbours, flattening out past ±3 cards.
-        const push = Math.max(-78, Math.min(78, dist * 26))
-        const splay = Math.max(-9, Math.min(9, dist * 3))
-        // The pivot nearly straightens (counters its own fan rotation) so
-        // the card reads upright while inspected.
-        const baseRot = parseFloat(el.style.getPropertyValue('--hand-rot')) || 0
-        el.style.setProperty('--hand-extra-x', `${push}px`)
-        el.style.setProperty('--hand-extra-rot', isPivot ? `${-baseRot * 0.85}deg` : `${splay}deg`)
-        el.style.setProperty('--hand-extra-y', isPivot ? '-18px' : '0px')
-        el.style.setProperty('--hand-extra-scale', isPivot ? '0.06' : '0')
-        // z-index can't ride a CSS calc once a pivot exists; restore on leave.
-        el.style.zIndex = isPivot ? '100' : ''
-      })
-    }
-
-    const clearFocus = (): void => {
+    this.container.addEventListener('mousemove', (ev: MouseEvent) => {
+      this.lastPointerX = ev.clientX
+      this.applySpreadAt(ev.clientX)
+    })
+    this.container.addEventListener('mouseleave', () => {
+      this.lastPointerX = null
       for (const el of this.container.querySelectorAll<HTMLElement>('.hand-card')) {
         el.style.removeProperty('--hand-extra-x')
         el.style.removeProperty('--hand-extra-rot')
@@ -106,77 +84,118 @@ export class CardHand {
         el.style.removeProperty('--hand-extra-scale')
         el.style.zIndex = ''
       }
-    }
-
-    this.container.addEventListener('mousemove', applyFocus)
-    this.container.addEventListener('mouseleave', clearFocus)
+    })
   }
 
+  /** The pivot comes from the fan's own layout math (not the cursor's
+   * fraction of the container, which is wider than the fan), and the push is
+   * capped so a deep hand's edge cards don't fly off. */
+  private applySpreadAt(clientX: number): void {
+    // Fan order, NOT DOM order — incremental renders append new cards last,
+    // so querySelectorAll order can disagree with the sorted fan indices.
+    const els = this.cards
+      .map((c) => this.container.querySelector<HTMLElement>(`[data-card-id="${c.id}"]`))
+      .filter((el): el is HTMLElement => el !== null)
+    const n = els.length
+    if (n < 2) return
+    const rect = this.container.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const step = Math.min(74, 620 / (n - 1))
+    const spreadPx = step * (n - 1)
+    const idx = Math.round((clientX - centerX + spreadPx / 2) / step)
+    const pivotIdx = Math.max(0, Math.min(n - 1, idx))
+    els.forEach((el, i) => {
+      const dist = i - pivotIdx
+      const isPivot = dist === 0
+      // Part the curtain around the cursor: strong push on immediate
+      // neighbours, flattening out past ±3 cards.
+      const push = Math.max(-78, Math.min(78, dist * 26))
+      const splay = Math.max(-9, Math.min(9, dist * 3))
+      // The pivot nearly straightens (counters its own fan rotation) so
+      // the card reads upright while inspected.
+      const baseRot = parseFloat(el.style.getPropertyValue('--hand-rot')) || 0
+      el.style.setProperty('--hand-extra-x', `${push}px`)
+      el.style.setProperty('--hand-extra-rot', isPivot ? `${-baseRot * 0.85}deg` : `${splay}deg`)
+      el.style.setProperty('--hand-extra-y', isPivot ? '-18px' : '0px')
+      el.style.setProperty('--hand-extra-scale', isPivot ? '0.06' : '0')
+      // z-index can't ride a CSS calc once a pivot exists; restore on leave.
+      el.style.zIndex = isPivot ? '100' : ''
+    })
+  }
+
+  /** Keyed incremental render: existing card elements are REUSED (fan vars
+   * and state classes updated in place), only genuinely new cards mount and
+   * only gone cards unmount. Never wipes innerHTML — a full rebuild used to
+   * destroy the element under the cursor whenever a kill dropped a card, so
+   * the click the player was mid-press on silently vanished ("the screen
+   * refreshed and my click didn't land") and the hover spread snapped shut. */
   render(cards: readonly HandCard[], selectedId: string | null, affordFn?: (card: HandCard) => boolean): void {
     if (affordFn) this.affordFn = affordFn
     const previousIds = new Set(this.cards.map((c) => c.id))
     const sorted = sortForDisplay(cards)
-    // Same cards, same order (a selection toggle, not an add/remove/merge) —
-    // update classes on the EXISTING elements instead of rebuilding. A full
-    // rebuild throws away every node and recreates fresh ones with no prior
-    // frame to transition from, so the is-selected lift/glow (a CSS
-    // transition) just snaps instead of animating — this keeps it alive.
-    const sameSet =
-      sorted.length === this.cards.length && sorted.every((c, i) => c.id === this.cards[i]?.id)
-    if (sameSet) {
-      this.cards = sorted
-      for (const card of sorted) {
-        const el = this.container.querySelector<HTMLElement>(`[data-card-id="${card.id}"]`)
-        if (!el) continue
-        el.classList.toggle('is-selected', card.id === selectedId)
-        el.classList.toggle('is-unaffordable', !this.affordFn(card))
-      }
-      return
-    }
-    this.container.innerHTML = ''
     this.cards = sorted
     const total = sorted.length
+
+    const keep = new Set(sorted.map((c) => c.id))
+    for (const el of Array.from(this.container.querySelectorAll<HTMLElement>('.hand-card'))) {
+      if (!keep.has(el.dataset.cardId ?? '')) el.remove()
+    }
+
     sorted.forEach((card, i) => {
-      const el = document.createElement('button')
-      el.type = 'button'
-      el.dataset.cardId = card.id
-      const creature = card.kind ? undefined : getCreature(card.creatureId)
-      el.className = creature ? 'hand-card has-image' : 'hand-card'
-      if (card.kind === 'item') el.classList.add('hand-card--item')
-      if (card.kind === 'epic') el.classList.add('hand-card--epic')
-      if (card.tier === 2) el.classList.add('hand-card--tier2')
-      if (card.tier === 3) el.classList.add('hand-card--tier3')
-      if (!previousIds.has(card.id)) el.classList.add('is-new')
-      if (card.id === selectedId) el.classList.add('is-selected')
-      if (!this.affordFn(card)) el.classList.add('is-unaffordable')
+      let el = this.container.querySelector<HTMLElement>(`[data-card-id="${card.id}"]`)
+      if (!el) {
+        el = this.buildCardEl(card, !previousIds.has(card.id))
+        this.container.appendChild(el)
+      }
       const { x, y, rot } = fanTransform(i, total)
       el.style.setProperty('--hand-x', `${x}px`)
       el.style.setProperty('--hand-y', `${y}px`)
       el.style.setProperty('--hand-rot', `${rot}deg`)
       el.style.setProperty('--hand-i', `${i}`)
-      // Necro cards preview the necromanced (after) form at the card's own
-      // tier — the ally you'll get on placement. Items show a vial, epics a
-      // sparkle facility star.
-      const artHtml = creature
-        ? `<img class="hand-card-image" src="${getAllyArt(creature.id, card.tier ?? 1)}" alt="" />`
-        : card.kind === 'item'
-          ? Icons.itemVial()
-          : card.kind === 'epic'
-            ? Icons.coinSparkle()
-            : Icons.enemyToken()
-      // Tier stars above the name — creature cards only (base = 1성, merged
-      // climbs 2성/3성). Items/epics carry no rank.
-      const tier = creature ? card.tier ?? 1 : 0
-      const starsHtml =
-        tier > 0
-          ? `<div class="hand-card-stars" aria-label="${tier}성">${'★'.repeat(tier)}</div>`
-          : ''
-      // Summon-cost badge (sacral gauge) — necro cards only; items are free.
-      const costHtml = creature ? `<div class="hand-card-cost">${summonCost(tier)}</div>` : ''
-      el.innerHTML = `<div class="hand-card-art">${artHtml}</div>${costHtml}${starsHtml}<div class="hand-card-label">${card.label}</div>`
-      el.addEventListener('click', () => this.onCardClick(card.id))
-      this.container.appendChild(el)
+      el.classList.toggle('is-selected', card.id === selectedId)
+      el.classList.toggle('is-unaffordable', !this.affordFn(card))
     })
+
+    // The fan may have re-sorted under a resting cursor — re-aim the spread
+    // at the last known pointer instead of waiting for the next mousemove.
+    if (this.lastPointerX !== null) this.applySpreadAt(this.lastPointerX)
+  }
+
+  /** One-time card element construction — content is immutable per card id
+   * (merges produce a NEW card), so re-renders only touch vars/classes. */
+  private buildCardEl(card: HandCard, isNew: boolean): HTMLElement {
+    const el = document.createElement('button')
+    el.type = 'button'
+    el.dataset.cardId = card.id
+    const creature = card.kind ? undefined : getCreature(card.creatureId)
+    el.className = creature ? 'hand-card has-image' : 'hand-card'
+    if (card.kind === 'item') el.classList.add('hand-card--item')
+    if (card.kind === 'epic') el.classList.add('hand-card--epic')
+    if (card.tier === 2) el.classList.add('hand-card--tier2')
+    if (card.tier === 3) el.classList.add('hand-card--tier3')
+    if (isNew) el.classList.add('is-new')
+    // Necro cards preview the necromanced (after) form at the card's own
+    // tier — the ally you'll get on placement. Items show a vial, epics a
+    // sparkle facility star.
+    const artHtml = creature
+      ? `<img class="hand-card-image" src="${getAllyArt(creature.id, card.tier ?? 1)}" alt="" />`
+      : card.kind === 'item'
+        ? Icons.itemVial()
+        : card.kind === 'epic'
+          ? Icons.coinSparkle()
+          : Icons.enemyToken()
+    // Tier stars above the name — creature cards only (base = 1성, merged
+    // climbs 2성/3성). Items/epics carry no rank.
+    const tier = creature ? card.tier ?? 1 : 0
+    const starsHtml =
+      tier > 0
+        ? `<div class="hand-card-stars" aria-label="${tier}성">${'★'.repeat(tier)}</div>`
+        : ''
+    // Summon-cost badge (sacral gauge) — necro cards only; items are free.
+    const costHtml = creature ? `<div class="hand-card-cost">${summonCost(tier)}</div>` : ''
+    el.innerHTML = `<div class="hand-card-art">${artHtml}</div>${costHtml}${starsHtml}<div class="hand-card-label">${card.label}</div>`
+    el.addEventListener('click', () => this.onCardClick(card.id))
+    return el
   }
 
   /** Marks the given hand cards as merge candidates — each pulses in its own

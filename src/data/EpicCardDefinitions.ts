@@ -1,12 +1,14 @@
 // Epic facility cards — rare kill drops and checkpoint-shop stock. 'cell'
 // cards place a permanent effect on a grid cell; 'global' cards apply a
-// permanent, stackable buff the moment they're used on any cell. Effects
-// resolve in Game against the owning systems.
+// permanent, stackable buff the moment they're used on any cell; 'player'
+// cards buff 넥슈 personally and must be dropped ON the player's own cell
+// (only that cell beckons while aiming one). Effects resolve in Game
+// against the owning systems.
 export interface EpicCardDefinition {
   id: string
   label: string
   desc: string
-  kind: 'cell' | 'global'
+  kind: 'cell' | 'global' | 'player'
 }
 
 export const EPIC_CARDS: EpicCardDefinition[] = [
@@ -25,20 +27,20 @@ export const EPIC_CARDS: EpicCardDefinition[] = [
   {
     id: 'vitality-star',
     label: '심연의 심장',
-    desc: '넥슈의 최대 체력이 2 증가하고 그만큼 회복한다.',
-    kind: 'global',
+    desc: '넥슈의 최대 체력이 2 증가하고 그만큼 회복한다. 넥슈에게 사용한다.',
+    kind: 'player',
   },
   {
     id: 'sharpen-star',
     label: '벼려진 저주',
-    desc: '기본 공격의 피해가 영구히 1 증가한다.',
-    kind: 'global',
+    desc: '기본 공격의 피해가 영구히 1 증가한다. 넥슈에게 사용한다.',
+    kind: 'player',
   },
   {
     id: 'overload-star',
     label: '과부하 문양',
-    desc: '최대 사령 게이지가 영구히 2 증가한다.',
-    kind: 'global',
+    desc: '최대 사령 게이지가 영구히 2 증가한다. 넥슈에게 사용한다.',
+    kind: 'player',
   },
 ]
 
