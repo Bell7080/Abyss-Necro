@@ -821,7 +821,9 @@ export class Game {
   }
 
   /** The climax boss fell or was claimed — freeze the world and, after a beat
-   * so the finishing blow/capture reads, raise the 1st-ending veil. Fires once. */
+   * so the finishing blow/capture reads, dim the screen into 넥슈's farewell
+   * dialogue (every sea friend is made now); the victory veil then rises over
+   * it. Fires once. */
   private handleVictory(): void {
     if (this.runWon) return
     this.runWon = true
@@ -830,7 +832,9 @@ export class Game {
     this.disarmSkill()
     // Victory returns to the OST (again from its 40s mark).
     this.audio.playOst()
-    window.setTimeout(() => this.victoryOverlay.show(), 700)
+    window.setTimeout(() => {
+      new IntroDialogue(this.shellEl, { onComplete: () => this.victoryOverlay.show() }, 'ending')
+    }, 700)
   }
 
   /** The central 합성 button was pressed — run whichever merge is primed. */

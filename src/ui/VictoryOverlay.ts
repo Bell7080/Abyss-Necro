@@ -1,6 +1,7 @@
-// Full-screen victory veil — the 1st ending. A translucent dark blur over the
-// board (still faintly visible behind), with the cute-toned triumph copy on
-// top. Onward is a fresh run (page reload — no mid-run state survives).
+// Full-screen victory veil — the 1st ending. Rises OVER 넥슈's farewell
+// dialogue (IntroDialogue 'ending' mode) as a translucent dark blur, with the
+// cute-toned triumph copy on top. Onward is a fresh run (page reload — no
+// mid-run state survives); the button copy is a wink, not a label.
 export class VictoryOverlay {
   private readonly overlay: HTMLElement
 
@@ -11,9 +12,8 @@ export class VictoryOverlay {
       <div class="victory-veil"></div>
       <div class="victory-content">
         <div class="victory-kicker">승리</div>
-        <div class="victory-title">이제 모두 내 친구들이야!</div>
-        <div class="victory-sub">오늘 하루 재밌었지?</div>
-        <button type="button" class="victory-retry-button">처음으로</button>
+        <div class="victory-title">모두와 친구가 됐어!</div>
+        <button type="button" class="victory-retry-button">(다음에도 기대해줘)</button>
       </div>`
 
     this.overlay

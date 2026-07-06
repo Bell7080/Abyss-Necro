@@ -6,9 +6,12 @@ import { entityCardHtml } from '@ui/EntityCard'
 
 export interface IntroDialogueHandlers {
   /** Live rect of the wave HUD's "웨이브 N · MM:SS" text — the countdown's
-   * final beat blasts into it before the run actually starts. */
-  getWaveTimeRect: () => DOMRect | null
-  /** Fired once the countdown lands — Game wires this to startRun(). */
+   * final beat blasts into it before the run actually starts. Intro mode
+   * only; the ending has no countdown. */
+  getWaveTimeRect?: () => DOMRect | null
+  /** Intro: fired once the countdown lands (Game wires this to startRun()).
+   * Ending: fired after the last line — Game raises the victory veil OVER
+   * the still-visible dialogue. */
   onComplete: () => void
 }
 
@@ -68,15 +71,15 @@ function bubbleBurstHtml(): string {
   }).join('')
 }
 
-// 넥슈's opening cutscene — auto-plays once the title screen's board-reveal
-// finishes (see IntroOverlay), replacing the old "시작하기" button entirely.
-// A scripted line sequence with a typewriter reveal (click fast-forwards the
-// current line; once a line finishes, clicks are ignored for a beat, then a
-// click or a timeout advances), portrait swaps, and a staged prop show (enemy
+// 넥슈's cutscene dialogue, in two modes sharing one machinery/style.
+// 'intro' — auto-plays once the title screen's board-reveal finishes (see
+// IntroOverlay): typewriter lines, portrait swaps, a staged prop show (enemy
 // cards → necro'd allies → tier 2 → a tier-3 cameo) building to a countdown
-// that blasts into the wave HUD and actually starts the run. Display/sequence
-// only — the real state change (WaveSystem/AbilitySystem starting) happens in
-// Game.startRun(), fired via onComplete().
+// that blasts into the wave HUD and actually starts the run.
+// 'ending' — plays over the frozen board once the final boss (상어) falls:
+// the same dim/box/typing, a short farewell script, then onComplete raises
+// the victory veil OVER the dialogue (no dim-clear, no countdown).
+// Display/sequence only — real state changes stay in Game.
 export class IntroDialogue {
   private readonly root: HTMLElement
   private readonly cardsLayer: HTMLElement
@@ -95,7 +98,11 @@ export class IntroDialogue {
   private skipped = false
   private finishStarted = false
 
-  constructor(root: HTMLElement, private readonly handlers: IntroDialogueHandlers) {
+  constructor(
+    root: HTMLElement,
+    private readonly handlers: IntroDialogueHandlers,
+    private readonly mode: 'intro' | 'ending' = 'intro'
+  ) {
     this.root = document.createElement('div')
     this.root.className = 'intro-dialogue'
     this.root.innerHTML = `
@@ -156,7 +163,8 @@ export class IntroDialogue {
     this.root.classList.add('is-box-visible')
     await wait(250)
 
-    for (const line of this.buildScript()) {
+    const script = this.mode === 'ending' ? this.buildEndingScript() : this.buildScript()
+    for (const line of script) {
       if (this.skipped) break
       if (line.before) await line.before()
       await this.showLine(line)
@@ -207,6 +215,22 @@ export class IntroDialogue {
       {
         portrait: 2,
         text: '아무튼! 이제 놀이터로 가볼까?',
+        after: () => this.finish(),
+      },
+    ]
+  }
+
+  /** 1차 엔딩 — 최종 보스(상어)까지 사령해 "심해의 모든 친구"를 사귄 뒤의
+   * 작별 인사. 소품 연출 없이 대사만 흐르고, 마지막 줄에서 승리 베일이
+   * 이 대화창 위로 덮인다. */
+  private buildEndingScript(): ScriptLine[] {
+    return [
+      { portrait: 3, text: '드디어...! 모든 바다 생물들과 친구가 됐어!' },
+      { portrait: 2, text: '오늘 정말 재밌었지?' },
+      { portrait: 3, text: '다음에 또 놀자! 그때는 내가 더 재밌는 이야기를 많이 가져올게!' },
+      {
+        portrait: 3,
+        text: '더 발전된 우리를 기대해줘?',
         after: () => this.finish(),
       },
     ]
@@ -403,6 +427,12 @@ export class IntroDialogue {
     this.finishStarted = true
     // A skip mid-card-show would otherwise strand the prop cards on screen.
     void this.hideCards()
+    if (this.mode === 'ending') {
+      // The victory veil (z 600) rises OVER the still-lit dialogue (z 260) —
+      // no dim-clear, no countdown; the overlay's own fade owns the close.
+      this.handlers.onComplete()
+      return
+    }
     this.root.classList.add('is-dim-clearing')
     await wait(1000)
     this.root.classList.add('is-gone')
@@ -425,7 +455,7 @@ export class IntroDialogue {
     }
     if (!lastEl) return
 
-    const target = this.handlers.getWaveTimeRect()
+    const target = this.handlers.getWaveTimeRect?.() ?? null
     if (!target) return
     const from = lastEl.getBoundingClientRect()
     const dx = target.left + target.width / 2 - (from.left + from.width / 2)

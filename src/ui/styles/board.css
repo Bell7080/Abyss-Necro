@@ -2697,15 +2697,6 @@ body {
     0 4px 16px rgba(0, 0, 0, 0.85);
 }
 
-.victory-sub {
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  color: #f4ecff;
-  opacity: 0.92;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
-}
-
 .victory-retry-button {
   margin-top: 20px;
   padding: 20px 66px;
