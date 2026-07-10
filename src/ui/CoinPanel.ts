@@ -2,9 +2,8 @@ import { Icons } from '@ui/Icons'
 
 const POP_MS = 620
 
-// Top-left 별빛 readout — mirrors Unmelting's score-panel-total anatomy
-// (small letterspaced kicker row above a large glowing tabular number)
-// reinterpreted in the abyss cool palette. Kills always drop one coin
+// Top-left 별빛 readout — a small letterspaced kicker row above a large
+// glowing tabular number, in the abyss cool palette. Kills always drop one coin
 // (CoinDrop effect lands it on the ground, then BubbleBurst carries it
 // here); pulse() times a brief rise-and-glow beat to that arrival.
 export class CoinPanel {

@@ -2,10 +2,9 @@
  * BubbleBurst — travel-style visual effect for "kill drops a card/item/relic".
  *
  * Flat solid-color pieces from a small palette (no gradients, no glow) —
- * closely follows Unmelting's SquareBurst technique (snappy easing curve,
- * a grow-then-settle scale arc, outward-biased distance, slight per-burst
- * count variance) reinterpreted as circular "bubbles" for the abyss theme
- * instead of Unmelting's squares. `travelTo` carries pieces from an origin
+ * a snappy easing curve, a grow-then-settle scale arc, outward-biased
+ * distance, and slight per-burst count variance, rendered as circular
+ * "bubbles" for the abyss theme. `travelTo` carries pieces from an origin
  * point to a target point (the hand's next fan slot, a panel, etc.), arcing
  * upward like they're floating through water; `burstAt` scatters them
  * outward from one point for a stationary pop (e.g. a clash landing). Call
@@ -46,8 +45,8 @@ const STYLE_ID = 'bubble-burst-styles'
 // a flat 4-shade set rather than a single gradient sphere.
 const PALETTE = ['#0d3a52', '#1f6f8f', '#5fc2dd', '#d9f4ff']
 
-// Unmelting SquareBurst's exact snappy deceleration curve — reused here so
-// every flat-color burst across both games shares the same felt timing.
+// Snappy deceleration curve shared by every flat-color burst so they all
+// land with the same felt timing.
 const BURST_EASING = 'cubic-bezier(0.18, 0.78, 0.28, 1)'
 
 function getOverlay(): HTMLElement {

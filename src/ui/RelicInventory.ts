@@ -1,7 +1,7 @@
 import type { Relic } from '@entities/Relic'
 import { Icons } from '@ui/Icons'
 
-// Fan geometry — Unmelting's relic-stack math, shrunk for the dock corner:
+// Fan geometry — relic-stack math sized for the dock corner:
 // cards spread evenly within ±ROT/±SPREAD, and n≤~5 keeps the fixed steps.
 const MAX_ROT_STEP = 7
 const MAX_SPREAD_STEP = 20
@@ -9,7 +9,7 @@ const ROT_RANGE = 18
 const SPREAD_RANGE = 52
 const EDGE_LIFT = 8
 
-// Bottom-right relic dock, ported from Unmelting's owned-relic fan: relics
+// Bottom-right relic dock — an owned-relic fan: relics
 // rest as a tight overlapped hand of mini cards and spread open under the
 // cursor — the card under the pointer pins as the pivot, lifts and glows,
 // and its neighbours splay aside so any relic can be read without a click.
@@ -58,7 +58,7 @@ export class RelicInventory {
     })
   }
 
-  /** Cursor-tracked spread (Unmelting relic-stack port): transform-origin
+  /** Cursor-tracked spread: transform-origin
    * rotation does most of the fanning; the pivot card is snapped to a whole
    * index so the hovered card doesn't jitter under a moving mouse. Listeners
    * live on the persistent stack element, so re-renders need no re-attach. */

@@ -6,7 +6,7 @@ import { Icons } from '@ui/Icons'
 // so the 사령 stat reads what the passive line promises.
 const CRAB_GUARD_BONUS_HP = 4
 
-// 도감 — Unmelting's compendium launcher/hover idiom ported to the abyss:
+// 도감 — launcher/hover idiom:
 // a flat book icon that lifts and sparkles on hover, opening a translucent
 // deep-blue window. Rather than a scroll list, each creature gets its own
 // full-slide page (large before/after illustrations + stats), stepped through

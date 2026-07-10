@@ -23,9 +23,9 @@ export interface InspectorData {
   buffs?: string
 }
 
-// Right-side inspector panel — a port of Unmelting's hearth inspector
-// anatomy (full-bleed art on top, near-black gradient converging downward,
-// text block anchored at the vertical middle). Shows the selected hand card
+// Right-side inspector panel — full-bleed art on top, near-black gradient
+// converging downward, text block anchored at the vertical middle.
+// Shows the selected hand card
 // while aiming, and hovered board units / buffed cells otherwise.
 export class CardInspector {
   private readonly panel: HTMLElement

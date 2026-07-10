@@ -39,8 +39,8 @@ function sortForDisplay(cards: readonly HandCard[]): HandCard[] {
   })
 }
 
-// Bottom-center fan of cards — reuses Unmelting's relic-fan CSS-variable
-// trick (--hand-x/--hand-y/--hand-rot per card) rather than per-card inline
+// Bottom-center fan of cards — uses the same CSS-variable trick as the relic
+// fan (--hand-x/--hand-y/--hand-rot per card) rather than per-card inline
 // transforms, so hover/hand-count changes stay pure CSS. Clicking a card
 // selects it for placement; Game.ts decides what happens next.
 export class CardHand {
@@ -239,7 +239,7 @@ export class CardHand {
     return this.container.querySelector<HTMLElement>(`[data-card-id="${cardId}"]`)?.getBoundingClientRect() ?? null
   }
 
-  /** Unmelting-style jelly merge: the outer two cards magnetize onto the
+  /** Jelly merge: the outer two cards magnetize onto the
    * middle one with an elastic snap, the core squashes-and-stretches with a
    * sparkle row while they dissolve into it, then onMerged swaps the model
    * (whose re-render pops the merged card). Display only — card state moves

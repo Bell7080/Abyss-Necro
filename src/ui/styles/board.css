@@ -961,7 +961,7 @@ body {
   box-shadow: inset 0 0 0 1px rgba(255, 120, 120, 0.55);
 }
 
-/* ---------- Hand triple-merge (Unmelting jelly-merge language) ---------- */
+/* ---------- Hand triple-merge (jelly-merge language) ---------- */
 /* Outer two cards snap onto the core card with an elastic ease, dissolve
    into it while the core squashes-and-stretches, then the re-render pops
    the merged tier-2 result. */
@@ -990,7 +990,7 @@ body {
   animation: hand-merge-jelly 0.54s cubic-bezier(0.16, 0.9, 0.18, 1);
 }
 
-/* Same squash-stretch beats as Unmelting's hand-merge-jelly, restated on
+/* Squash-stretch merge beats, restated on
    top of this fan's CSS-variable transform chain. */
 @keyframes hand-merge-jelly {
   0% {
@@ -1189,7 +1189,7 @@ body {
   text-shadow: 0 0 10px rgba(150, 110, 255, 0.4);
 }
 
-/* Owned relics rest as a tight overlapped fan (Unmelting's relic-stack port)
+/* Owned relics rest as a tight overlapped fan
    and spread open under the cursor — the pivot/spread math lives in
    RelicInventory (--relic-* base fan, --relic-extra-* hover offsets). */
 .relic-stack {
@@ -1293,7 +1293,7 @@ body {
 
 /* ---------- Entity card (full-illustration style, shared by board tokens) ---------- */
 /* Frame recipe (inset highlight / inset bottom-darken / outer shadow / outer
-   glow) mirrors Unmelting's .player-card; art is a full-bleed absolute layer
+   glow) is shared by every entity card; art is a full-bleed absolute layer
    since we have no real illustrations yet — `art` is a flat-icon watermark
    silhouette standing in until the 40-enemy/player roster ships. */
 
@@ -1697,7 +1697,7 @@ body {
 }
 
 /* ---------- Card inspector (left, while a hand card is held) ---------- */
-/* Unmelting's hearth inspector anatomy verbatim, on the right edge:
+/* Inspector anatomy, on the right edge:
    full-bleed art up top masked into a near-black downward gradient, text
    block anchored at the vertical middle, fading out toward the board on its
    left side. */
@@ -2900,8 +2900,8 @@ body {
 }
 
 /* ---------- Coin panel (top-left) ---------- */
-/* Unmelting's 불빛/화폐 top-left panel, reinterpreted in the cool abyss
-   palette — same sparkle-diamond glyph, cyan instead of candle-gold. No back
+/* Top-left currency panel in the cool abyss
+   palette — sparkle-diamond glyph in cyan. No back
    plate at all: the interior is fully transparent and the region is bounded by
    just two glowing cyan lines, top and bottom (::before / ::after) — the
    number is the only lit thing between them. */
@@ -2999,7 +2999,7 @@ body {
     0 0 18px rgba(90, 190, 235, 0.3);
 }
 
-/* Gain "ding" (Unmelting score-slot-pop ported onto the number): a
+/* Gain "ding" on the number: a
    squash-and-stretch bounce with a brightness/saturation flash. */
 .coin-panel.is-gain .coin-panel-count {
   animation: coin-slot-pop 0.6s cubic-bezier(0.16, 0.9, 0.22, 1);
@@ -3009,7 +3009,7 @@ body {
     0 0 26px rgba(127, 232, 255, 0.55);
 }
 
-/* Two sparkle rows arcing off in opposite diagonals (Unmelting dual-sparks). */
+/* Two sparkle rows arcing off in opposite diagonals. */
 .coin-panel.is-gain .coin-panel-count::after {
   content: '✦ ✧ ✦';
   position: absolute;
@@ -4208,7 +4208,7 @@ body {
 /* ---------- 도감 (codex) ---------- */
 /* Floating launcher (bottom-left, to the left of the hand fan — mirrors the
    relic dock on the right): a flat book glyph with a label that fades in on
-   hover, lifting + sparkling — Unmelting's compendium-btn idiom in the abyss
+   hover, lifting + sparkling — in the abyss
    cyan-lavender palette. */
 .codex-launcher {
   position: fixed;
